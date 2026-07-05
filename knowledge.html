@@ -1,12 +1,12 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>HOS v0.4 | Knowledge</title><link rel="stylesheet" href="style.css"></head><body>
-<header><div class="header-inner"><h1>📚 Knowledge</h1><p>用語を辞書的に置くのではなく、ProjectやBrainと接続して保存する場所。</p></div></header><nav><div class="nav-inner"><a href="index.html">Home</a><a href="inbox.html">Inbox</a><a href="brain.html">Brain</a><a href="projects.html">Projects</a><a class="active" href="knowledge.html">Knowledge</a></div></nav>
-<main><section class="section"><h2>Starter Knowledge Cards</h2><div class="grid knowledge-grid">
-<div class="panel knowledge-card"><h3>ROIC</h3><dl><dt>意味</dt><dd>投下資本に対してどれだけ利益を生んだかを見る資本効率の指標。</dd><dt>なぜ重要か</dt><dd>成長の質や事業ポートフォリオの強さを判断できる。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳</dd><dt>関連Project</dt><dd>Honda / グロービス学習</dd></dl></div>
-<div class="panel knowledge-card"><h3>福利厚生ROI</h3><dl><dt>意味</dt><dd>福利厚生への投資が採用・定着・生産性にどう返るかを見る考え方。</dd><dt>なぜ重要か</dt><dd>制度を感覚ではなく経営言語で説明できる。</dd><dt>関連Brain</dt><dd>人事脳 / 経営脳</dd><dt>関連Project</dt><dd>福利厚生3.0</dd></dl></div>
-<div class="panel knowledge-card"><h3>採用背景</h3><dl><dt>意味</dt><dd>求人票の裏にある事業課題・組織課題・現場の困りごと。</dd><dt>なぜ重要か</dt><dd>候補者提案の精度と求人理解の深さが上がる。</dd><dt>関連Brain</dt><dd>人材市場脳 / 人事脳</dd><dt>関連Project</dt><dd>Honda</dd></dl></div>
-<div class="panel knowledge-card"><h3>資本配分</h3><dl><dt>意味</dt><dd>投資、配当、自社株買い、M&Aへ資本をどう振り分けるかの意思決定。</dd><dt>なぜ重要か</dt><dd>経営者が長期価値をどう作るかが見える。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳 / 金融脳</dd><dt>関連Project</dt><dd>Honda</dd></dl></div>
-<div class="panel knowledge-card"><h3>競争優位</h3><dl><dt>意味</dt><dd>他社よりも継続的に選ばれ、利益を出せる強み。</dd><dt>なぜ重要か</dt><dd>戦略評価や企業比較の中心軸になる。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳</dd><dt>関連Project</dt><dd>Honda / グロービス学習</dd></dl></div>
-<div class="panel knowledge-card"><h3>中期経営計画</h3><dl><dt>意味</dt><dd>企業が数年単位で示す戦略、KPI、投資方針、成長シナリオ。</dd><dt>なぜ重要か</dt><dd>企業の優先順位と採用・投資テーマを読み取れる。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳 / 人事脳</dd><dt>関連Project</dt><dd>Honda</dd></dl></div>
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>HOS v0.5 | Knowledge</title><link rel="stylesheet" href="style.css"></head><body>
+<header><div class="header-inner"><h1>📚 Knowledge</h1><p>用語を辞書的に置くのではなく、ProjectやBrainと接続して保存する場所。</p></div></header><nav><div class="nav-inner"><div class="nav-links"><a href="index.html">Home</a><a href="inbox.html">Inbox</a><a href="brain.html">Brain</a><a href="projects.html">Projects</a><a class="active" href="knowledge.html">Knowledge</a></div><div class="global-search" role="search"><label class="sr-only" for="globalSearch">HOS全体を検索</label><input id="globalSearch" type="search" placeholder="Projects / Brain / Knowledgeを検索" autocomplete="off"><div id="searchResults" class="search-results" aria-live="polite"></div></div></div></nav>
+<main><section class="section" id="knowledge-cards"><h2>Starter Knowledge Cards</h2><div class="grid knowledge-grid">
+<div class="panel knowledge-card" id="roic"><h3>ROIC</h3><dl><dt>意味</dt><dd>投下資本に対してどれだけ利益を生んだかを見る資本効率の指標。</dd><dt>なぜ重要か</dt><dd>成長の質や事業ポートフォリオの強さを判断できる。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳</dd><dt>関連Project</dt><dd>Honda / グロービス学習</dd></dl></div>
+<div class="panel knowledge-card" id="benefits-roi"><h3>福利厚生ROI</h3><dl><dt>意味</dt><dd>福利厚生への投資が採用・定着・生産性にどう返るかを見る考え方。</dd><dt>なぜ重要か</dt><dd>制度を感覚ではなく経営言語で説明できる。</dd><dt>関連Brain</dt><dd>人事脳 / 経営脳</dd><dt>関連Project</dt><dd>福利厚生3.0</dd></dl></div>
+<div class="panel knowledge-card" id="hiring-context"><h3>採用背景</h3><dl><dt>意味</dt><dd>求人票の裏にある事業課題・組織課題・現場の困りごと。</dd><dt>なぜ重要か</dt><dd>候補者提案の精度と求人理解の深さが上がる。</dd><dt>関連Brain</dt><dd>人材市場脳 / 人事脳</dd><dt>関連Project</dt><dd>Honda</dd></dl></div>
+<div class="panel knowledge-card" id="capital-allocation"><h3>資本配分</h3><dl><dt>意味</dt><dd>投資、配当、自社株買い、M&Aへ資本をどう振り分けるかの意思決定。</dd><dt>なぜ重要か</dt><dd>経営者が長期価値をどう作るかが見える。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳 / 金融脳</dd><dt>関連Project</dt><dd>Honda</dd></dl></div>
+<div class="panel knowledge-card" id="competitive-advantage"><h3>競争優位</h3><dl><dt>意味</dt><dd>他社よりも継続的に選ばれ、利益を出せる強み。</dd><dt>なぜ重要か</dt><dd>戦略評価や企業比較の中心軸になる。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳</dd><dt>関連Project</dt><dd>Honda / グロービス学習</dd></dl></div>
+<div class="panel knowledge-card" id="midterm-plan"><h3>中期経営計画</h3><dl><dt>意味</dt><dd>企業が数年単位で示す戦略、KPI、投資方針、成長シナリオ。</dd><dt>なぜ重要か</dt><dd>企業の優先順位と採用・投資テーマを読み取れる。</dd><dt>関連Brain</dt><dd>経営脳 / 投資脳 / 人事脳</dd><dt>関連Project</dt><dd>Honda</dd></dl></div>
 </div></section><section class="section"><h2>Knowledgeテンプレ</h2><pre>用語：
 意味：
 なぜ重要か：
@@ -14,4 +14,4 @@
 関連Project：
 具体例：
 面接・業務での使い方：
-次に考える問い：</pre></section></main></body></html>
+次に考える問い：</pre></section></main><script src="script.js"></script></body></html>
