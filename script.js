@@ -1,0 +1,2 @@
+function copyPrompt(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.innerText).then(()=>alert("コピーした。あとはChatGPTかClaudeに貼るだけ。"))}
+function buildInboxPrompt(){const val=document.getElementById("inboxText")?.value||"";const out=`HOSのInboxに以下の依頼を入れます。\n\n依頼内容：\n${val}\n\n次の形式で整理してください。\n1. これはどのBrainで考えるべきか\n2. 使うSkill\n3. Projectに保存すべき内容\n4. 最初のアウトプット\n5. 次に考える問い`;document.getElementById("inboxPrompt").innerText=out}
