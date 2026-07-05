@@ -1,6 +1,6 @@
-# 🧠 HOS v0.4 (Hichan Operating System)
+# 🧠 HOS v0.7 (Hichan Operating System)
 
-思考を資産化するための個人OS。v0.4では、稼働Projectを作業場として使いやすくし、Honda、福利厚生3.0、グロービス学習をAIにすぐ投げられるコピー可能なプロンプトと接続します。
+思考を資産化するための個人OS。v0.7では、Knowledgeを定義・重要性・関連Brain・関連Project・関連Skill・次に考える問いを持つカード型の個人知識ベースへ拡張します。
 
 ## Pages
 - Home / Dashboard: `index.html`
@@ -12,13 +12,13 @@
 - Projects: `projects.html`
   Honda、福利厚生3.0、グロービス学習を、目的・使用Brain・使用Skill・現状メモ・思考ログ・次アクション・成果物・次に考える問い・AIプロンプトまで含む稼働ワークスペースとして育てる場所。
 - Knowledge: `knowledge.html`
-  ROIC、福利厚生ROI、採用背景などの概念をBrainとProjectに接続して再利用する場所。
+  ROIC、福利厚生ROI、採用背景などの概念を、カテゴリ・タグ・難易度・最近追加・よく使う付きのKnowledge Cardとして育てる場所。
 
-## v0.4で追加したこと
-- 稼働Projectを詳細な作業場として展開。
-- 各Projectに日本語のコピー可能なAIプロンプトを追加。
-- Dashboardに「今日動かすProject」と3つの稼働Projectへのクイックリンクを追加。
-- BrainにProject別の使用例を追加。
+## v0.7で追加したこと
+- Knowledgeを成長する個人知識ベースとして再設計。
+- Knowledge Cardにタイトル、定義、なぜ重要か、関連Brain、関連Project、関連Skill、次に考える問いを追加。
+- カテゴリ、タグ、難易度で知識を分類。
+- 「最近追加」と「よく使う」で復習・再利用しやすい導線を追加。
 
 ## Philosophy
 Think First. Build Second.
