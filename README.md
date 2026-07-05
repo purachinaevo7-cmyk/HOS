@@ -10,7 +10,8 @@
 - Brain: `brain.html`
   OS憲法、Compass、Brainの使い方を確認し、入力に合う思考モードを選ぶ場所。
 - Projects: `projects.html`
-  Honda、SMBC、MUFG、福利厚生3.0、グロービス学習を目的・思考ログ・次アクション・成果物として育てる場所。
+  Honda、福利厚生3.0、グロービス学習を目的・思考ログ・次アクション・成果物として育てる場所。
+  SMBC and MUFG are excluded from the current HOS learning/project scope.
 - Knowledge: `knowledge.html`
   ROIC、福利厚生ROI、採用背景などの概念をBrainとProjectに接続して再利用する場所。
 
