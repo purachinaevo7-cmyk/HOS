@@ -1,5 +1,6 @@
-function copyPrompt(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.innerText).then(()=>alert("コピーした。あとはChatGPTかClaudeに貼るだけ。"))}
-function buildInboxPrompt(){const val=document.getElementById("inboxText")?.value.trim()||"（ここに未整理の入力を入れる）";const out=`HOS v0.5のInboxに以下の入力を入れます。\n\n入力内容：\n${val}\n\n以下の形式で、事実と解釈を分けながら整理してください。UIテキストは日本語で、日次OSとして次に動ける粒度にしてください。\n\n1. どのBrainで考えるべきか\n- 主Brain：\n- 補助Brain：\n- 理由：\n\n2. 使うSkill\n- 使用Skill：\n- 使う目的：\n\n3. 紐づけるProject\n- 関連Project：\n- 新規Project化の必要性：\n\n4. 事実\n- 入力から確認できる事実：\n- まだ不明な事実：\n\n5. 解釈\n- いま考えられる仮説：\n- 注意すべき思い込み：\n\n6. 次に考える問い\n- 問い1：\n- 問い2：\n- 問い3：\n\n7. 最初のアウトプット案\n- 形式：\n- 見出し案：\n- まず書く内容：`;document.getElementById("inboxPrompt").innerText=out}
+function showToast(message){let toast=document.getElementById("hosToast");if(!toast){toast=document.createElement("div");toast.id="hosToast";toast.className="toast";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");document.body.appendChild(toast)}toast.textContent=message;toast.classList.add("show");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("show"),2200)}
+function copyPrompt(id){const el=document.getElementById(id);if(!el)return;const text=el.innerText;navigator.clipboard.writeText(text).then(()=>showToast("プロンプトをコピーしました"))}
+function buildInboxPrompt(){const val=document.getElementById("inboxText")?.value.trim()||"（ここに未整理の入力を入れる）";const out=`HOS v0.6のInboxに以下の入力を入れます。\n\n入力内容：\n${val}\n\n以下の形式で、事実と解釈を分けながら整理してください。UIテキストは日本語で、日次OSとして次に動ける粒度にしてください。\n\n1. どのBrainで考えるべきか\n- 主Brain：\n- 補助Brain：\n- 理由：\n\n2. 使うSkill\n- 使用Skill：\n- 使う目的：\n\n3. 紐づけるProject\n- 関連Project：\n- 新規Project化の必要性：\n\n4. 事実\n- 入力から確認できる事実：\n- まだ不明な事実：\n\n5. 解釈\n- いま考えられる仮説：\n- 注意すべき思い込み：\n\n6. 次に考える問い\n- 問い1：\n- 問い2：\n- 問い3：\n\n7. 最初のアウトプット案\n- 形式：\n- 見出し案：\n- まず書く内容：`;document.getElementById("inboxPrompt").innerText=out}
 
 const HOS_SEARCH_INDEX=[
 {type:"Dashboard",title:"今日のHOS",url:"index.html#dashboard",text:"Dashboard 日次OS 今日動かすProject Inbox Brain Skill AIプロンプト Honda 福利厚生3.0 グロービス学習 次に考える問い"},
@@ -8,6 +9,12 @@ const HOS_SEARCH_INDEX=[
 {type:"Projects",title:"Honda",url:"projects.html#honda",text:"Honda HOS-PJ-001 企業分析 経営戦略 競争優位 財務 人事 EV SDV Toyota Nissan 企業分析Skill 競合比較Skill 財務分解Skill 採用背景分解Skill"},
 {type:"Projects",title:"福利厚生3.0",url:"projects.html#benefits",text:"福利厚生3.0 HOS-PJ-002 人事制度 福利厚生 採用 定着 エンゲージメント 生産性 ROI 制度設計Skill 対象層分解Skill 社内説明Skill"},
 {type:"Projects",title:"グロービス学習",url:"projects.html#globis",text:"グロービス学習 HOS-PJ-003 学習 経営戦略 教材 ドリル ケース分析Skill 教材化Skill 復習Skill 理解度ドリル作成Skill"},
+{type:"Prompts",title:"Prompt Library",url:"prompts.html#prompt-library",text:"プロンプトライブラリ AI Launcher 経営 人事 学習 レビュー 投資 ChatGPT Claude Codex"},
+{type:"Prompts",title:"経営",url:"prompts.html#management",text:"企業分析 戦略レビュー 経営脳 ビジョン 事業構造 競争優位 財務 KPI"},
+{type:"Prompts",title:"人事",url:"prompts.html#hr",text:"制度設計 採用背景 福利厚生 ROI 対象者 経営課題 運用負荷"},
+{type:"Prompts",title:"学習",url:"prompts.html#learning",text:"教材化 復習ドリル 学習メモ 具体例 理解度ドリル"},
+{type:"Prompts",title:"レビュー",url:"prompts.html#review",text:"文章レビュー 意思決定レビュー 論理構成 判断基準 リスク"},
+{type:"Prompts",title:"投資",url:"prompts.html#investment",text:"投資仮説 決算メモ 成長ドライバー 資本配分 バリュエーション"},
 {type:"Brain",title:"OS憲法",url:"brain.html#constitution",text:"構造 事実と解釈 比較 経営 財務 人事 市場 目的 抽象 具体 次に考える問い"},
 {type:"Brain",title:"Compass",url:"brain.html#compass",text:"目的 本質課題 全体最適 長期価値 リスク 次の一手"},
 {type:"Brain",title:"Brain一覧",url:"brain.html#brains",text:"経営脳 人事脳 金融脳 投資脳 学習脳 体験設計脳 戦略 競争優位 財務 採用 育成 制度 福利厚生 M&A 資本政策"},
