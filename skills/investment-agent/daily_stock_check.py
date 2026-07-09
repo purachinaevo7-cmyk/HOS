@@ -122,7 +122,7 @@ def _log_run_context(now: datetime, mode: str, expected_date: date, reason: str)
 
 
 def _retry_required(result: FetchResult) -> bool:
-    return bool(result.missing) or result.topix_source_status != "一致"
+    return bool(result.missing) or result.topix_source_status not in {"通常判定", "一致"}
 
 
 def _price_from_json(row: dict[str, Any]) -> PriceRecord:

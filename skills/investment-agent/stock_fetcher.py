@@ -189,6 +189,16 @@ class StooqProvider:
     name = "Stooq"
 
     def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        import pandas as pd
+
+        code = _normalize_code(symbol)
+        for stooq_symbol in (f"{code}.jp", f"{code}.jp?d=", code):
+            url = f"https://stooq.com/q/d/l/?s={stooq_symbol}&i=d"
+            df = pd.read_csv(url)
+            row, prev = _valid_current_and_previous_rows(df, expected_date)
+            if row is None or prev is None:
+                continue
+            return PriceRecord(code, name, float(row["Close"]), float(prev["Close"]), _row_date(row), self.name, volatility)
         return None
 
     def fetch_topix(self, expected_date: date) -> TopixRecord | None:
@@ -246,6 +256,32 @@ class InvestingComProvider:
         if current_idx is None or current_idx == 0:
             return None
         return TopixRecord(self.name, rows[current_idx][1], rows[current_idx - 1][1], expected_date)
+
+
+class KabutanProvider:
+    name = "Kabutan"
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return _fetch_stock_from_japanese_quote_page(
+            f"https://kabutan.jp/stock/kabuka?code={_normalize_code(symbol)}",
+            symbol, name, volatility, expected_date, self.name,
+        )
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        return None
+
+
+class MinkabuProvider:
+    name = "みんかぶ"
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return _fetch_stock_from_japanese_quote_page(
+            f"https://minkabu.jp/stock/{_normalize_code(symbol)}/daily_bar",
+            symbol, name, volatility, expected_date, self.name,
+        )
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        return None
 
 
 class TopixEtfMedianProvider(YahooFinanceProvider):
@@ -394,6 +430,43 @@ def _row_date(row) -> date:
     return value.date() if hasattr(value, "date") else value
 
 
+
+def _parse_float(value: object) -> float | None:
+    import re
+    text = str(value).replace(",", "")
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    return float(match.group(0)) if match else None
+
+
+def _fetch_stock_from_japanese_quote_page(url: str, symbol: str, name: str, volatility: str, expected_date: date, provider_name: str) -> PriceRecord | None:
+    """Best-effort parser for Kabutan/Minkabu daily quote tables."""
+    import pandas as pd
+    import requests
+
+    response = requests.get(url, headers={"User-Agent": YahooFinanceProvider.user_agent}, timeout=20)
+    response.raise_for_status()
+    tables = pd.read_html(response.text)
+    for table in tables:
+        if table.empty:
+            continue
+        date_col = next((c for c in table.columns if "日付" in str(c) or str(c).lower() in {"date", "年月日"}), None)
+        close_col = next((c for c in table.columns if "終値" in str(c) or str(c).lower() == "close"), None)
+        if date_col is None or close_col is None:
+            continue
+        df = table[[date_col, close_col]].copy()
+        df[date_col] = pd.to_datetime(df[date_col], errors="coerce").dt.date
+        df["Close"] = df[close_col].map(_parse_float)
+        df = df.dropna().sort_values(date_col)
+        current = df[df[date_col] == expected_date]
+        if current.empty:
+            continue
+        idx = current.index[-1]
+        prior = df[df[date_col] < expected_date].tail(1)
+        if prior.empty:
+            continue
+        return PriceRecord(_normalize_code(symbol), name, float(df.loc[idx, "Close"]), float(prior.iloc[-1]["Close"]), expected_date, provider_name, volatility)
+    return None
+
 def _valid_current_and_previous_rows(history, expected_date: date):
     if history is None or len(history) < 2:
         return None, None
@@ -412,10 +485,7 @@ def _valid_current_and_previous_rows(history, expected_date: date):
 
 
 def default_providers() -> list[PriceProvider]:
-    providers: list[PriceProvider] = [YahooFinanceProvider()]
-    if os.getenv("ALPHAVANTAGE_API_KEY"):
-        providers.append(AlphaVantageProvider())
-    return providers
+    return [YahooFinanceProvider(), StooqProvider(), KabutanProvider(), MinkabuProvider()]
 
 
 
@@ -424,28 +494,64 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
     active_providers = providers or default_providers()
     prices: list[PriceRecord] = []
     missing: list[MissingRecord] = []
+    yahoo_failures = 0
+    yahoo_attempts = 0
+
     for item in watchlist:
         code, name, volatility = str(item["code"]), str(item.get("name", item["code"])), str(item["volatility"])
-        record = None; failures: list[str] = []
+        record: PriceRecord | None = None
+        failures: list[str] = []
+        attempted: list[str] = []
+        provider_logs: list[str] = [code]
         for provider in active_providers:
+            attempted.append(provider.name)
+            provider_ok = False
+            provider_reason = "データなし"
             for symbol in symbol_patterns(code):
                 try:
                     candidate = provider.fetch_stock(symbol, name, volatility, trade_date)
                 except Exception as exc:
-                    failures.append(f"{provider.name}/{symbol}: {exc}"); continue
+                    provider_reason = str(exc)
+                    failures.append(f"{provider.name}/{symbol}: {exc}")
+                    continue
                 if candidate is None:
-                    failures.append(f"{provider.name}/{symbol}: データなし"); continue
+                    failures.append(f"{provider.name}/{symbol}: データなし")
+                    continue
                 if candidate.price_date != trade_date:
-                    failures.append(f"{provider.name}/{symbol}: 日付不一致({candidate.price_date})"); continue
+                    provider_reason = f"日付不一致({candidate.price_date})"
+                    failures.append(f"{provider.name}/{symbol}: {provider_reason}")
+                    continue
+                # close / previous_close / change validation
+                try:
+                    _ = percent_change(candidate.close, candidate.previous_close)
+                except Exception as exc:
+                    provider_reason = f"価格検証失敗({exc})"
+                    failures.append(f"{provider.name}/{symbol}: {provider_reason}")
+                    continue
                 record = PriceRecord(code, name, candidate.close, candidate.previous_close, candidate.price_date, provider.name, volatility)
+                provider_ok = True
                 break
+            provider_logs.append(f"{provider.name}:成功" if provider_ok else f"{provider.name}:失敗")
+            if provider.name == YahooFinanceProvider.name:
+                yahoo_attempts += 1
+                if not provider_ok:
+                    yahoo_failures += 1
             if record:
                 break
+        for provider in active_providers:
+            if provider.name not in attempted:
+                provider_logs.append(f"{provider.name}:未実施")
+        print("\n".join(provider_logs))
         (prices.append(record) if record else missing.append(MissingRecord(code, name, "; ".join(failures) or "要確認（データ未取得）")))
 
-    topix_records: list[TopixRecord] = []; topix_missing: list[str] = []
-    adopted_records: list[TopixRecord] = []
+    if yahoo_attempts and yahoo_attempts == len(watchlist) and yahoo_failures == len(watchlist):
+        print("Yahoo Finance障害の可能性")
+
+    topix_records: list[TopixRecord] = []
+    topix_missing: list[str] = []
     active_topix_providers = default_topix_providers() if topix_providers is None else topix_providers
+    selected_direct: TopixRecord | None = None
+    selected_etf: TopixRecord | None = None
     for provider in active_topix_providers:
         if isinstance(provider, JPXProvider) and not provider.is_configured():
             message = "JPX: スキップ（JPX_TOPIX_CSV_URL未設定）"
@@ -463,42 +569,34 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         if topix.price_date != trade_date:
             topix_missing.append(_format_topix_failure(provider.name, trade_date, f"日付不一致 {topix.price_date}"))
             continue
+        try:
+            _ = topix.change_percent
+        except Exception as exc:
+            topix_missing.append(_format_topix_failure(provider.name, trade_date, f"価格検証失敗 {exc}"))
+            continue
         topix_records.append(topix)
         topix_missing.append(_format_topix_success(topix))
         if topix.components:
-            topix_missing.extend(_format_topix_success(component) for component in topix.components)
+            for component in topix.components:
+                topix_missing.append(_format_topix_success(component))
+            topix_missing.append(f"中央値: {topix.change_percent:.2f}%")
         if topix.provider == TopixEtfMedianProvider.name:
-            continue
-        direct_records = [record for record in topix_records if record.provider != TopixEtfMedianProvider.name]
-        matching_prior = next((prior for prior in direct_records[:-1] if abs(prior.change_percent - topix.change_percent) <= 0.30), None)
-        if matching_prior is not None:
-            adopted_records = [matching_prior, topix]
+            selected_etf = topix
             break
-    if adopted_records:
-        changes = [t.change_percent for t in adopted_records]
-        status = "一致"
-        change = round(median(changes), 2)
-        source = "/".join(t.provider for t in adopted_records)
-    else:
-        direct_records = [record for record in topix_records if record.provider != TopixEtfMedianProvider.name]
-        etf_record = next((record for record in topix_records if record.provider == TopixEtfMedianProvider.name), None)
-        if etf_record is not None and len(direct_records) < 2:
-            status = "代替（TOPIX ETF中央値）"
-            change = etf_record.change_percent
-            source = etf_record.provider
-        elif len(direct_records) == 1:
-            only = direct_records[0]
-            status = "要確認（TOPIX 1ソースのみ）" if not missing else "要確認"
-            change = None
-            source = only.provider
-        elif len(direct_records) >= 2:
-            status = "要確認（指数値不一致）"
-            change = None
-            source = "/".join(t.provider for t in direct_records)
-        else:
-            status, change, source = "要確認", None, "未取得"
-    return FetchResult(prices, missing, change, status, source, trade_date, topix_records, topix_missing)
+        selected_direct = topix
+        break
 
+    if selected_direct is not None:
+        status = "通常判定"
+        change = selected_direct.change_percent
+        source = selected_direct.provider
+    elif selected_etf is not None:
+        status = "TOPIX ETF中央値（参考判定）"
+        change = selected_etf.change_percent
+        source = selected_etf.provider
+    else:
+        status, change, source = "判定保留", None, "未取得"
+    return FetchResult(prices, missing, change, status, source, trade_date, topix_records, topix_missing)
 
 def _serialize_topix(topix: TopixRecord) -> dict:
     payload = asdict(topix) | {"price_date": topix.price_date.isoformat(), "change_percent": topix.change_percent}

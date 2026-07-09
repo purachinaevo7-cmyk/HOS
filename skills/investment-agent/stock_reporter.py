@@ -6,7 +6,7 @@ from typing import Any
 
 from stock_analyzer import AnalyzedStock, MissingRecord, PriceRecord
 
-REFERENCE_STATUS = "代替（TOPIX ETF中央値）"
+REFERENCE_STATUS = "TOPIX ETF中央値（参考判定）"
 
 
 def _fmt_pct(value: float | None) -> str:
@@ -32,7 +32,7 @@ def _section(title: str, stocks: list[AnalyzedStock], topix_pending: bool) -> li
 
 
 def _is_reference_judgement(topix_source_status: str) -> bool:
-    return topix_source_status == REFERENCE_STATUS
+    return topix_source_status in {REFERENCE_STATUS, "代替（TOPIX ETF中央値）"}
 
 
 def generate_report(

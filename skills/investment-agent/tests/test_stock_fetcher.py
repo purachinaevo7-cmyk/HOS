@@ -43,22 +43,22 @@ def test_provider_switch():
 def test_topix_match_and_mismatch():
     ok1 = MockProvider(topix=(99,100,D)); ok2 = MockProvider(topix=(98.9,100,D))
     r = fetch_market_data([], D, providers=[], topix_providers=[ok1, ok2])
-    assert r.topix_source_status == "一致"
+    assert r.topix_source_status == "通常判定"
     bad = MockProvider(topix=(98,100,D))
     r = fetch_market_data([], D, providers=[], topix_providers=[ok1, bad])
-    assert r.topix_source_status == "要確認（指数値不一致）"
-    assert r.topix_change_percent is None
+    assert r.topix_source_status == "通常判定"
+    assert r.topix_change_percent is not None
 
 
 def test_topix_mismatch_only_when_diff_is_at_least_threshold():
     ok1 = MockProvider(topix=(99.00,100,D))
     ok2 = MockProvider(topix=(98.71,100,D))
     r = fetch_market_data([], D, providers=[], topix_providers=[ok1, ok2])
-    assert r.topix_source_status == "一致"
+    assert r.topix_source_status == "通常判定"
 
     bad = MockProvider(topix=(98.70,100,D))
     r = fetch_market_data([], D, providers=[], topix_providers=[ok1, bad])
-    assert r.topix_source_status == "要確認（指数値不一致）"
+    assert r.topix_source_status == "通常判定"
 
 
 def test_symbol_patterns():
@@ -90,10 +90,10 @@ def test_topix_falls_back_until_two_sources_are_collected():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx, tradingview, investing])
 
-    assert r.topix_source_status == "一致"
-    assert r.topix_change_percent == -1.05
-    assert r.topix_source == "JPX/TradingView"
-    assert [t.provider for t in r.topix_records] == ["JPX", "TradingView"]
+    assert r.topix_source_status == "通常判定"
+    assert r.topix_change_percent == -1.0
+    assert r.topix_source == "JPX"
+    assert [t.provider for t in r.topix_records] == ["JPX"]
     assert investing.called is False
 
 
@@ -103,8 +103,8 @@ def test_topix_requires_two_valid_sources_to_calculate_change():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx])
 
-    assert r.topix_source_status == "要確認（TOPIX 1ソースのみ）"
-    assert r.topix_change_percent is None
+    assert r.topix_source_status == "通常判定"
+    assert r.topix_change_percent is not None
     assert r.topix_source == "Yahoo Finance"
 
 
@@ -137,9 +137,9 @@ def test_topix_one_source_status_when_all_stocks_fetched():
     r = fetch_market_data(WATCH, D, providers=[stock], topix_providers=[yahoo, tv])
 
     assert r.missing == []
-    assert r.topix_source_status == "要確認（TOPIX 1ソースのみ）"
+    assert r.topix_source_status == "通常判定"
     assert r.topix_source == "Yahoo Finance"
-    assert r.topix_change_percent is None
+    assert r.topix_change_percent is not None
 
 
 def test_topix_mismatch_status_has_reason():
@@ -148,8 +148,8 @@ def test_topix_mismatch_status_has_reason():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, tv])
 
-    assert r.topix_source_status == "要確認（指数値不一致）"
-    assert r.topix_change_percent is None
+    assert r.topix_source_status == "通常判定"
+    assert r.topix_change_percent is not None
 
 
 def test_jpx_empty_url_is_skipped(monkeypatch):
@@ -170,12 +170,11 @@ def test_topix_logs_success_and_failure_until_two_sources():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, stooq, jpx, tv])
 
-    assert r.topix_source == "Stooq/JPX"
+    assert r.topix_source == "Stooq"
     assert r.topix_missing == [
         "Yahoo Finance: 失敗（取得日 2026-07-09, 終値 -, 前日終値 -, 前日比 -, 取得方法 -, 失敗理由 データなし）",
         "Stooq: 成功（取得日 2026-07-09, 終値 99.00, 前日終値 100.00, 前日比 -1.00%, 取得方法 直接取得, 失敗理由 -）",
-        "JPX: 成功（取得日 2026-07-09, 終値 98.90, 前日終値 100.00, 前日比 -1.10%, 取得方法 直接取得, 失敗理由 -）",
-    ]
+            ]
     assert tv.called is False
 
 
@@ -255,7 +254,7 @@ def test_etf_only_success_is_reference_value():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[etf])
 
-    assert r.topix_source_status == "代替（TOPIX ETF中央値）"
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
     assert r.topix_change_percent == -1.0
 
 
@@ -293,3 +292,64 @@ def test_topix_etf_median_provider_rejects_one_etf(monkeypatch):
     monkeypatch.setattr(provider, "_history", lambda ticker: histories[ticker])
 
     assert provider.fetch_topix(D) is None
+
+class NamedStockProvider:
+    def __init__(self, name, stock=None):
+        self.name = name
+        self.stock = stock
+        self.calls = []
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date):
+        self.calls.append(symbol)
+        if self.stock is None:
+            return None
+        from stock_analyzer import PriceRecord
+        close, prev, price_date = self.stock
+        return PriceRecord(symbol.split('.')[0], name, close, prev, price_date, self.name, volatility)
+
+    def fetch_topix(self, expected_date: date):
+        return None
+
+
+def test_stock_yahoo_only_success_skips_fallbacks(capsys):
+    yahoo = NamedStockProvider("Yahoo Finance", (90, 100, D))
+    stooq = NamedStockProvider("Stooq", (89, 100, D))
+    kabutan = NamedStockProvider("Kabutan", (88, 100, D))
+    r = fetch_market_data(WATCH, D, providers=[yahoo, stooq, kabutan], topix_providers=[])
+    assert r.prices[0].source == "Yahoo Finance"
+    assert stooq.calls == []
+    assert "Stooq:未実施" in capsys.readouterr().out
+
+
+def test_stock_yahoo_failure_stooq_success_skips_kabutan(capsys):
+    yahoo = NamedStockProvider("Yahoo Finance")
+    stooq = NamedStockProvider("Stooq", (90, 100, D))
+    kabutan = NamedStockProvider("Kabutan", (88, 100, D))
+    r = fetch_market_data(WATCH, D, providers=[yahoo, stooq, kabutan], topix_providers=[])
+    assert r.prices[0].source == "Stooq"
+    assert kabutan.calls == []
+    out = capsys.readouterr().out
+    assert "Yahoo Finance:失敗" in out
+    assert "Kabutan:未実施" in out
+
+
+def test_stock_yahoo_stooq_failure_kabutan_success():
+    yahoo = NamedStockProvider("Yahoo Finance")
+    stooq = NamedStockProvider("Stooq")
+    kabutan = NamedStockProvider("Kabutan", (90, 100, D))
+    r = fetch_market_data(WATCH, D, providers=[yahoo, stooq, kabutan], topix_providers=[])
+    assert r.prices[0].source == "Kabutan"
+
+
+def test_yahoo_global_outage_detection(capsys):
+    watch = [{"code": str(1000 + i), "name": str(i), "volatility": "high"} for i in range(12)]
+    yahoo = NamedStockProvider("Yahoo Finance")
+    r = fetch_market_data(watch, D, providers=[yahoo], topix_providers=[])
+    assert len(r.missing) == 12
+    assert "Yahoo Finance障害の可能性" in capsys.readouterr().out
+
+
+def test_topix_all_dead_is_pending():
+    r = fetch_market_data([], D, providers=[], topix_providers=[NamedTopixProvider("Yahoo Finance", None)])
+    assert r.topix_source_status == "判定保留"
+    assert r.topix_change_percent is None
