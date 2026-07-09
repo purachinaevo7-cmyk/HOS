@@ -28,7 +28,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p logs
-          python scripts/stock_watch.py 2>&1 | tee logs/stock-watch.log
+          python skills/investment-agent/daily_stock_check.py 2>&1 | tee logs/stock-watch.log
 
       - name: Upload logs
         if: always()

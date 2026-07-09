@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from stock_analyzer import analyze_stocks
-from notifier import ConsoleNotifier, GitHubSummaryNotifier
+from notifier import ConsoleNotifier, DiscordNotifier, GitHubSummaryNotifier
 from stock_fetcher import fetch_market_data, save_daily_prices
 from stock_reporter import generate_report
 
@@ -91,6 +91,7 @@ def main() -> None:
     report = run()
     ConsoleNotifier().notify(report)
     GitHubSummaryNotifier().notify(report)
+    DiscordNotifier().notify(report)
 
 
 if __name__ == "__main__":
