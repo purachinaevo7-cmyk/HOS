@@ -43,6 +43,8 @@ def generate_report(
     fetched: list[PriceRecord],
     missing: list[MissingRecord],
     topix_missing: list[str] | None = None,
+    mode_label: str | None = None,
+    morning_retry_incomplete: bool | None = None,
 ) -> str:
     reference_judgement = _is_reference_judgement(topix_source_status)
     topix_pending = analysis["topix_category"] is None
@@ -50,6 +52,7 @@ def generate_report(
         trade_date.strftime("%Y/%m/%d"),
         f"TOPIX前日比：{_fmt_pct(topix_change_percent)}",
         f"指数ソース：{topix_source_status}",
+        *( [f"取得モード：{mode_label}"] if mode_label else [] ),
         "",
     ]
     if reference_judgement:
@@ -86,7 +89,11 @@ def generate_report(
         "本日の結論",
     ])
     mmdd = trade_date.strftime("%m/%d")
-    if reference_judgement:
+    if morning_retry_incomplete is False:
+        conclusion = f"{mmdd}のニュースだよ。朝補完取得で判定更新。"
+    elif morning_retry_incomplete is True:
+        conclusion = f"{mmdd}のニュースだよ。要確認（データ未取得）。朝補完後も不足あり。"
+    elif reference_judgement:
         conclusion = f"{mmdd}のニュースだよ。参考判定：TOPIX本体未取得のため参考判定。TOPIX ETF中央値による暫定A/B判定として扱い、正式判断前にTOPIX本体を再確認してね。"
     elif missing or topix_source_status != "一致":
         conclusion = f"{mmdd}のニュースだよ。要確認（データ未取得）を最優先。取得済み銘柄だけで暫定判定し、未取得銘柄は断定しない。"

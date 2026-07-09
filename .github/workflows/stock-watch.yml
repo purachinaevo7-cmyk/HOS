@@ -2,8 +2,10 @@ name: Stock Watch
 
 on:
   schedule:
-    # 18:00 JST on weekdays (09:00 UTC, Monday-Friday)
-    - cron: '0 9 * * 1-5'
+    # 21:00 JST on weekdays = 12:00 UTC
+    - cron: '0 12 * * 1-5'
+    # 07:00 JST on weekdays = 22:00 UTC previous day
+    - cron: '0 22 * * 0-4'
   workflow_dispatch:
 
 jobs:
@@ -28,7 +30,12 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p logs
-          python skills/investment-agent/daily_stock_check.py 2>&1 | tee logs/stock-watch.log
+          if [ "${{ github.event.schedule }}" = "0 22 * * 0-4" ]; then
+            MODE=morning-retry
+          else
+            MODE=evening
+          fi
+          python skills/investment-agent/daily_stock_check.py --mode "$MODE" 2>&1 | tee logs/stock-watch.log
 
       - name: Upload logs
         if: always()
