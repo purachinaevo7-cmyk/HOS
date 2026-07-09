@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 import json
 import os
 from pathlib import Path
+from statistics import median
 from typing import Protocol
 
 from stock_analyzer import MissingRecord, PriceRecord, percent_change
@@ -46,10 +47,46 @@ class PriceProvider(Protocol):
 
 class YahooFinanceProvider:
     name = "Yahoo Finance"
+    user_agent = "Mozilla/5.0 (compatible; HOS Investment Agent/1.0; +https://finance.yahoo.com)"
 
     def _history(self, ticker: str):
-        import yfinance as yf
-        return yf.Ticker(ticker).history(period="10d", auto_adjust=False)
+        try:
+            import requests
+            import yfinance as yf
+
+            session = requests.Session()
+            session.headers.update({"User-Agent": self.user_agent})
+            try:
+                return yf.Ticker(ticker, session=session).history(period="10d", auto_adjust=False)
+            except TypeError:
+                return yf.Ticker(ticker).history(period="10d", auto_adjust=False)
+        except Exception:
+            return self._chart_history(ticker)
+
+    def _chart_history(self, ticker: str):
+        """Fetch Yahoo history via the chart endpoint as a fallback for HTML/API changes."""
+        import pandas as pd
+        import requests
+
+        r = requests.get(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
+            params={"range": "10d", "interval": "1d", "events": "history"},
+            headers={"User-Agent": self.user_agent, "Accept": "application/json"},
+            timeout=20,
+        )
+        r.raise_for_status()
+        result = (r.json().get("chart", {}).get("result") or [None])[0]
+        if not result:
+            return pd.DataFrame()
+        timestamps = result.get("timestamp") or []
+        quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+        closes = quote.get("close") or []
+        rows = [
+            {"Date": datetime.fromtimestamp(ts).date(), "Close": close}
+            for ts, close in zip(timestamps, closes, strict=False)
+            if close is not None
+        ]
+        return pd.DataFrame(rows)
 
     def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
         history = self._history(symbol)
@@ -74,27 +111,35 @@ class JPXProvider:
     """
 
     name = "JPX"
+    csv_url = "https://www.jpx.co.jp/markets/indices/topix/tvdivq00000030ne-att/topix.csv"
 
     def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
         return None
 
     def fetch_topix(self, expected_date: date) -> TopixRecord | None:
-        url = os.getenv("JPX_TOPIX_CSV_URL")
-        if not url:
-            raise RuntimeError("JPX_TOPIX_CSV_URL 未設定")
+        url = os.getenv("JPX_TOPIX_CSV_URL", self.csv_url)
         import pandas as pd
+
         df = pd.read_csv(url)
-        date_col = next((c for c in df.columns if c.lower() in {"date", "trade_date"}), None)
-        close_col = next((c for c in df.columns if c.lower() in {"close", "topix"}), None)
-        prev_col = next((c for c in df.columns if c.lower() in {"previous_close", "prev_close"}), None)
-        if not (date_col and close_col and prev_col):
+        df.columns = [str(c).strip() for c in df.columns]
+        date_col = next((c for c in df.columns if c.lower() in {"date", "trade_date", "日付", "年月日"}), None)
+        close_col = next((c for c in df.columns if c.lower() in {"close", "topix", "終値", "指数値"}), None)
+        prev_col = next((c for c in df.columns if c.lower() in {"previous_close", "prev_close", "前日終値"}), None)
+        if not (date_col and close_col):
             return None
         df[date_col] = pd.to_datetime(df[date_col]).dt.date
         rows = df[df[date_col] == expected_date]
         if rows.empty:
             return None
-        row = rows.iloc[-1]
-        return TopixRecord(self.name, float(row[close_col]), float(row[prev_col]), expected_date)
+        current_idx = rows.index[-1]
+        if prev_col:
+            previous_close = float(rows.iloc[-1][prev_col])
+        else:
+            prior = df[df[date_col] < expected_date].tail(1)
+            if prior.empty:
+                return None
+            previous_close = float(prior.iloc[-1][close_col])
+        return TopixRecord(self.name, float(df.loc[current_idx, close_col]), previous_close, expected_date)
 
 
 class TradingViewProvider:
@@ -108,7 +153,7 @@ class TradingViewProvider:
 
         payload = {
             "symbols": {"tickers": ["TSE:TOPIX"], "query": {"types": []}},
-            "columns": ["close", "change_abs", "update_mode"],
+            "columns": ["close", "prev_close", "update_mode"],
         }
         r = requests.post("https://scanner.tradingview.com/japan/scan", json=payload, timeout=20)
         r.raise_for_status()
@@ -119,7 +164,7 @@ class TradingViewProvider:
         if len(values) < 2 or values[0] is None or values[1] is None:
             return None
         close = float(values[0])
-        previous_close = close - float(values[1])
+        previous_close = float(values[1])
         return TopixRecord(self.name, close, previous_close, expected_date)
 
 
@@ -186,6 +231,47 @@ class InvestingComProvider:
         return TopixRecord(self.name, rows[current_idx][1], rows[current_idx - 1][1], expected_date)
 
 
+class TopixEtfMedianProvider(YahooFinanceProvider):
+    name = "TOPIX ETF median"
+    codes = ("1306", "1308", "1475")
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return None
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        records: list[TopixRecord] = []
+        for code in self.codes:
+            history = self._history(f"{code}.T")
+            row, prev = _valid_current_and_previous_rows(history, expected_date)
+            if row is None or prev is None:
+                continue
+            records.append(
+                TopixRecord(
+                    f"TOPIX ETF {code}",
+                    float(row["Close"]),
+                    float(prev["Close"]),
+                    _row_date(row),
+                    "TOPIX連動ETFを指数プロキシとして使用",
+                )
+            )
+        if len(records) != len(self.codes):
+            return None
+        median_change = median(r.change_percent for r in records)
+        base_previous_close = 100.0
+        synthetic_close = base_previous_close * (1 + median_change / 100)
+        details = ", ".join(
+            f"{r.provider}: date={r.price_date}, close={r.close:.2f}, previous_close={r.previous_close:.2f}, change={r.change_percent:.2f}%"
+            for r in records
+        )
+        return TopixRecord(
+            self.name,
+            synthetic_close,
+            base_previous_close,
+            expected_date,
+            f"1306・1308・1475の前日比中央値を採用（{details}）",
+        )
+
+
 class TopixEtfProvider(YahooFinanceProvider):
     def __init__(self, code: str) -> None:
         self.code = code
@@ -209,10 +295,20 @@ def default_topix_providers() -> list[PriceProvider]:
         JPXProvider(),
         TradingViewProvider(),
         InvestingComProvider(),
-        TopixEtfProvider("1306"),
-        TopixEtfProvider("1308"),
-        TopixEtfProvider("1475"),
+        TopixEtfMedianProvider(),
     ]
+
+
+def _format_topix_success(topix: TopixRecord) -> str:
+    details = (
+        f"取得日 {topix.price_date.isoformat()}, "
+        f"終値 {topix.close:.2f}, "
+        f"前日終値 {topix.previous_close:.2f}, "
+        f"計算した前日比 {topix.change_percent:.2f}%"
+    )
+    if topix.reason:
+        details = f"{details}, {topix.reason}"
+    return f"{topix.provider}: 成功（{details}）"
 
 
 class AlphaVantageProvider:
@@ -271,7 +367,9 @@ def _valid_current_and_previous_rows(history, expected_date: date):
         return None, None
     rows = history.reset_index()
     date_col = "Date" if "Date" in rows else rows.columns[0]
-    rows["DateOnly"] = rows[date_col].dt.date
+    import pandas as pd
+
+    rows["DateOnly"] = pd.to_datetime(rows[date_col]).dt.date
     current = rows[rows["DateOnly"] == expected_date]
     if current.empty:
         return None, None
@@ -326,14 +424,13 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         if topix.price_date != trade_date:
             topix_missing.append(f"{provider.name}: 失敗（日付不一致 {topix.price_date}）"); continue
         topix_records.append(topix)
-        topix_missing.append(f"{provider.name}: 成功（前日比 {topix.change_percent:.2f}%）")
-        if len(topix_records) == 2:
-            break
+        topix_missing.append(_format_topix_success(topix))
     if len(topix_records) >= 2:
-        diff = abs(topix_records[0].change_percent - topix_records[1].change_percent)
+        changes = [t.change_percent for t in topix_records]
+        diff = max(changes) - min(changes)
         if diff < 0.30:
             status = "一致"
-            change = topix_records[0].change_percent
+            change = round(median(changes), 2)
         else:
             status = "要確認（指数値不一致）"
             change = None
