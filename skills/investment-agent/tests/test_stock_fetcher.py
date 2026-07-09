@@ -101,10 +101,28 @@ def test_default_topix_provider_order_skips_unconfigured_jpx(monkeypatch):
     from stock_fetcher import default_topix_providers
 
     monkeypatch.delenv("JPX_TOPIX_CSV_URL", raising=False)
-    assert [p.name for p in default_topix_providers()] == ["Yahoo Finance", "TradingView", "Investing.com"]
+    assert [p.name for p in default_topix_providers()] == [
+        "Yahoo Finance",
+        "Stooq",
+        "JPX",
+        "TradingView",
+        "Investing.com",
+        "TOPIX ETF 1306",
+        "TOPIX ETF 1308",
+        "TOPIX ETF 1475",
+    ]
 
     monkeypatch.setenv("JPX_TOPIX_CSV_URL", "https://example.test/topix.csv")
-    assert [p.name for p in default_topix_providers()] == ["Yahoo Finance", "TradingView", "JPX", "Investing.com"]
+    assert [p.name for p in default_topix_providers()] == [
+        "Yahoo Finance",
+        "Stooq",
+        "JPX",
+        "TradingView",
+        "Investing.com",
+        "TOPIX ETF 1306",
+        "TOPIX ETF 1308",
+        "TOPIX ETF 1475",
+    ]
 
 
 def test_topix_one_source_status_when_all_stocks_fetched():
@@ -131,10 +149,27 @@ def test_topix_mismatch_status_has_reason():
     assert r.topix_change_percent is None
 
 
-def test_unconfigured_jpx_is_skipped_without_missing_log(monkeypatch):
+def test_topix_attempts_are_always_logged(monkeypatch):
     monkeypatch.delenv("JPX_TOPIX_CSV_URL", raising=False)
     jpx = NamedTopixProvider("JPX", None)
 
     r = fetch_market_data([], D, providers=[], topix_providers=[jpx])
 
-    assert r.topix_missing == []
+    assert r.topix_missing == ["JPX: 失敗（データなし）"]
+
+
+def test_topix_logs_success_and_failure_until_two_sources():
+    yahoo = NamedTopixProvider("Yahoo Finance", None)
+    stooq = NamedTopixProvider("Stooq", (99, 100, D))
+    jpx = NamedTopixProvider("JPX", (98.9, 100, D))
+    tv = NamedTopixProvider("TradingView", (98.8, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, stooq, jpx, tv])
+
+    assert r.topix_source == "Stooq/JPX"
+    assert r.topix_missing == [
+        "Yahoo Finance: 失敗（データなし）",
+        "Stooq: 成功（前日比 -1.00%）",
+        "JPX: 成功（前日比 -1.10%）",
+    ]
+    assert tv.called is False
