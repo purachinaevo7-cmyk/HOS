@@ -20,6 +20,6 @@ def test_report_includes_topix_missing_providers():
     )
 
     assert "指数ソース：要確認（TOPIX 1ソースのみ）" in report
-    assert "TOPIX取得失敗Provider" in report
+    assert "TOPIX取得ログ" in report
     assert "- TradingView: データなし" in report
     assert "- Investing.com: HTTP 403" in report

@@ -81,7 +81,7 @@ class JPXProvider:
     def fetch_topix(self, expected_date: date) -> TopixRecord | None:
         url = os.getenv("JPX_TOPIX_CSV_URL")
         if not url:
-            return None
+            raise RuntimeError("JPX_TOPIX_CSV_URL 未設定")
         import pandas as pd
         df = pd.read_csv(url)
         date_col = next((c for c in df.columns if c.lower() in {"date", "trade_date"}), None)
@@ -123,6 +123,32 @@ class TradingViewProvider:
         return TopixRecord(self.name, close, previous_close, expected_date)
 
 
+class StooqProvider:
+    name = "Stooq"
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return None
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        import pandas as pd
+
+        symbols = ["^tpix", "^topx", "topix"]
+        for symbol in symbols:
+            url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
+            df = pd.read_csv(url)
+            if df.empty or "Date" not in df or "Close" not in df:
+                continue
+            df["Date"] = pd.to_datetime(df["Date"]).dt.date
+            current_idx = df.index[df["Date"] == expected_date].tolist()
+            if not current_idx:
+                continue
+            idx = current_idx[-1]
+            if idx == 0:
+                continue
+            return TopixRecord(self.name, float(df.loc[idx, "Close"]), float(df.loc[idx - 1, "Close"]), expected_date)
+        return None
+
+
 class InvestingComProvider:
     name = "Investing.com"
 
@@ -160,12 +186,33 @@ class InvestingComProvider:
         return TopixRecord(self.name, rows[current_idx][1], rows[current_idx - 1][1], expected_date)
 
 
+class TopixEtfProvider(YahooFinanceProvider):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        self.name = f"TOPIX ETF {code}"
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return None
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        history = self._history(f"{self.code}.T")
+        row, prev = _valid_current_and_previous_rows(history, expected_date)
+        if row is None or prev is None:
+            return None
+        return TopixRecord(self.name, float(row["Close"]), float(prev["Close"]), _row_date(row), "TOPIX連動ETFを指数プロキシとして使用")
+
+
 def default_topix_providers() -> list[PriceProvider]:
-    providers: list[PriceProvider] = [YahooFinanceProvider(), TradingViewProvider()]
-    if os.getenv("JPX_TOPIX_CSV_URL"):
-        providers.append(JPXProvider())
-    providers.append(InvestingComProvider())
-    return providers
+    return [
+        YahooFinanceProvider(),
+        StooqProvider(),
+        JPXProvider(),
+        TradingViewProvider(),
+        InvestingComProvider(),
+        TopixEtfProvider("1306"),
+        TopixEtfProvider("1308"),
+        TopixEtfProvider("1475"),
+    ]
 
 
 class AlphaVantageProvider:
@@ -272,14 +319,14 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         try:
             topix = provider.fetch_topix(trade_date)
         except Exception as exc:
-            topix_missing.append(f"{provider.name}: {exc}"); continue
+            topix_missing.append(f"{provider.name}: 失敗（{exc}）"); continue
         if topix is None:
-            if provider.name != "JPX" or os.getenv("JPX_TOPIX_CSV_URL"):
-                topix_missing.append(f"{provider.name}: データなし")
+            topix_missing.append(f"{provider.name}: 失敗（データなし）")
             continue
         if topix.price_date != trade_date:
-            topix_missing.append(f"{provider.name}: 日付不一致({topix.price_date})"); continue
+            topix_missing.append(f"{provider.name}: 失敗（日付不一致 {topix.price_date}）"); continue
         topix_records.append(topix)
+        topix_missing.append(f"{provider.name}: 成功（前日比 {topix.change_percent:.2f}%）")
         if len(topix_records) == 2:
             break
     if len(topix_records) >= 2:

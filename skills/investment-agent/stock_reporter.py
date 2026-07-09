@@ -63,7 +63,7 @@ def generate_report(
     else:
         lines.append("  - なし")
     if topix_missing:
-        lines.extend(["", "TOPIX取得失敗Provider"])
+        lines.extend(["", "TOPIX取得ログ"])
         lines.extend(f"- {reason}" for reason in topix_missing)
     lines.extend([
         "",
