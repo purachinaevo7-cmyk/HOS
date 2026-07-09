@@ -53,7 +53,7 @@ def generate_report(
         "- 取得済み",
     ])
     if fetched:
-        lines.extend(f"  - {record.code} {record.name}（{record.source}）" for record in fetched)
+        lines.extend(f"  - {record.code} {record.name}: 取得日 {record.price_date.isoformat()} / Provider {record.source}" for record in fetched)
     else:
         lines.append("  - 要確認（データ未取得）")
     lines.append("- 未取得")
