@@ -31,7 +31,7 @@ Think First. Build Second.
 
 ## GitHub Actions: Stock Watch
 
-`.github/workflows/stock-watch.yml` は、平日18:00頃（JST）に `scripts/stock_watch.py` を実行するワークフローです。`workflow_dispatch` にも対応しているため、GitHub Actions画面から手動実行できます。
+`.github/workflows/stock-watch.yml` は、平日18:00頃（JST）に `skills/investment-agent/daily_stock_check.py` を実行するワークフローです。`workflow_dispatch` にも対応しているため、GitHub Actions画面から手動実行できます。
 
 ### セットアップ手順
 
@@ -44,5 +44,5 @@ Think First. Build Second.
 
 - Python 3.12をセットアップします。
 - `requirements.txt` をインストールします。
-- `DISCORD_WEBHOOK_URL` を環境変数として渡し、`python scripts/stock_watch.py` を実行します。
+- `DISCORD_WEBHOOK_URL` を環境変数として渡し、`python skills/investment-agent/daily_stock_check.py` を実行します。
 - 実行ログは `logs/stock-watch.log` に保存し、ジョブの成功・失敗にかかわらず `stock-watch-logs` artifactとしてアップロードします。
