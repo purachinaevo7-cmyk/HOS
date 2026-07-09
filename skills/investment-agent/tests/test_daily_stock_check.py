@@ -142,3 +142,17 @@ def test_evening_at_21jst_targets_current_business_day(monkeypatch, tmp_path):
     dsc.run(dsc.EVENING, None, tmp_path)
 
     assert calls == [date(2026, 7, 9)]
+
+
+def test_evening_reuses_same_trade_date_previous_success(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    from stock_analyzer import MissingRecord
+    previous = FetchResult([price("1111")], [MissingRecord("2222", "B", "データなし")], None, "判定保留", "未取得", D, [], [])
+    dsc._write_mode_log(previous, dsc.EVENING, True, tmp_path)
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: result([], [MissingRecord("1111", "A", "データなし"), MissingRecord("2222", "B", "データなし")], status="判定保留"))
+
+    report = dsc.run(dsc.EVENING, D, tmp_path)
+
+    assert "1111 1111: 取得日 2026-07-09 / Provider mock（前回取得済みデータ）" in report
+    assert "2222 B: 要確認（データ未取得）" in report
+    assert '"used_fallback_data": true' in (tmp_path / "2026-07-09.json").read_text(encoding="utf-8")
