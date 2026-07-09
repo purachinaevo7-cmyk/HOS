@@ -80,6 +80,7 @@ def run() -> str:
         analysis,
         result.prices,
         result.missing,
+        result.topix_missing,
     )
     save_daily_prices(result, BASE_DIR / "data" / "daily_prices")
     return report

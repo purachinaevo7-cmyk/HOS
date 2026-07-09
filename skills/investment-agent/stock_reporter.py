@@ -36,6 +36,7 @@ def generate_report(
     analysis: dict[str, Any],
     fetched: list[PriceRecord],
     missing: list[MissingRecord],
+    topix_missing: list[str] | None = None,
 ) -> str:
     topix_pending = analysis["topix_category"] is None
     lines: list[str] = [
@@ -61,6 +62,9 @@ def generate_report(
         lines.extend(f"  - {record.code} {record.name}: 要確認（データ未取得） - {record.reason}" for record in missing)
     else:
         lines.append("  - なし")
+    if topix_missing:
+        lines.extend(["", "TOPIX取得失敗Provider"])
+        lines.extend(f"- {reason}" for reason in topix_missing)
     lines.extend([
         "",
         "翌営業日の買い方",

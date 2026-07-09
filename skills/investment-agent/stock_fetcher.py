@@ -161,7 +161,11 @@ class InvestingComProvider:
 
 
 def default_topix_providers() -> list[PriceProvider]:
-    return [YahooFinanceProvider(), JPXProvider(), TradingViewProvider(), InvestingComProvider()]
+    providers: list[PriceProvider] = [YahooFinanceProvider(), TradingViewProvider()]
+    if os.getenv("JPX_TOPIX_CSV_URL"):
+        providers.append(JPXProvider())
+    providers.append(InvestingComProvider())
+    return providers
 
 
 class AlphaVantageProvider:
@@ -263,13 +267,16 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         (prices.append(record) if record else missing.append(MissingRecord(code, name, "; ".join(failures) or "要確認（データ未取得）")))
 
     topix_records: list[TopixRecord] = []; topix_missing: list[str] = []
-    for provider in (topix_providers or default_topix_providers()):
+    active_topix_providers = default_topix_providers() if topix_providers is None else topix_providers
+    for provider in active_topix_providers:
         try:
             topix = provider.fetch_topix(trade_date)
         except Exception as exc:
             topix_missing.append(f"{provider.name}: {exc}"); continue
         if topix is None:
-            topix_missing.append(f"{provider.name}: データなし"); continue
+            if provider.name != "JPX" or os.getenv("JPX_TOPIX_CSV_URL"):
+                topix_missing.append(f"{provider.name}: データなし")
+            continue
         if topix.price_date != trade_date:
             topix_missing.append(f"{provider.name}: 日付不一致({topix.price_date})"); continue
         topix_records.append(topix)
@@ -277,9 +284,17 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
             break
     if len(topix_records) >= 2:
         diff = abs(topix_records[0].change_percent - topix_records[1].change_percent)
-        status = "一致" if diff < 0.30 else "要確認"
-        change = topix_records[0].change_percent if status == "一致" else None
+        if diff < 0.30:
+            status = "一致"
+            change = topix_records[0].change_percent
+        else:
+            status = "要確認（指数値不一致）"
+            change = None
         source = "/".join(t.provider for t in topix_records)
+    elif len(topix_records) == 1:
+        status = "要確認（TOPIX 1ソースのみ）" if not missing else "要確認"
+        change = None
+        source = topix_records[0].provider
     else:
         status, change, source = "要確認", None, "未取得"
     return FetchResult(prices, missing, change, status, source, trade_date, topix_records, topix_missing)

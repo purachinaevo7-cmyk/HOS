@@ -46,7 +46,7 @@ def test_topix_match_and_mismatch():
     assert r.topix_source_status == "一致"
     bad = MockProvider(topix=(98,100,D))
     r = fetch_market_data([], D, providers=[], topix_providers=[ok1, bad])
-    assert r.topix_source_status == "要確認"
+    assert r.topix_source_status == "要確認（指数値不一致）"
     assert r.topix_change_percent is None
 
 
@@ -92,6 +92,49 @@ def test_topix_requires_two_valid_sources_to_calculate_change():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx])
 
-    assert r.topix_source_status == "要確認"
+    assert r.topix_source_status == "要確認（TOPIX 1ソースのみ）"
     assert r.topix_change_percent is None
-    assert r.topix_source == "未取得"
+    assert r.topix_source == "Yahoo Finance"
+
+
+def test_default_topix_provider_order_skips_unconfigured_jpx(monkeypatch):
+    from stock_fetcher import default_topix_providers
+
+    monkeypatch.delenv("JPX_TOPIX_CSV_URL", raising=False)
+    assert [p.name for p in default_topix_providers()] == ["Yahoo Finance", "TradingView", "Investing.com"]
+
+    monkeypatch.setenv("JPX_TOPIX_CSV_URL", "https://example.test/topix.csv")
+    assert [p.name for p in default_topix_providers()] == ["Yahoo Finance", "TradingView", "JPX", "Investing.com"]
+
+
+def test_topix_one_source_status_when_all_stocks_fetched():
+    stock = NamedTopixProvider("stock")
+    stock.fetch_stock = lambda symbol, name, volatility, expected_date: __import__("stock_analyzer").PriceRecord("5713", name, 90, 100, expected_date, "stock", volatility)
+    yahoo = NamedTopixProvider("Yahoo Finance", (99, 100, D))
+    tv = NamedTopixProvider("TradingView", None)
+
+    r = fetch_market_data(WATCH, D, providers=[stock], topix_providers=[yahoo, tv])
+
+    assert r.missing == []
+    assert r.topix_source_status == "要確認（TOPIX 1ソースのみ）"
+    assert r.topix_source == "Yahoo Finance"
+    assert r.topix_change_percent is None
+
+
+def test_topix_mismatch_status_has_reason():
+    yahoo = NamedTopixProvider("Yahoo Finance", (99, 100, D))
+    tv = NamedTopixProvider("TradingView", (98, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, tv])
+
+    assert r.topix_source_status == "要確認（指数値不一致）"
+    assert r.topix_change_percent is None
+
+
+def test_unconfigured_jpx_is_skipped_without_missing_log(monkeypatch):
+    monkeypatch.delenv("JPX_TOPIX_CSV_URL", raising=False)
+    jpx = NamedTopixProvider("JPX", None)
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[jpx])
+
+    assert r.topix_missing == []
