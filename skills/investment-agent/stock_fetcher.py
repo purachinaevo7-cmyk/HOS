@@ -97,6 +97,73 @@ class JPXProvider:
         return TopixRecord(self.name, float(row[close_col]), float(row[prev_col]), expected_date)
 
 
+class TradingViewProvider:
+    name = "TradingView"
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return None
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        import requests
+
+        payload = {
+            "symbols": {"tickers": ["TSE:TOPIX"], "query": {"types": []}},
+            "columns": ["close", "change_abs", "update_mode"],
+        }
+        r = requests.post("https://scanner.tradingview.com/japan/scan", json=payload, timeout=20)
+        r.raise_for_status()
+        data = (r.json().get("data") or [])
+        if not data:
+            return None
+        values = data[0].get("d") or []
+        if len(values) < 2 or values[0] is None or values[1] is None:
+            return None
+        close = float(values[0])
+        previous_close = close - float(values[1])
+        return TopixRecord(self.name, close, previous_close, expected_date)
+
+
+class InvestingComProvider:
+    name = "Investing.com"
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return None
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        import requests
+
+        url = "https://api.investing.com/api/financialdata/indices/175/historical/chart/"
+        r = requests.get(
+            url,
+            params={"interval": "P1D", "period": "P1M"},
+            headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"},
+            timeout=20,
+        )
+        r.raise_for_status()
+        points = r.json().get("data") or []
+        rows: list[tuple[date, float]] = []
+        for point in points:
+            ts = point.get("rowDateTimestamp") or point.get("timestamp") or point.get("date")
+            close = point.get("last_close") or point.get("close") or point.get("last")
+            if ts is None or close is None:
+                continue
+            if str(ts).isdigit():
+                divisor = 1000 if int(ts) > 10_000_000_000 else 1
+                price_date = datetime.fromtimestamp(int(ts) / divisor).date()
+            else:
+                price_date = datetime.fromisoformat(str(ts).replace("Z", "+00:00")).date()
+            rows.append((price_date, float(str(close).replace(",", ""))))
+        rows = sorted(rows)
+        current_idx = next((i for i, row in enumerate(rows) if row[0] == expected_date), None)
+        if current_idx is None or current_idx == 0:
+            return None
+        return TopixRecord(self.name, rows[current_idx][1], rows[current_idx - 1][1], expected_date)
+
+
+def default_topix_providers() -> list[PriceProvider]:
+    return [YahooFinanceProvider(), JPXProvider(), TradingViewProvider(), InvestingComProvider()]
+
+
 class AlphaVantageProvider:
     name = "Alpha Vantage"
 
@@ -170,9 +237,6 @@ def default_providers() -> list[PriceProvider]:
     return providers
 
 
-def default_topix_providers() -> list[PriceProvider]:
-    return [YahooFinanceProvider(), JPXProvider()]
-
 
 def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, providers: list[PriceProvider] | None = None, topix_providers: list[PriceProvider] | None = None) -> FetchResult:
     trade_date = expected_date or recent_business_day()
@@ -209,6 +273,8 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         if topix.price_date != trade_date:
             topix_missing.append(f"{provider.name}: 日付不一致({topix.price_date})"); continue
         topix_records.append(topix)
+        if len(topix_records) == 2:
+            break
     if len(topix_records) >= 2:
         diff = abs(topix_records[0].change_percent - topix_records[1].change_percent)
         status = "一致" if diff < 0.30 else "要確認"

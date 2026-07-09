@@ -52,3 +52,46 @@ def test_topix_match_and_mismatch():
 
 def test_symbol_patterns():
     assert symbol_patterns("5713") == ["5713.T", "5713 JP", "5713"]
+
+class NamedTopixProvider:
+    def __init__(self, name, topix=None):
+        self.name = name
+        self.topix = topix
+        self.called = False
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date):
+        return None
+
+    def fetch_topix(self, expected_date: date):
+        self.called = True
+        if self.topix is None:
+            return None
+        from stock_fetcher import TopixRecord
+        close, prev, price_date = self.topix
+        return TopixRecord(self.name, close, prev, price_date)
+
+
+def test_topix_falls_back_until_two_sources_are_collected():
+    yahoo = NamedTopixProvider("Yahoo Finance", None)
+    jpx = NamedTopixProvider("JPX", (99, 100, D))
+    tradingview = NamedTopixProvider("TradingView", (98.9, 100, D))
+    investing = NamedTopixProvider("Investing.com", (98.8, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx, tradingview, investing])
+
+    assert r.topix_source_status == "一致"
+    assert r.topix_change_percent == -1.0
+    assert r.topix_source == "JPX/TradingView"
+    assert [t.provider for t in r.topix_records] == ["JPX", "TradingView"]
+    assert investing.called is False
+
+
+def test_topix_requires_two_valid_sources_to_calculate_change():
+    yahoo = NamedTopixProvider("Yahoo Finance", (99, 100, D))
+    jpx = NamedTopixProvider("JPX", None)
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx])
+
+    assert r.topix_source_status == "要確認"
+    assert r.topix_change_percent is None
+    assert r.topix_source == "未取得"
