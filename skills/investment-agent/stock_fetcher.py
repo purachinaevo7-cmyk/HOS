@@ -116,11 +116,20 @@ class JPXProvider:
     name = "JPX"
     csv_url = "https://www.jpx.co.jp/markets/indices/topix/tvdivq00000030ne-att/topix.csv"
 
+    def configured_url(self) -> str:
+        return os.getenv("JPX_TOPIX_CSV_URL", "").strip()
+
+    def is_configured(self) -> bool:
+        return bool(self.configured_url())
+
     def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
         return None
 
     def fetch_topix(self, expected_date: date) -> TopixRecord | None:
-        url = os.getenv("JPX_TOPIX_CSV_URL", self.csv_url)
+        url = self.configured_url()
+        if not url:
+            print("JPX: スキップ（JPX_TOPIX_CSV_URL未設定）")
+            return None
         import io
         import pandas as pd
         import requests
@@ -370,7 +379,7 @@ def recent_business_day(today: date | None = None) -> date:
 
 def symbol_patterns(code: str) -> list[str]:
     base = code.split(".")[0].split()[0]
-    return [f"{base}.T", f"{base} JP", base]
+    return [f"{base}.T"]
 
 
 def _normalize_code(symbol: str) -> str:
@@ -438,6 +447,11 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
     adopted_records: list[TopixRecord] = []
     active_topix_providers = default_topix_providers() if topix_providers is None else topix_providers
     for provider in active_topix_providers:
+        if isinstance(provider, JPXProvider) and not provider.is_configured():
+            message = "JPX: スキップ（JPX_TOPIX_CSV_URL未設定）"
+            print(message)
+            topix_missing.append(message)
+            continue
         try:
             topix = provider.fetch_topix(trade_date)
         except Exception as exc:

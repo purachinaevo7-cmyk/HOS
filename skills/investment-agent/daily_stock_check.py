@@ -74,8 +74,12 @@ def load_yaml(path: Path) -> Any:
     return root
 
 
+def _jst_now() -> datetime:
+    return datetime.now(ZoneInfo("Asia/Tokyo"))
+
+
 def _jst_today() -> date:
-    return datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    return _jst_now().date()
 
 
 def _previous_business_day(current: date) -> date:
@@ -83,6 +87,38 @@ def _previous_business_day(current: date) -> date:
     while day.weekday() >= 5:
         day -= timedelta(days=1)
     return day
+
+
+def _latest_finished_business_day(current: date) -> date:
+    return _previous_business_day(current)
+
+
+def _resolve_evening_trade_date(now: datetime, override: date | None) -> tuple[date, str]:
+    if override is not None:
+        return override, "明示指定されたtrade_dateを使用"
+    current = now.date()
+    return current, "eveningモードは21:00 JST時点の当日営業日を対象にするため"
+
+
+def _resolve_morning_trade_date(now: datetime, override: date | None, data_dir: Path) -> tuple[date, str]:
+    if override is not None:
+        return override, "明示指定されたtrade_dateを使用"
+    fallback = _latest_finished_business_day(now.date())
+    path = data_dir / f"{fallback.isoformat()}.json"
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        trade_date_value = payload.get("trade_date")
+        if trade_date_value:
+            return date.fromisoformat(str(trade_date_value)), f"前夜JSON（{path.name}）が存在するため、そのtrade_dateを優先"
+    return fallback, "前夜JSONがないため、直近の終了済み営業日を対象にするため"
+
+
+def _log_run_context(now: datetime, mode: str, expected_date: date, reason: str) -> None:
+    print(f"実行日時: {now.isoformat()}")
+    print(f"実行モード: {mode} ({MODE_LABELS[mode]})")
+    print(f"対象取引日 expected_date: {expected_date.isoformat()}")
+    print(f"現在日: {now.date().isoformat()}")
+    print(f"対象取引日の決定理由: {reason}")
 
 
 def _retry_required(result: FetchResult) -> bool:
@@ -110,12 +146,14 @@ def _load_previous_log(trade_date: date, data_dir: Path = DATA_DIR) -> dict[str,
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _write_mode_log(result: FetchResult, mode: str, retry_required: bool, data_dir: Path = DATA_DIR) -> Path:
+def _write_mode_log(result: FetchResult, mode: str, retry_required: bool, data_dir: Path = DATA_DIR, run_context: dict[str, str] | None = None) -> Path:
     path = save_daily_prices(result, data_dir)
     payload = json.loads(path.read_text(encoding="utf-8"))
     payload["mode"] = mode
     payload["mode_label"] = MODE_LABELS[mode]
     payload["retry_required"] = retry_required
+    if run_context:
+        payload["run_context"] = run_context
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
@@ -143,14 +181,21 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
     watchlist = watchlist_data["watchlist"]
     buy_ranges = buy_ranges_data["buy_ranges_percent"]
 
+    now = _jst_now()
+
     if mode == EVENING:
-        result = fetch_market_data(watchlist, trade_date or _jst_today())
+        expected_date, reason = _resolve_evening_trade_date(now, trade_date)
+        _log_run_context(now, mode, expected_date, reason)
+        context = {"run_at": now.isoformat(), "mode": mode, "expected_date": expected_date.isoformat(), "current_date": now.date().isoformat(), "reason": reason}
+        result = fetch_market_data(watchlist, expected_date)
         retry_required = _retry_required(result)
-        _write_mode_log(result, mode, retry_required, data_dir)
+        _write_mode_log(result, mode, retry_required, data_dir, context)
         return _build_report(result, thresholds, buy_ranges, mode)
 
     if mode == MORNING_RETRY:
-        target_date = trade_date or _previous_business_day(_jst_today())
+        target_date, reason = _resolve_morning_trade_date(now, trade_date, data_dir)
+        _log_run_context(now, mode, target_date, reason)
+        context = {"run_at": now.isoformat(), "mode": mode, "expected_date": target_date.isoformat(), "current_date": now.date().isoformat(), "reason": reason}
         previous = _load_previous_log(target_date, data_dir)
         if not previous.get("retry_required", False):
             return None
@@ -175,7 +220,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
             retry_result.topix_missing,
         )
         still_required = _retry_required(result)
-        _write_mode_log(result, mode, still_required, data_dir)
+        _write_mode_log(result, mode, still_required, data_dir, context)
         return _build_report(result, thresholds, buy_ranges, mode, morning_incomplete=still_required)
 
     raise ValueError(f"unknown mode: {mode}")
