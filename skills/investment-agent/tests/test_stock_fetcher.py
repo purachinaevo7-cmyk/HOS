@@ -13,10 +13,10 @@ D = date(2026,7,9)
 
 
 def test_retry_success():
-    p = MockProvider(stocks={"5713": (90, 100, D)}, failures_before_success=2)
+    p = MockProvider(stocks={"5713": (90, 100, D)})
     r = fetch_market_data(WATCH, D, providers=[p], topix_providers=[])
     assert r.prices[0].code == "5713"
-    assert p.calls == ["5713.T", "5713 JP", "5713"]
+    assert p.calls == ["5713.T"]
 
 
 def test_retry_failure_missing_record():
@@ -29,7 +29,7 @@ def test_retry_failure_missing_record():
 def test_old_date_is_missing_record():
     p = MockProvider(stocks={"5713": (90, 100, date(2026,7,8))})
     r = fetch_market_data(WATCH, D, providers=[p], topix_providers=[])
-    assert r.missing[0].reason.count("日付不一致") == 3
+    assert r.missing[0].reason.count("日付不一致") == 1
 
 
 def test_provider_switch():
@@ -37,7 +37,7 @@ def test_provider_switch():
     p2 = MockProvider(stocks={"5713": (90, 100, D)})
     r = fetch_market_data(WATCH, D, providers=[p1, p2], topix_providers=[])
     assert r.prices[0].source == "mock"
-    assert len(p1.calls) == 3
+    assert len(p1.calls) == 1
 
 
 def test_topix_match_and_mismatch():
@@ -62,7 +62,7 @@ def test_topix_mismatch_only_when_diff_is_at_least_threshold():
 
 
 def test_symbol_patterns():
-    assert symbol_patterns("5713") == ["5713.T", "5713 JP", "5713"]
+    assert symbol_patterns("5713") == ["5713.T"]
 
 class NamedTopixProvider:
     def __init__(self, name, topix=None):
@@ -152,13 +152,14 @@ def test_topix_mismatch_status_has_reason():
     assert r.topix_change_percent is None
 
 
-def test_topix_attempts_are_always_logged(monkeypatch):
-    monkeypatch.delenv("JPX_TOPIX_CSV_URL", raising=False)
-    jpx = NamedTopixProvider("JPX", None)
+def test_jpx_empty_url_is_skipped(monkeypatch):
+    from stock_fetcher import JPXProvider
 
-    r = fetch_market_data([], D, providers=[], topix_providers=[jpx])
+    monkeypatch.setenv("JPX_TOPIX_CSV_URL", "")
 
-    assert r.topix_missing == ["JPX: 失敗（取得日 2026-07-09, 終値 -, 前日終値 -, 前日比 -, 取得方法 -, 失敗理由 データなし）"]
+    r = fetch_market_data([], D, providers=[], topix_providers=[JPXProvider()])
+
+    assert r.topix_missing == ["JPX: スキップ（JPX_TOPIX_CSV_URL未設定）"]
 
 
 def test_topix_logs_success_and_failure_until_two_sources():

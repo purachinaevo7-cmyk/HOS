@@ -109,3 +109,36 @@ def test_morning_retry_keeps_confirmation_when_still_missing(monkeypatch, tmp_pa
 
     assert "要確認（データ未取得）。朝補完後も不足あり。" in report
     assert '"retry_required": true' in (tmp_path / "2026-07-09.json").read_text(encoding="utf-8")
+
+
+def test_morning_retry_at_weekday_7am_targets_previous_business_day(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    from stock_analyzer import MissingRecord
+
+    run_at = dsc.datetime(2026, 7, 10, 7, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    previous = FetchResult([price("1111")], [MissingRecord("2222", "B", "データなし")], None, "要確認", "未取得", D, [], [])
+    dsc._write_mode_log(previous, dsc.EVENING, True, tmp_path)
+    calls = []
+
+    def retry_fetch(watchlist, trade_date):
+        calls.append(trade_date)
+        return FetchResult([], [], -1.0, "一致", "mock/mock2", trade_date, [TopixRecord("mock", 99, 100, trade_date)], [])
+
+    monkeypatch.setattr(dsc, "fetch_market_data", retry_fetch)
+
+    dsc.run(dsc.MORNING_RETRY, None, tmp_path)
+
+    assert calls == [date(2026, 7, 9)]
+
+
+def test_evening_at_21jst_targets_current_business_day(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 9, 21, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls == [date(2026, 7, 9)]
