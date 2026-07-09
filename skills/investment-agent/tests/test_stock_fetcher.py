@@ -5,7 +5,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from stock_fetcher import fetch_market_data, symbol_patterns
+from stock_fetcher import fetch_market_data, symbol_patterns, FetchResult
 from mock_provider import MockProvider
 
 WATCH = [{"code":"5713","name":"住友金属鉱山","volatility":"high"}]
@@ -353,3 +353,68 @@ def test_topix_all_dead_is_pending():
     r = fetch_market_data([], D, providers=[], topix_providers=[NamedTopixProvider("Yahoo Finance", None)])
     assert r.topix_source_status == "判定保留"
     assert r.topix_change_percent is None
+
+
+def test_yfinance_batch_partial_success_and_fallback(monkeypatch):
+    import sys, types
+    import pandas as pd
+    from stock_fetcher import YahooBatchProvider
+
+    watch = [
+        {"code": "5713", "name": "A", "volatility": "high"},
+        {"code": "5711", "name": "B", "volatility": "high"},
+    ]
+    cols = pd.MultiIndex.from_product([("5713.T", "5711.T", "1306.T", "1308.T"), ("Close",)])
+    df = pd.DataFrame([[100.0, None, 10.0, 20.0], [90.0, None, 9.0, 19.0]], index=pd.to_datetime(["2026-07-08", "2026-07-09"]), columns=cols)
+    yf = types.SimpleNamespace(download=lambda symbols, period, group_by, auto_adjust, threads: df)
+    monkeypatch.setitem(sys.modules, "yfinance", yf)
+    fallback = NamedStockProvider("Yahoo Finance", (80, 100, D))
+
+    r = fetch_market_data(watch, D, providers=[YahooBatchProvider(), fallback], topix_providers=[])
+
+    assert [(p.code, p.source) for p in r.prices] == [("5713", "Yahoo Finance batch"), ("5711", "Yahoo Finance")]
+    assert fallback.calls == ["5711.T"]
+
+
+def test_stooq_tries_jp_symbol_candidate_first(monkeypatch):
+    import pandas as pd
+    from stock_fetcher import StooqProvider
+
+    urls = []
+    def read_csv(url):
+        urls.append(url)
+        return pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 90.0]})
+    monkeypatch.setattr(pd, "read_csv", read_csv)
+
+    record = StooqProvider().fetch_stock("5713.T", "A", "high", D)
+
+    assert record is not None
+    assert "s=5713.jp" in urls[0]
+
+
+def test_save_daily_prices_deletes_json_older_than_30_days(tmp_path):
+    from stock_fetcher import save_daily_prices
+    old = tmp_path / "2026-06-08.json"
+    keep = tmp_path / "2026-06-09.json"
+    old.write_text("{}", encoding="utf-8")
+    keep.write_text("{}", encoding="utf-8")
+
+    save_daily_prices(FetchResult([], [], None, "判定保留", "未取得", D, [], []), tmp_path)
+
+    assert not old.exists()
+    assert keep.exists()
+
+
+def test_batch_etf_two_success_is_reference_value(monkeypatch):
+    import sys, types
+    import pandas as pd
+    from stock_fetcher import YahooBatchProvider
+
+    cols = pd.MultiIndex.from_product([("1306.T", "1308.T", "1475.T"), ("Close",)])
+    df = pd.DataFrame([[100.0, 100.0, None], [99.0, 98.0, None]], index=pd.to_datetime(["2026-07-08", "2026-07-09"]), columns=cols)
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=lambda symbols, period, group_by, auto_adjust, threads: df))
+
+    r = fetch_market_data([], D, providers=[YahooBatchProvider()], topix_providers=None)
+
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
+    assert r.topix_change_percent == -1.5

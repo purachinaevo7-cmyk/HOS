@@ -122,7 +122,7 @@ def _log_run_context(now: datetime, mode: str, expected_date: date, reason: str)
 
 
 def _retry_required(result: FetchResult) -> bool:
-    return bool(result.missing) or result.topix_source_status not in {"通常判定", "一致"}
+    return bool(result.missing) or result.topix_source_status not in {"通常判定", "一致", "TOPIX ETF中央値（参考判定）"}
 
 
 def _price_from_json(row: dict[str, Any]) -> PriceRecord:
@@ -149,6 +149,7 @@ def _load_previous_log(trade_date: date, data_dir: Path = DATA_DIR) -> dict[str,
 def _write_mode_log(result: FetchResult, mode: str, retry_required: bool, data_dir: Path = DATA_DIR, run_context: dict[str, str] | None = None) -> Path:
     path = save_daily_prices(result, data_dir)
     payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["run_mode"] = mode
     payload["mode"] = mode
     payload["mode_label"] = MODE_LABELS[mode]
     payload["retry_required"] = retry_required
@@ -157,6 +158,26 @@ def _write_mode_log(result: FetchResult, mode: str, retry_required: bool, data_d
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
+
+
+def _reuse_previous_successes(result: FetchResult, previous: dict[str, Any] | None) -> FetchResult:
+    if not previous:
+        return result
+    current_by_code = {p.code: p for p in result.prices}
+    missing_by_code = {m.code: m for m in result.missing}
+    reused: list[PriceRecord] = []
+    for row in previous.get("prices", []):
+        code = str(row.get("code"))
+        if code in current_by_code or code not in missing_by_code:
+            continue
+        record = _price_from_json(row)
+        reused.append(PriceRecord(record.code, record.name, record.close, record.previous_close, record.price_date, f"{record.source}（前回取得済みデータ）", record.volatility))
+    if not reused:
+        return result
+    prices = result.prices + reused
+    reused_codes = {p.code for p in reused}
+    missing = [m for m in result.missing if m.code not in reused_codes]
+    return FetchResult(prices, missing, result.topix_change_percent, result.topix_source_status, result.topix_source, result.trade_date, result.topix_records, result.topix_missing)
 
 def _build_report(result: FetchResult, thresholds: Any, buy_ranges: Any, mode: str, morning_incomplete: bool = False) -> str:
     analysis = analyze_stocks(result.prices, result.topix_change_percent, thresholds, buy_ranges)
@@ -187,7 +208,12 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         expected_date, reason = _resolve_evening_trade_date(now, trade_date)
         _log_run_context(now, mode, expected_date, reason)
         context = {"run_at": now.isoformat(), "mode": mode, "expected_date": expected_date.isoformat(), "current_date": now.date().isoformat(), "reason": reason}
-        result = fetch_market_data(watchlist, expected_date)
+        previous = None
+        try:
+            previous = _load_previous_log(expected_date, data_dir)
+        except FileNotFoundError:
+            previous = None
+        result = _reuse_previous_successes(fetch_market_data(watchlist, expected_date), previous)
         retry_required = _retry_required(result)
         _write_mode_log(result, mode, retry_required, data_dir, context)
         return _build_report(result, thresholds, buy_ranges, mode)

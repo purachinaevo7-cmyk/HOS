@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -44,6 +44,48 @@ class PriceProvider(Protocol):
     def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None: ...
 
     def fetch_topix(self, expected_date: date) -> TopixRecord | None: ...
+
+
+class YahooBatchProvider:
+    name = "Yahoo Finance batch"
+
+    def __init__(self) -> None:
+        self.records: dict[str, PriceRecord] = {}
+        self.topix_etf_record: TopixRecord | None = None
+        self.failures: dict[str, str] = {}
+        self._prefetched = False
+
+    def prefetch(self, watchlist: list[dict], expected_date: date) -> None:
+        if self._prefetched:
+            return
+        symbols = [f"{_normalize_code(str(item['code']))}.T" for item in watchlist]
+        symbols.extend(f"{code}.T" for code in TopixEtfMedianProvider.codes)
+        self._prefetched = True
+        if not symbols:
+            return
+        try:
+            import yfinance as yf
+            data = yf.download(symbols, period="10d", group_by="ticker", auto_adjust=False, threads=False)
+        except Exception as exc:
+            for symbol in symbols:
+                self.failures[symbol] = str(exc)
+            return
+        for item in watchlist:
+            symbol = f"{_normalize_code(str(item['code']))}.T"
+            history = _history_for_download_symbol(data, symbol, len(symbols) > 1)
+            row, prev = _valid_current_and_previous_rows(history, expected_date)
+            if row is None or prev is None or _parse_float(row["Close"]) is None or _parse_float(prev["Close"]) is None:
+                self.failures[symbol] = "データなし"
+                continue
+            code = _normalize_code(str(item['code']))
+            self.records[code] = PriceRecord(code, str(item.get('name', item['code'])), float(row['Close']), float(prev['Close']), _row_date(row), self.name, str(item['volatility']))
+        self.topix_etf_record = _topix_etf_from_download(data, expected_date, len(symbols) > 1)
+
+    def fetch_stock(self, symbol: str, name: str, volatility: str, expected_date: date) -> PriceRecord | None:
+        return self.records.get(_normalize_code(symbol))
+
+    def fetch_topix(self, expected_date: date) -> TopixRecord | None:
+        return self.topix_etf_record
 
 
 class YahooFinanceProvider:
@@ -192,8 +234,9 @@ class StooqProvider:
         import pandas as pd
 
         code = _normalize_code(symbol)
-        for stooq_symbol in (f"{code}.jp", f"{code}.jp?d=", code):
+        for stooq_symbol in (f"{code}.jp", f"{code}.JP", code):
             url = f"https://stooq.com/q/d/l/?s={stooq_symbol}&i=d"
+            print(f"Stooq symbol候補: {stooq_symbol}")
             df = pd.read_csv(url)
             row, prev = _valid_current_and_previous_rows(df, expected_date)
             if row is None or prev is None:
@@ -443,7 +486,7 @@ def _fetch_stock_from_japanese_quote_page(url: str, symbol: str, name: str, vola
     import pandas as pd
     import requests
 
-    response = requests.get(url, headers={"User-Agent": YahooFinanceProvider.user_agent}, timeout=20)
+    response = requests.get(url, headers={"User-Agent": YahooFinanceProvider.user_agent, "Accept-Language": "ja,en-US;q=0.8,en;q=0.6"}, timeout=20)
     response.raise_for_status()
     tables = pd.read_html(response.text)
     for table in tables:
@@ -485,13 +528,17 @@ def _valid_current_and_previous_rows(history, expected_date: date):
 
 
 def default_providers() -> list[PriceProvider]:
-    return [YahooFinanceProvider(), StooqProvider(), KabutanProvider(), MinkabuProvider()]
+    return [YahooBatchProvider(), YahooFinanceProvider(), StooqProvider(), KabutanProvider(), MinkabuProvider()]
 
 
 
 def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, providers: list[PriceProvider] | None = None, topix_providers: list[PriceProvider] | None = None) -> FetchResult:
     trade_date = expected_date or recent_business_day()
     active_providers = providers or default_providers()
+    for provider in active_providers:
+        prefetch = getattr(provider, "prefetch", None)
+        if callable(prefetch):
+            prefetch(watchlist, trade_date)
     prices: list[PriceRecord] = []
     missing: list[MissingRecord] = []
     yahoo_failures = 0
@@ -549,7 +596,15 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
 
     topix_records: list[TopixRecord] = []
     topix_missing: list[str] = []
-    active_topix_providers = default_topix_providers() if topix_providers is None else topix_providers
+    if topix_providers is None:
+        batch_topix = [p for p in active_providers if isinstance(p, YahooBatchProvider)]
+        active_topix_providers = [JPXProvider(), YahooFinanceProvider(), TradingViewProvider(), *batch_topix, TopixEtfMedianProvider()]
+    else:
+        active_topix_providers = topix_providers
+    for provider in active_topix_providers:
+        prefetch = getattr(provider, "prefetch", None)
+        if callable(prefetch):
+            prefetch(watchlist, trade_date)
     selected_direct: TopixRecord | None = None
     selected_etf: TopixRecord | None = None
     for provider in active_topix_providers:
@@ -598,6 +653,31 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         status, change, source = "判定保留", None, "未取得"
     return FetchResult(prices, missing, change, status, source, trade_date, topix_records, topix_missing)
 
+def _history_for_download_symbol(data, symbol: str, grouped: bool):
+    try:
+        if grouped and hasattr(data, "columns") and getattr(data.columns, "nlevels", 1) > 1:
+            return data[symbol]
+        return data
+    except Exception:
+        return None
+
+
+def _topix_etf_from_download(data, expected_date: date, grouped: bool) -> TopixRecord | None:
+    records: list[TopixRecord] = []
+    for code in TopixEtfMedianProvider.codes:
+        symbol = f"{code}.T"
+        history = _history_for_download_symbol(data, symbol, grouped)
+        row, prev = _valid_current_and_previous_rows(history, expected_date)
+        if row is None or prev is None or _parse_float(row["Close"]) is None or _parse_float(prev["Close"]) is None:
+            continue
+        records.append(TopixRecord(f"TOPIX ETF {code}", float(row["Close"]), float(prev["Close"]), _row_date(row), "Yahoo batch取得のTOPIX連動ETF"))
+    if len(records) < 2:
+        return None
+    median_change = median(r.change_percent for r in records)
+    previous_close = 100.0
+    return TopixRecord(TopixEtfMedianProvider.name, previous_close * (1 + median_change / 100), previous_close, expected_date, "TOPIX本体未取得時の参考判定としてETF中央値を使用", tuple(records))
+
+
 def _serialize_topix(topix: TopixRecord) -> dict:
     payload = asdict(topix) | {"price_date": topix.price_date.isoformat(), "change_percent": topix.change_percent}
     payload["components"] = [_serialize_topix(component) for component in topix.components]
@@ -608,12 +688,28 @@ def save_daily_prices(result: FetchResult, data_dir: Path) -> Path:
     data_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "trade_date": result.trade_date.isoformat(),
+        "run_mode": "unknown",
+        "fetched_at_jst": datetime.now(timezone(timedelta(hours=9))).isoformat(),
         "topix": [_serialize_topix(t) for t in result.topix_records],
         "topix_source_status": result.topix_source_status,
-        "prices": [asdict(p) | {"price_date": p.price_date.isoformat(), "change_percent": round(percent_change(p.close, p.previous_close), 2), "reason": ""} for p in result.prices],
-        "missing": [asdict(m) for m in result.missing],
+        "topix_source": result.topix_source,
+        "prices": [asdict(p) | {"price_date": p.price_date.isoformat(), "change_percent": round(percent_change(p.close, p.previous_close), 2), "provider": p.source, "success": True, "reason": "", "used_fallback_data": "前回取得済みデータ" in p.source} for p in result.prices],
+        "missing": [asdict(m) | {"close": None, "previous_close": None, "change_percent": None, "price_date": None, "success": False, "provider": None, "used_fallback_data": False} for m in result.missing],
         "topix_missing": result.topix_missing,
+        "stock_results": (
+            [asdict(p) | {"price_date": p.price_date.isoformat(), "change_percent": round(percent_change(p.close, p.previous_close), 2), "provider": p.source, "success": True, "reason": "", "used_fallback_data": "前回取得済みデータ" in p.source} for p in result.prices]
+            + [asdict(m) | {"close": None, "previous_close": None, "change_percent": None, "price_date": None, "success": False, "provider": None, "used_fallback_data": False} for m in result.missing]
+        ),
+        "retry_required": bool(result.missing) or result.topix_source_status not in {"通常判定", "一致", "TOPIX ETF中央値（参考判定）"},
+        "used_fallback_data": any("前回取得済みデータ" in getattr(p, "source", "") for p in result.prices),
     }
     path = data_dir / f"{result.trade_date.isoformat()}.json"
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    cutoff = result.trade_date - timedelta(days=30)
+    for old in data_dir.glob("*.json"):
+        try:
+            if date.fromisoformat(old.stem) < cutoff:
+                old.unlink()
+        except ValueError:
+            continue
     return path
