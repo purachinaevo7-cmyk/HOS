@@ -28,3 +28,21 @@
 
 ## Philosophy
 Think First. Build Second.
+
+## GitHub Actions: Stock Watch
+
+`.github/workflows/stock-watch.yml` は、平日18:00頃（JST）に `scripts/stock_watch.py` を実行するワークフローです。`workflow_dispatch` にも対応しているため、GitHub Actions画面から手動実行できます。
+
+### セットアップ手順
+
+1. GitHubリポジトリの **Settings > Secrets and variables > Actions** を開きます。
+2. **New repository secret** から `DISCORD_WEBHOOK_URL` を追加し、DiscordのWebhook URLを登録します。
+3. `requirements.txt` に必要なPython依存関係が含まれていることを確認します。
+4. GitHubの **Actions > Stock Watch** を開き、必要に応じて **Run workflow** から手動実行します。
+
+### 実行内容
+
+- Python 3.12をセットアップします。
+- `requirements.txt` をインストールします。
+- `DISCORD_WEBHOOK_URL` を環境変数として渡し、`python scripts/stock_watch.py` を実行します。
+- 実行ログは `logs/stock-watch.log` に保存し、ジョブの成功・失敗にかかわらず `stock-watch-logs` artifactとしてアップロードします。
