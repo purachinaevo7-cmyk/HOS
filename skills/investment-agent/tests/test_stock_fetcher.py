@@ -50,6 +50,17 @@ def test_topix_match_and_mismatch():
     assert r.topix_change_percent is None
 
 
+def test_topix_mismatch_only_when_diff_is_at_least_threshold():
+    ok1 = MockProvider(topix=(99.00,100,D))
+    ok2 = MockProvider(topix=(98.71,100,D))
+    r = fetch_market_data([], D, providers=[], topix_providers=[ok1, ok2])
+    assert r.topix_source_status == "一致"
+
+    bad = MockProvider(topix=(98.70,100,D))
+    r = fetch_market_data([], D, providers=[], topix_providers=[ok1, bad])
+    assert r.topix_source_status == "要確認（指数値不一致）"
+
+
 def test_symbol_patterns():
     assert symbol_patterns("5713") == ["5713.T", "5713 JP", "5713"]
 
@@ -80,10 +91,10 @@ def test_topix_falls_back_until_two_sources_are_collected():
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx, tradingview, investing])
 
     assert r.topix_source_status == "一致"
-    assert r.topix_change_percent == -1.0
-    assert r.topix_source == "JPX/TradingView"
-    assert [t.provider for t in r.topix_records] == ["JPX", "TradingView"]
-    assert investing.called is False
+    assert r.topix_change_percent == -1.1
+    assert r.topix_source == "JPX/TradingView/Investing.com"
+    assert [t.provider for t in r.topix_records] == ["JPX", "TradingView", "Investing.com"]
+    assert investing.called is True
 
 
 def test_topix_requires_two_valid_sources_to_calculate_change():
@@ -107,9 +118,7 @@ def test_default_topix_provider_order_skips_unconfigured_jpx(monkeypatch):
         "JPX",
         "TradingView",
         "Investing.com",
-        "TOPIX ETF 1306",
-        "TOPIX ETF 1308",
-        "TOPIX ETF 1475",
+        "TOPIX ETF median",
     ]
 
     monkeypatch.setenv("JPX_TOPIX_CSV_URL", "https://example.test/topix.csv")
@@ -119,9 +128,7 @@ def test_default_topix_provider_order_skips_unconfigured_jpx(monkeypatch):
         "JPX",
         "TradingView",
         "Investing.com",
-        "TOPIX ETF 1306",
-        "TOPIX ETF 1308",
-        "TOPIX ETF 1475",
+        "TOPIX ETF median",
     ]
 
 
@@ -166,10 +173,56 @@ def test_topix_logs_success_and_failure_until_two_sources():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, stooq, jpx, tv])
 
-    assert r.topix_source == "Stooq/JPX"
+    assert r.topix_source == "Stooq/JPX/TradingView"
     assert r.topix_missing == [
         "Yahoo Finance: 失敗（データなし）",
-        "Stooq: 成功（前日比 -1.00%）",
-        "JPX: 成功（前日比 -1.10%）",
+        "Stooq: 成功（取得日 2026-07-09, 終値 99.00, 前日終値 100.00, 計算した前日比 -1.00%）",
+        "JPX: 成功（取得日 2026-07-09, 終値 98.90, 前日終値 100.00, 計算した前日比 -1.10%）",
+        "TradingView: 成功（取得日 2026-07-09, 終値 98.80, 前日終値 100.00, 計算した前日比 -1.20%）",
     ]
-    assert tv.called is False
+    assert tv.called is True
+
+
+def test_tradingview_uses_previous_close_column(monkeypatch):
+    from stock_fetcher import TradingViewProvider
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"d": [101.0, 100.0, "delayed_streaming_900"]}]}
+
+    def post(url, json, timeout):
+        assert "prev_close" in json["columns"]
+        assert "change_abs" not in json["columns"]
+        return Response()
+
+    monkeypatch.setattr("requests.post", post)
+
+    record = TradingViewProvider().fetch_topix(D)
+
+    assert record.close == 101.0
+    assert record.previous_close == 100.0
+    assert record.change_percent == 1.0
+
+
+def test_topix_etf_median_provider_uses_three_etfs(monkeypatch):
+    import pandas as pd
+    from stock_fetcher import TopixEtfMedianProvider
+
+    histories = {
+        "1306.T": pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 99.0]}),
+        "1308.T": pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 98.5]}),
+        "1475.T": pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 99.2]}),
+    }
+
+    provider = TopixEtfMedianProvider()
+    monkeypatch.setattr(provider, "_history", lambda ticker: histories[ticker])
+
+    record = provider.fetch_topix(D)
+
+    assert record.provider == "TOPIX ETF median"
+    assert record.previous_close == 100.0
+    assert record.change_percent == -1.0
+    assert "1306・1308・1475" in record.reason
