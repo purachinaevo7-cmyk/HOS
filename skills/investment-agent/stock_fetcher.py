@@ -51,31 +51,33 @@ class YahooFinanceProvider:
 
     def _history(self, ticker: str):
         try:
+            return self._chart_history(ticker)
+        except Exception:
             import requests
             import yfinance as yf
 
             session = requests.Session()
-            session.headers.update({"User-Agent": self.user_agent})
+            session.headers.update({"User-Agent": self.user_agent, "Accept": "application/json,text/html;q=0.9,*/*;q=0.8"})
             try:
                 return yf.Ticker(ticker, session=session).history(period="10d", auto_adjust=False)
             except TypeError:
                 return yf.Ticker(ticker).history(period="10d", auto_adjust=False)
-        except Exception:
-            return self._chart_history(ticker)
 
     def _chart_history(self, ticker: str):
-        """Fetch Yahoo history via the chart endpoint as a fallback for HTML/API changes."""
+        """Fetch Yahoo history through the JSON chart endpoint, avoiding brittle HTML parsing."""
         import pandas as pd
         import requests
 
-        r = requests.get(
-            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
-            params={"range": "10d", "interval": "1d", "events": "history"},
-            headers={"User-Agent": self.user_agent, "Accept": "application/json"},
-            timeout=20,
-        )
-        r.raise_for_status()
-        result = (r.json().get("chart", {}).get("result") or [None])[0]
+        params = {"range": "10d", "interval": "1d", "events": "history", "includePrePost": "false"}
+        headers = {"User-Agent": self.user_agent, "Accept": "application/json,text/html;q=0.9,*/*;q=0.8"}
+        response = None
+        for host in ("query1.finance.yahoo.com", "query2.finance.yahoo.com"):
+            response = requests.get(f"https://{host}/v8/finance/chart/{ticker}", params=params, headers=headers, timeout=20)
+            if response.status_code < 500:
+                break
+        assert response is not None
+        response.raise_for_status()
+        result = (response.json().get("chart", {}).get("result") or [None])[0]
         if not result:
             return pd.DataFrame()
         timestamps = result.get("timestamp") or []
@@ -118,13 +120,18 @@ class JPXProvider:
 
     def fetch_topix(self, expected_date: date) -> TopixRecord | None:
         url = os.getenv("JPX_TOPIX_CSV_URL", self.csv_url)
+        import io
         import pandas as pd
+        import requests
 
-        df = pd.read_csv(url)
-        df.columns = [str(c).strip() for c in df.columns]
-        date_col = next((c for c in df.columns if c.lower() in {"date", "trade_date", "日付", "年月日"}), None)
-        close_col = next((c for c in df.columns if c.lower() in {"close", "topix", "終値", "指数値"}), None)
-        prev_col = next((c for c in df.columns if c.lower() in {"previous_close", "prev_close", "前日終値"}), None)
+        response = requests.get(url, headers={"User-Agent": YahooFinanceProvider.user_agent, "Accept": "text/csv,*/*"}, timeout=20)
+        response.raise_for_status()
+        df = pd.read_csv(io.StringIO(response.text))
+        df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
+        normalized = {c: str(c).strip().lower().replace(" ", "_") for c in df.columns}
+        date_col = next((c for c, n in normalized.items() if n in {"date", "trade_date", "日付", "年月日", "base_date"}), None)
+        close_col = next((c for c, n in normalized.items() if n in {"close", "topix", "終値", "指数値", "index_value", "value"}), None)
+        prev_col = next((c for c, n in normalized.items() if n in {"previous_close", "prev_close", "前日終値", "previous_index_value"}), None)
         if not (date_col and close_col):
             return None
         df[date_col] = pd.to_datetime(df[date_col]).dt.date
@@ -133,13 +140,13 @@ class JPXProvider:
             return None
         current_idx = rows.index[-1]
         if prev_col:
-            previous_close = float(rows.iloc[-1][prev_col])
+            previous_close = float(str(rows.iloc[-1][prev_col]).replace(",", ""))
         else:
             prior = df[df[date_col] < expected_date].tail(1)
             if prior.empty:
                 return None
-            previous_close = float(prior.iloc[-1][close_col])
-        return TopixRecord(self.name, float(df.loc[current_idx, close_col]), previous_close, expected_date)
+            previous_close = float(str(prior.iloc[-1][close_col]).replace(",", ""))
+        return TopixRecord(self.name, float(str(df.loc[current_idx, close_col]).replace(",", "")), previous_close, expected_date, "JPX公式CSVをHTTP取得")
 
 
 class TradingViewProvider:
@@ -290,25 +297,39 @@ class TopixEtfProvider(YahooFinanceProvider):
 
 def default_topix_providers() -> list[PriceProvider]:
     return [
-        YahooFinanceProvider(),
-        StooqProvider(),
         JPXProvider(),
+        YahooFinanceProvider(),
         TradingViewProvider(),
-        InvestingComProvider(),
         TopixEtfMedianProvider(),
     ]
 
 
+def _topix_method(topix: TopixRecord) -> str:
+    return topix.reason or "直接取得"
+
+
 def _format_topix_success(topix: TopixRecord) -> str:
-    details = (
+    return (
+        f"{topix.provider}: 成功（"
         f"取得日 {topix.price_date.isoformat()}, "
         f"終値 {topix.close:.2f}, "
         f"前日終値 {topix.previous_close:.2f}, "
-        f"計算した前日比 {topix.change_percent:.2f}%"
+        f"前日比 {topix.change_percent:.2f}%, "
+        f"取得方法 {_topix_method(topix)}, "
+        "失敗理由 -"
+        "）"
     )
-    if topix.reason:
-        details = f"{details}, {topix.reason}"
-    return f"{topix.provider}: 成功（{details}）"
+
+
+def _format_topix_failure(provider_name: str, trade_date: date, reason: str) -> str:
+    return (
+        f"{provider_name}: 失敗（"
+        f"取得日 {trade_date.isoformat()}, "
+        "終値 -, 前日終値 -, 前日比 -, "
+        "取得方法 -, "
+        f"失敗理由 {reason}"
+        "）"
+    )
 
 
 class AlphaVantageProvider:
@@ -412,33 +433,40 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         (prices.append(record) if record else missing.append(MissingRecord(code, name, "; ".join(failures) or "要確認（データ未取得）")))
 
     topix_records: list[TopixRecord] = []; topix_missing: list[str] = []
+    adopted_records: list[TopixRecord] = []
     active_topix_providers = default_topix_providers() if topix_providers is None else topix_providers
     for provider in active_topix_providers:
         try:
             topix = provider.fetch_topix(trade_date)
         except Exception as exc:
-            topix_missing.append(f"{provider.name}: 失敗（{exc}）"); continue
+            topix_missing.append(_format_topix_failure(provider.name, trade_date, str(exc)))
+            continue
         if topix is None:
-            topix_missing.append(f"{provider.name}: 失敗（データなし）")
+            topix_missing.append(_format_topix_failure(provider.name, trade_date, "データなし"))
             continue
         if topix.price_date != trade_date:
-            topix_missing.append(f"{provider.name}: 失敗（日付不一致 {topix.price_date}）"); continue
+            topix_missing.append(_format_topix_failure(provider.name, trade_date, f"日付不一致 {topix.price_date}"))
+            continue
         topix_records.append(topix)
         topix_missing.append(_format_topix_success(topix))
-    if len(topix_records) >= 2:
-        changes = [t.change_percent for t in topix_records]
-        diff = max(changes) - min(changes)
-        if diff < 0.30:
-            status = "一致"
-            change = round(median(changes), 2)
-        else:
-            status = "要確認（指数値不一致）"
-            change = None
-        source = "/".join(t.provider for t in topix_records)
+        matching_prior = next((prior for prior in topix_records[:-1] if abs(prior.change_percent - topix.change_percent) < 0.30), None)
+        if matching_prior is not None:
+            adopted_records = [matching_prior, topix]
+            break
+    if adopted_records:
+        changes = [t.change_percent for t in adopted_records]
+        status = "一致"
+        change = round(median(changes), 2)
+        source = "/".join(t.provider for t in adopted_records)
     elif len(topix_records) == 1:
-        status = "要確認（TOPIX 1ソースのみ）" if not missing else "要確認"
+        only = topix_records[0]
+        status = "TOPIX未取得（ETF参考値）" if only.provider == TopixEtfMedianProvider.name else ("要確認（TOPIX 1ソースのみ）" if not missing else "要確認")
+        change = only.change_percent if only.provider == TopixEtfMedianProvider.name else None
+        source = only.provider
+    elif len(topix_records) >= 2:
+        status = "要確認（指数値不一致）"
         change = None
-        source = topix_records[0].provider
+        source = "/".join(t.provider for t in topix_records)
     else:
         status, change, source = "要確認", None, "未取得"
     return FetchResult(prices, missing, change, status, source, trade_date, topix_records, topix_missing)

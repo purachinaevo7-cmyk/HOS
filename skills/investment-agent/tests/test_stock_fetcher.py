@@ -91,10 +91,10 @@ def test_topix_falls_back_until_two_sources_are_collected():
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, jpx, tradingview, investing])
 
     assert r.topix_source_status == "一致"
-    assert r.topix_change_percent == -1.1
-    assert r.topix_source == "JPX/TradingView/Investing.com"
-    assert [t.provider for t in r.topix_records] == ["JPX", "TradingView", "Investing.com"]
-    assert investing.called is True
+    assert r.topix_change_percent == -1.05
+    assert r.topix_source == "JPX/TradingView"
+    assert [t.provider for t in r.topix_records] == ["JPX", "TradingView"]
+    assert investing.called is False
 
 
 def test_topix_requires_two_valid_sources_to_calculate_change():
@@ -113,21 +113,17 @@ def test_default_topix_provider_order_skips_unconfigured_jpx(monkeypatch):
 
     monkeypatch.delenv("JPX_TOPIX_CSV_URL", raising=False)
     assert [p.name for p in default_topix_providers()] == [
-        "Yahoo Finance",
-        "Stooq",
         "JPX",
+        "Yahoo Finance",
         "TradingView",
-        "Investing.com",
         "TOPIX ETF median",
     ]
 
     monkeypatch.setenv("JPX_TOPIX_CSV_URL", "https://example.test/topix.csv")
     assert [p.name for p in default_topix_providers()] == [
-        "Yahoo Finance",
-        "Stooq",
         "JPX",
+        "Yahoo Finance",
         "TradingView",
-        "Investing.com",
         "TOPIX ETF median",
     ]
 
@@ -162,7 +158,7 @@ def test_topix_attempts_are_always_logged(monkeypatch):
 
     r = fetch_market_data([], D, providers=[], topix_providers=[jpx])
 
-    assert r.topix_missing == ["JPX: 失敗（データなし）"]
+    assert r.topix_missing == ["JPX: 失敗（取得日 2026-07-09, 終値 -, 前日終値 -, 前日比 -, 取得方法 -, 失敗理由 データなし）"]
 
 
 def test_topix_logs_success_and_failure_until_two_sources():
@@ -173,14 +169,13 @@ def test_topix_logs_success_and_failure_until_two_sources():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[yahoo, stooq, jpx, tv])
 
-    assert r.topix_source == "Stooq/JPX/TradingView"
+    assert r.topix_source == "Stooq/JPX"
     assert r.topix_missing == [
-        "Yahoo Finance: 失敗（データなし）",
-        "Stooq: 成功（取得日 2026-07-09, 終値 99.00, 前日終値 100.00, 計算した前日比 -1.00%）",
-        "JPX: 成功（取得日 2026-07-09, 終値 98.90, 前日終値 100.00, 計算した前日比 -1.10%）",
-        "TradingView: 成功（取得日 2026-07-09, 終値 98.80, 前日終値 100.00, 計算した前日比 -1.20%）",
+        "Yahoo Finance: 失敗（取得日 2026-07-09, 終値 -, 前日終値 -, 前日比 -, 取得方法 -, 失敗理由 データなし）",
+        "Stooq: 成功（取得日 2026-07-09, 終値 99.00, 前日終値 100.00, 前日比 -1.00%, 取得方法 直接取得, 失敗理由 -）",
+        "JPX: 成功（取得日 2026-07-09, 終値 98.90, 前日終値 100.00, 前日比 -1.10%, 取得方法 直接取得, 失敗理由 -）",
     ]
-    assert tv.called is True
+    assert tv.called is False
 
 
 def test_tradingview_uses_previous_close_column(monkeypatch):
@@ -226,3 +221,37 @@ def test_topix_etf_median_provider_uses_three_etfs(monkeypatch):
     assert record.previous_close == 100.0
     assert record.change_percent == -1.0
     assert "1306・1308・1475" in record.reason
+
+
+def test_jpx_provider_fetches_csv_over_http(monkeypatch):
+    from stock_fetcher import JPXProvider
+
+    class Response:
+        text = "date,close,previous_close\n2026-07-09,2800.5,2790.0\n"
+
+        def raise_for_status(self):
+            return None
+
+    def get(url, headers, timeout):
+        assert url.startswith("https://")
+        assert "User-Agent" in headers
+        assert headers["Accept"].startswith("text/csv")
+        return Response()
+
+    monkeypatch.setenv("JPX_TOPIX_CSV_URL", "https://example.test/topix.csv")
+    monkeypatch.setattr("requests.get", get)
+
+    record = JPXProvider().fetch_topix(D)
+
+    assert record.close == 2800.5
+    assert record.previous_close == 2790.0
+    assert record.reason == "JPX公式CSVをHTTP取得"
+
+
+def test_etf_only_success_is_reference_value():
+    etf = NamedTopixProvider("TOPIX ETF median", (99, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[etf])
+
+    assert r.topix_source_status == "TOPIX未取得（ETF参考値）"
+    assert r.topix_change_percent == -1.0
