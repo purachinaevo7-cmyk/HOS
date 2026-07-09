@@ -1,0 +1,10 @@
+buy_ranges_percent:
+  large:
+    lower: -1.2
+    upper: -0.5
+  medium:
+    lower: -2.0
+    upper: -1.0
+  high:
+    lower: -3.0
+    upper: -1.5
