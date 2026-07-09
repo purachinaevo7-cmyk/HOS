@@ -1,0 +1,8 @@
+topix:
+  market_drop_percent: -1.0
+  individual_lower_percent: -0.5
+  individual_upper_percent: 0.5
+stock_drop_thresholds_percent:
+  large: -2.0
+  medium: -3.0
+  high: -4.0
