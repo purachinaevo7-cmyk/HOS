@@ -19,6 +19,7 @@ class TopixRecord:
     previous_close: float
     price_date: date
     reason: str = ""
+    components: tuple["TopixRecord", ...] = ()
 
     @property
     def change_percent(self) -> float:
@@ -261,7 +262,7 @@ class TopixEtfMedianProvider(YahooFinanceProvider):
                     "TOPIX連動ETFを指数プロキシとして使用",
                 )
             )
-        if len(records) != len(self.codes):
+        if len(records) < 2:
             return None
         median_change = median(r.change_percent for r in records)
         base_previous_close = 100.0
@@ -276,6 +277,7 @@ class TopixEtfMedianProvider(YahooFinanceProvider):
             base_previous_close,
             expected_date,
             f"1306・1308・1475の前日比中央値を採用（{details}）",
+            tuple(records),
         )
 
 
@@ -449,7 +451,12 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
             continue
         topix_records.append(topix)
         topix_missing.append(_format_topix_success(topix))
-        matching_prior = next((prior for prior in topix_records[:-1] if abs(prior.change_percent - topix.change_percent) < 0.30), None)
+        if topix.components:
+            topix_missing.extend(_format_topix_success(component) for component in topix.components)
+        if topix.provider == TopixEtfMedianProvider.name:
+            continue
+        direct_records = [record for record in topix_records if record.provider != TopixEtfMedianProvider.name]
+        matching_prior = next((prior for prior in direct_records[:-1] if abs(prior.change_percent - topix.change_percent) <= 0.30), None)
         if matching_prior is not None:
             adopted_records = [matching_prior, topix]
             break
@@ -458,25 +465,38 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         status = "一致"
         change = round(median(changes), 2)
         source = "/".join(t.provider for t in adopted_records)
-    elif len(topix_records) == 1:
-        only = topix_records[0]
-        status = "TOPIX未取得（ETF参考値）" if only.provider == TopixEtfMedianProvider.name else ("要確認（TOPIX 1ソースのみ）" if not missing else "要確認")
-        change = only.change_percent if only.provider == TopixEtfMedianProvider.name else None
-        source = only.provider
-    elif len(topix_records) >= 2:
-        status = "要確認（指数値不一致）"
-        change = None
-        source = "/".join(t.provider for t in topix_records)
     else:
-        status, change, source = "要確認", None, "未取得"
+        direct_records = [record for record in topix_records if record.provider != TopixEtfMedianProvider.name]
+        etf_record = next((record for record in topix_records if record.provider == TopixEtfMedianProvider.name), None)
+        if etf_record is not None and len(direct_records) < 2:
+            status = "代替（TOPIX ETF中央値）"
+            change = etf_record.change_percent
+            source = etf_record.provider
+        elif len(direct_records) == 1:
+            only = direct_records[0]
+            status = "要確認（TOPIX 1ソースのみ）" if not missing else "要確認"
+            change = None
+            source = only.provider
+        elif len(direct_records) >= 2:
+            status = "要確認（指数値不一致）"
+            change = None
+            source = "/".join(t.provider for t in direct_records)
+        else:
+            status, change, source = "要確認", None, "未取得"
     return FetchResult(prices, missing, change, status, source, trade_date, topix_records, topix_missing)
+
+
+def _serialize_topix(topix: TopixRecord) -> dict:
+    payload = asdict(topix) | {"price_date": topix.price_date.isoformat(), "change_percent": topix.change_percent}
+    payload["components"] = [_serialize_topix(component) for component in topix.components]
+    return payload
 
 
 def save_daily_prices(result: FetchResult, data_dir: Path) -> Path:
     data_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "trade_date": result.trade_date.isoformat(),
-        "topix": [asdict(t) | {"price_date": t.price_date.isoformat(), "change_percent": t.change_percent} for t in result.topix_records],
+        "topix": [_serialize_topix(t) for t in result.topix_records],
         "topix_source_status": result.topix_source_status,
         "prices": [asdict(p) | {"price_date": p.price_date.isoformat(), "change_percent": round(percent_change(p.close, p.previous_close), 2), "reason": ""} for p in result.prices],
         "missing": [asdict(m) for m in result.missing],

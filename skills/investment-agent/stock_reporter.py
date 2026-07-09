@@ -6,6 +6,8 @@ from typing import Any
 
 from stock_analyzer import AnalyzedStock, MissingRecord, PriceRecord
 
+REFERENCE_STATUS = "代替（TOPIX ETF中央値）"
+
 
 def _fmt_pct(value: float | None) -> str:
     return "要確認" if value is None else f"{value:.2f}%"
@@ -29,6 +31,10 @@ def _section(title: str, stocks: list[AnalyzedStock], topix_pending: bool) -> li
     return lines
 
 
+def _is_reference_judgement(topix_source_status: str) -> bool:
+    return topix_source_status == REFERENCE_STATUS
+
+
 def generate_report(
     trade_date: date,
     topix_change_percent: float | None,
@@ -38,6 +44,7 @@ def generate_report(
     missing: list[MissingRecord],
     topix_missing: list[str] | None = None,
 ) -> str:
+    reference_judgement = _is_reference_judgement(topix_source_status)
     topix_pending = analysis["topix_category"] is None
     lines: list[str] = [
         trade_date.strftime("%Y/%m/%d"),
@@ -45,6 +52,12 @@ def generate_report(
         f"指数ソース：{topix_source_status}",
         "",
     ]
+    if reference_judgement:
+        lines.extend([
+            "参考判定",
+            "- TOPIX本体未取得のため参考判定（TOPIX ETF中央値を暫定指数として使用）",
+            "",
+        ])
     lines.extend(_section("(A) 相場要因の下げ", analysis["market_drop"], topix_pending))
     lines.append("")
     lines.extend(_section("(B) 個別要因っぽい下げ", analysis["individual_drop"], topix_pending))
@@ -73,7 +86,9 @@ def generate_report(
         "本日の結論",
     ])
     mmdd = trade_date.strftime("%m/%d")
-    if missing or topix_source_status != "一致":
+    if reference_judgement:
+        conclusion = f"{mmdd}のニュースだよ。参考判定：TOPIX本体未取得のため参考判定。TOPIX ETF中央値による暫定A/B判定として扱い、正式判断前にTOPIX本体を再確認してね。"
+    elif missing or topix_source_status != "一致":
         conclusion = f"{mmdd}のニュースだよ。要確認（データ未取得）を最優先。取得済み銘柄だけで暫定判定し、未取得銘柄は断定しない。"
     elif analysis["market_drop"]:
         conclusion = f"{mmdd}のニュースだよ。相場要因の下げ候補あり。寄りは避けて指値分割で買いレンジを確認。"

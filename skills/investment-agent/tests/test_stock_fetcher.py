@@ -202,7 +202,7 @@ def test_tradingview_uses_previous_close_column(monkeypatch):
     assert record.change_percent == 1.0
 
 
-def test_topix_etf_median_provider_uses_three_etfs(monkeypatch):
+def test_topix_etf_median_provider_uses_at_least_two_etfs(monkeypatch):
     import pandas as pd
     from stock_fetcher import TopixEtfMedianProvider
 
@@ -221,6 +221,7 @@ def test_topix_etf_median_provider_uses_three_etfs(monkeypatch):
     assert record.previous_close == 100.0
     assert record.change_percent == -1.0
     assert "1306・1308・1475" in record.reason
+    assert [component.provider for component in record.components] == ["TOPIX ETF 1306", "TOPIX ETF 1308", "TOPIX ETF 1475"]
 
 
 def test_jpx_provider_fetches_csv_over_http(monkeypatch):
@@ -253,5 +254,41 @@ def test_etf_only_success_is_reference_value():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[etf])
 
-    assert r.topix_source_status == "TOPIX未取得（ETF参考値）"
+    assert r.topix_source_status == "代替（TOPIX ETF中央値）"
     assert r.topix_change_percent == -1.0
+
+
+def test_topix_etf_median_provider_uses_two_or_more_etfs(monkeypatch):
+    import pandas as pd
+    from stock_fetcher import TopixEtfMedianProvider
+
+    histories = {
+        "1306.T": pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 99.0]}),
+        "1308.T": pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 98.5]}),
+        "1475.T": pd.DataFrame({"Date": [date(2026, 7, 8)], "Close": [100.0]}),
+    }
+
+    provider = TopixEtfMedianProvider()
+    monkeypatch.setattr(provider, "_history", lambda ticker: histories[ticker])
+
+    record = provider.fetch_topix(D)
+
+    assert record is not None
+    assert record.change_percent == -1.25
+    assert [component.provider for component in record.components] == ["TOPIX ETF 1306", "TOPIX ETF 1308"]
+
+
+def test_topix_etf_median_provider_rejects_one_etf(monkeypatch):
+    import pandas as pd
+    from stock_fetcher import TopixEtfMedianProvider
+
+    histories = {
+        "1306.T": pd.DataFrame({"Date": [date(2026, 7, 8), D], "Close": [100.0, 99.0]}),
+        "1308.T": pd.DataFrame({"Date": [date(2026, 7, 8)], "Close": [100.0]}),
+        "1475.T": pd.DataFrame({"Date": [date(2026, 7, 8)], "Close": [100.0]}),
+    }
+
+    provider = TopixEtfMedianProvider()
+    monkeypatch.setattr(provider, "_history", lambda ticker: histories[ticker])
+
+    assert provider.fetch_topix(D) is None
