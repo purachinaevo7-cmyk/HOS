@@ -6,7 +6,8 @@ from typing import Any
 
 from stock_analyzer import AnalyzedStock, MissingRecord, PriceRecord
 
-REFERENCE_STATUS = "TOPIX ETF中央値（参考判定）"
+REFERENCE_STATUS = "参考判定"
+LEGACY_REFERENCE_STATUS = "TOPIX ETF中央値（参考判定）"
 
 
 def _fmt_pct(value: float | None) -> str:
@@ -20,10 +21,12 @@ def _stock_line(stock: AnalyzedStock) -> str:
     )
 
 
-def _section(title: str, stocks: list[AnalyzedStock], topix_pending: bool) -> list[str]:
+def _section(title: str, stocks: list[AnalyzedStock], topix_pending: bool, reference_judgement: bool) -> list[str]:
     lines = [title]
     if topix_pending:
         lines.append("- A/B判定保留（TOPIXデータ不整合・要確認）")
+    elif not stocks and reference_judgement:
+        lines.append("- 該当銘柄なし（参考判定）")
     elif not stocks:
         lines.append("- 該当銘柄なし（取得済みデータ内での判定）")
     else:
@@ -32,7 +35,13 @@ def _section(title: str, stocks: list[AnalyzedStock], topix_pending: bool) -> li
 
 
 def _is_reference_judgement(topix_source_status: str) -> bool:
-    return topix_source_status in {REFERENCE_STATUS, "代替（TOPIX ETF中央値）"}
+    return topix_source_status in {REFERENCE_STATUS, LEGACY_REFERENCE_STATUS, "代替（TOPIX ETF中央値）"}
+
+
+def _display_topix_source_status(topix_source_status: str) -> str:
+    if topix_source_status == REFERENCE_STATUS:
+        return LEGACY_REFERENCE_STATUS
+    return topix_source_status
 
 
 def generate_report(
@@ -47,11 +56,11 @@ def generate_report(
     morning_retry_incomplete: bool | None = None,
 ) -> str:
     reference_judgement = _is_reference_judgement(topix_source_status)
-    topix_pending = analysis["topix_category"] is None
+    topix_pending = topix_change_percent is None and not reference_judgement
     lines: list[str] = [
         trade_date.strftime("%Y/%m/%d"),
         f"TOPIX前日比：{_fmt_pct(topix_change_percent)}",
-        f"指数ソース：{topix_source_status}",
+        f"指数ソース：{_display_topix_source_status(topix_source_status)}",
         *( [f"取得モード：{mode_label}"] if mode_label else [] ),
         "",
     ]
@@ -61,9 +70,9 @@ def generate_report(
             "- TOPIX本体未取得のため参考判定（TOPIX ETF中央値を暫定指数として使用）",
             "",
         ])
-    lines.extend(_section("(A) 相場要因の下げ", analysis["market_drop"], topix_pending))
+    lines.extend(_section("(A) 相場要因の下げ", analysis["market_drop"], topix_pending, reference_judgement))
     lines.append("")
-    lines.extend(_section("(B) 個別要因っぽい下げ", analysis["individual_drop"], topix_pending))
+    lines.extend(_section("(B) 個別要因っぽい下げ", analysis["individual_drop"], topix_pending, reference_judgement))
     lines.extend([
         "",
         "全銘柄確認状況",

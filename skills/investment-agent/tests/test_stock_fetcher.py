@@ -254,7 +254,7 @@ def test_etf_only_success_is_reference_value():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[etf])
 
-    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
+    assert r.topix_source_status == "参考判定"
     assert r.topix_change_percent == -1.0
 
 
@@ -416,7 +416,7 @@ def test_batch_etf_two_success_is_reference_value(monkeypatch):
 
     r = fetch_market_data([], D, providers=[YahooBatchProvider()], topix_providers=None)
 
-    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
+    assert r.topix_source_status == "参考判定"
     assert r.topix_change_percent == -1.5
 
 
@@ -440,3 +440,10 @@ def test_yahoo_rows_reject_too_old_latest_data():
 
     assert row is None
     assert prev is None
+
+
+def test_etf_median_failure_keeps_topix_pending():
+    r = fetch_market_data([], D, providers=[], topix_providers=[NamedTopixProvider("TOPIX ETF median", None)])
+
+    assert r.topix_source_status == "判定保留"
+    assert r.topix_change_percent is None
