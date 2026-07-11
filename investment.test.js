@@ -1,0 +1,12 @@
+const assert=require('assert'); global.localStorage={m:{},getItem(k){return this.m[k]||null},setItem(k,v){this.m[k]=v},removeItem(k){delete this.m[k]}};
+const ic=require('./investment.js');
+const sample={code:'1111',name:'A',marketData:{price:970},decision:{targetPrice:1000,status:'今週の候補',investmentReasons:['r'],mainRisk:'risk'},scores:{dividend:15,shareholderReturn:10,growth:15,financialHealth:15,valuation:15,competitiveAdvantage:10,theme:10,priceLevel:5,userFit:5},themes:['AI','高配当'],investmentPurposes:['配当','長期保有'],riskFlags:['割高'],lastAnalyzedAt:'2026-01-01',nextReviewAt:'2026-01-02'};
+let s=ic.normalizeStock(sample);
+assert.equal(ic.totalScore(s.scores),100); assert.equal(ic.autoDecision(s),'最優先で調査'); assert.equal(ic.targetDiff(s),-30); assert.equal(ic.targetDiffRate(s),-3); assert.equal(ic.targetStatus(s),'希望株価到達'); assert.equal(ic.overdue(s,new Date('2026-07-11')),true);
+assert.equal(ic.normalizeStock({code:'2'}).marketData.price,null); assert.equal(ic.rankStocks([s,ic.normalizeStock({code:'2',hiScore:10})])[0].code,'1111'); assert.equal(ic.filterStocks([s],{q:'AI'}).length,1); assert.equal(ic.filterStocks([s],{theme:'高配当'}).length,1);
+let parsed=ic.parseJsonInput(JSON.stringify({app:'Investment Commander',stocks:[sample,{name:'bad'}]})); assert.equal(parsed.ok.length,1); assert(parsed.errors.length>=1);
+let partial=ic.parseJsonInput('{bad}\n'+JSON.stringify(sample)); assert.equal(partial.ok.length,1);
+ic.saveStocks([s]); ic.upsertStocks([ic.normalizeStock({...sample,name:'B'})],'update'); assert.equal(ic.loadStocks()[0].name,'B'); ic.upsertStocks([ic.normalizeStock({...sample,analysisHistory:[{title:'h'}]})],'history'); assert.equal(ic.loadStocks()[0].analysisHistory.length>0,true);
+let csv='銘柄コード,銘柄名,現在株価,希望株価,HIスコア,投資テーマ\n3333,C,100,90,70,AI|半導体'; assert.equal(ic.parseCSV(csv).ok[0].code,'3333'); let out=ic.toCSV([s]); assert(out.includes('銘柄コード'));
+let backup=JSON.stringify({app:'Investment Commander',stocks:[sample]}); ic.saveStocks(ic.parseJsonInput(backup).ok); assert.equal(ic.loadStocks().length,1); assert.equal(ic.preset('今すぐ見る',[s]).length,1);
+console.log('investment commander tests passed');
