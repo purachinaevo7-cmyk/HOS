@@ -418,3 +418,25 @@ def test_batch_etf_two_success_is_reference_value(monkeypatch):
 
     assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
     assert r.topix_change_percent == -1.5
+
+
+def test_yahoo_rows_accept_expected_or_prior_latest_jpx_session():
+    import pandas as pd
+    from stock_fetcher import _valid_current_and_previous_rows
+
+    df = pd.DataFrame({"Date": pd.to_datetime(["2026-07-09", "2026-07-10"]), "Close": [100.0, 101.0]})
+    row, prev = _valid_current_and_previous_rows(df, date(2026, 7, 11))
+
+    assert row["DateOnly"] == date(2026, 7, 10)
+    assert prev["DateOnly"] == date(2026, 7, 9)
+
+
+def test_yahoo_rows_reject_too_old_latest_data():
+    import pandas as pd
+    from stock_fetcher import _valid_current_and_previous_rows
+
+    df = pd.DataFrame({"Date": pd.to_datetime(["2026-07-08", "2026-07-09"]), "Close": [100.0, 101.0]})
+    row, prev = _valid_current_and_previous_rows(df, date(2026, 7, 11))
+
+    assert row is None
+    assert prev is None

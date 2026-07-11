@@ -156,3 +156,101 @@ def test_evening_reuses_same_trade_date_previous_success(monkeypatch, tmp_path):
     assert "1111 1111: 取得日 2026-07-09 / Provider mock（前回取得済みデータ）" in report
     assert "2222 B: 要確認（データ未取得）" in report
     assert '"used_fallback_data": true' in (tmp_path / "2026-07-09.json").read_text(encoding="utf-8")
+
+
+def test_evening_friday_21_targets_friday(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 10, 21, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls == [date(2026, 7, 10)]
+
+
+def test_evening_saturday_3am_delay_targets_friday(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 11, 3, 9, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls == [date(2026, 7, 10)]
+
+
+def test_monday_morning_7_targets_previous_friday_without_json(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 13, 7, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.MORNING_RETRY, None, tmp_path)
+
+    assert calls == [date(2026, 7, 10)]
+
+
+def test_monday_21_targets_monday(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 13, 21, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls == [date(2026, 7, 13)]
+
+
+def test_japanese_holiday_targets_previous_session(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 2, 23, 21, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls == [date(2026, 2, 20)]
+
+
+def test_new_year_holiday_targets_latest_jpx_session(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 1, 1, 21, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls == [date(2025, 12, 30)]
+
+
+def test_morning_retry_prefers_previous_json_trade_date(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 13, 7, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    previous = FetchResult([price("1111")], [], -1.0, "一致", "mock/mock2", date(2026, 7, 10), [TopixRecord("mock", 99, 100, date(2026, 7, 10))], [])
+    dsc._write_mode_log(previous, dsc.EVENING, True, tmp_path)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or FetchResult([], [], -1.0, "一致", "mock/mock2", trade_date, [TopixRecord("mock", 99, 100, trade_date)], []))
+
+    dsc.run(dsc.MORNING_RETRY, None, tmp_path)
+
+    assert calls == [date(2026, 7, 10)]
+
+
+def test_expected_date_is_not_weekend(monkeypatch, tmp_path):
+    setup_config(monkeypatch)
+    run_at = dsc.datetime(2026, 7, 12, 21, 0, tzinfo=dsc.ZoneInfo("Asia/Tokyo"))
+    monkeypatch.setattr(dsc, "_jst_now", lambda: run_at)
+    calls = []
+    monkeypatch.setattr(dsc, "fetch_market_data", lambda watchlist, trade_date: calls.append(trade_date) or result([price("1111"), price("2222")], []))
+
+    dsc.run(dsc.EVENING, None, tmp_path)
+
+    assert calls[0].weekday() < 5

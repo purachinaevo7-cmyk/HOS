@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -82,43 +82,99 @@ def _jst_today() -> date:
     return _jst_now().date()
 
 
-def _previous_business_day(current: date) -> date:
+JAPANESE_WEEKDAYS = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
+JPX_CLOSE_TIME = time(15, 30)
+
+
+def _is_jpx_session(day: date) -> bool:
+    try:
+        import exchange_calendars as xcals
+        calendar = xcals.get_calendar("XJPX")
+        return calendar.is_session(day.isoformat())
+    except Exception:
+        # Fallback for tests/minimal environments: weekends, common JPX holidays,
+        # and the Dec 31-Jan 3 market closure are non-sessions.
+        fixed_holidays = {(1, 1), (1, 2), (1, 3), (12, 31)}
+        known_holidays = {date(2026, 2, 23), date(2026, 7, 20), date(2026, 9, 21), date(2026, 9, 22), date(2026, 9, 23)}
+        return day.weekday() < 5 and (day.month, day.day) not in fixed_holidays and day not in known_holidays
+
+
+def _previous_jpx_session(current: date) -> date:
     day = current - timedelta(days=1)
-    while day.weekday() >= 5:
+    while not _is_jpx_session(day):
         day -= timedelta(days=1)
     return day
 
 
-def _latest_finished_business_day(current: date) -> date:
-    return _previous_business_day(current)
+def _latest_jpx_session_on_or_before(current: date) -> date:
+    day = current
+    while not _is_jpx_session(day):
+        day -= timedelta(days=1)
+    return day
+
+
+def _latest_finished_business_day(now: datetime) -> date:
+    now_jst = now.astimezone(ZoneInfo("Asia/Tokyo")) if now.tzinfo else now.replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+    if _is_jpx_session(now_jst.date()) and now_jst.time() >= JPX_CLOSE_TIME:
+        return now_jst.date()
+    return _previous_jpx_session(now_jst.date())
 
 
 def _resolve_evening_trade_date(now: datetime, override: date | None) -> tuple[date, str]:
     if override is not None:
         return override, "明示指定されたtrade_dateを使用"
-    current = now.date()
-    return current, "eveningモードは21:00 JST時点の当日営業日を対象にするため"
+    return _latest_finished_business_day(now), "実行時点で終了済みの直近東証営業日"
 
 
 def _resolve_morning_trade_date(now: datetime, override: date | None, data_dir: Path) -> tuple[date, str]:
     if override is not None:
         return override, "明示指定されたtrade_dateを使用"
-    fallback = _latest_finished_business_day(now.date())
+    fallback = _latest_finished_business_day(now)
     path = data_dir / f"{fallback.isoformat()}.json"
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         trade_date_value = payload.get("trade_date")
         if trade_date_value:
             return date.fromisoformat(str(trade_date_value)), f"前夜JSON（{path.name}）が存在するため、そのtrade_dateを優先"
-    return fallback, "前夜JSONがないため、直近の終了済み営業日を対象にするため"
+    return fallback, "前夜JSONがないため、実行時点で終了済みの直近東証営業日"
+
+
+def _github_actions_delay(now: datetime, expected_date: date) -> timedelta:
+    scheduled = datetime.combine(expected_date, time(21, 0), tzinfo=ZoneInfo("Asia/Tokyo"))
+    now_jst = now.astimezone(ZoneInfo("Asia/Tokyo")) if now.tzinfo else now.replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+    return max(now_jst - scheduled, timedelta(0))
+
+
+def _format_timedelta(delta: timedelta) -> str:
+    total_minutes = int(delta.total_seconds() // 60)
+    hours, minutes = divmod(total_minutes, 60)
+    return f"{hours}時間{minutes:02d}分"
+
+
+def _latest_available_data_date(result: FetchResult) -> date | None:
+    dates = [p.price_date for p in result.prices]
+    dates.extend(t.price_date for t in result.topix_records)
+    for topix in result.topix_records:
+        dates.extend(component.price_date for component in topix.components)
+    return max(dates, default=None)
 
 
 def _log_run_context(now: datetime, mode: str, expected_date: date, reason: str) -> None:
-    print(f"実行日時: {now.isoformat()}")
+    now_jst = now.astimezone(ZoneInfo("Asia/Tokyo")) if now.tzinfo else now.replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+    now_utc = now_jst.astimezone(timezone.utc)
+    print(f"GitHub実行日時 UTC: {now_utc.strftime('%Y-%m-%d %H:%M')}")
+    print(f"実行日時JST: {now_jst.strftime('%Y-%m-%d %H:%M')}")
+    print(f"曜日: {JAPANESE_WEEKDAYS[now_jst.weekday()]}")
     print(f"実行モード: {mode} ({MODE_LABELS[mode]})")
-    print(f"対象取引日 expected_date: {expected_date.isoformat()}")
-    print(f"現在日: {now.date().isoformat()}")
+    print(f"対象取引日: {expected_date.isoformat()}")
+    print(f"対象取引日の曜日: {JAPANESE_WEEKDAYS[expected_date.weekday()]}")
     print(f"対象取引日の決定理由: {reason}")
+    print(f"GitHub Actions遅延時間: {_format_timedelta(_github_actions_delay(now_jst, expected_date))}")
+
+
+def _log_latest_available_data_date(result: FetchResult) -> None:
+    latest = _latest_available_data_date(result)
+    print(f"最新取得可能データ日: {latest.isoformat() if latest else '未取得'}")
 
 
 def _retry_required(result: FetchResult) -> bool:
@@ -214,6 +270,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         except FileNotFoundError:
             previous = None
         result = _reuse_previous_successes(fetch_market_data(watchlist, expected_date), previous)
+        _log_latest_available_data_date(result)
         retry_required = _retry_required(result)
         _write_mode_log(result, mode, retry_required, data_dir, context)
         return _build_report(result, thresholds, buy_ranges, mode)
@@ -222,14 +279,18 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         target_date, reason = _resolve_morning_trade_date(now, trade_date, data_dir)
         _log_run_context(now, mode, target_date, reason)
         context = {"run_at": now.isoformat(), "mode": mode, "expected_date": target_date.isoformat(), "current_date": now.date().isoformat(), "reason": reason}
-        previous = _load_previous_log(target_date, data_dir)
-        if not previous.get("retry_required", False):
+        try:
+            previous = _load_previous_log(target_date, data_dir)
+        except FileNotFoundError:
+            previous = None
+        if previous and not previous.get("retry_required", False):
             return None
-        previous_prices = [_price_from_json(row) for row in previous.get("prices", [])]
-        previous_missing = [_missing_from_json(row) for row in previous.get("missing", [])]
+        previous_prices = [_price_from_json(row) for row in previous.get("prices", [])] if previous else []
+        previous_missing = [_missing_from_json(row) for row in previous.get("missing", [])] if previous else []
         missing_codes = {record.code for record in previous_missing}
-        retry_watchlist = [item for item in watchlist if str(item["code"]) in missing_codes]
+        retry_watchlist = [item for item in watchlist if str(item["code"]) in missing_codes] if previous else watchlist
         retry_result = fetch_market_data(retry_watchlist, target_date)
+        _log_latest_available_data_date(retry_result)
         merged_by_code = {record.code: record for record in previous_prices}
         merged_by_code.update({record.code: record for record in retry_result.prices})
         prices = [merged_by_code[str(item["code"])] for item in watchlist if str(item["code"]) in merged_by_code]
