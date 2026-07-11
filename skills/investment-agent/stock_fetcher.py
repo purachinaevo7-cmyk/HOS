@@ -12,6 +12,23 @@ from typing import Protocol
 from stock_analyzer import MissingRecord, PriceRecord, percent_change
 
 
+def _is_jpx_session(day: date) -> bool:
+    try:
+        import exchange_calendars as xcals
+        calendar = xcals.get_calendar("XJPX")
+        return calendar.is_session(day.isoformat())
+    except Exception:
+        fixed_holidays = {(1, 1), (1, 2), (1, 3), (12, 31)}
+        known_holidays = {date(2026, 2, 23), date(2026, 7, 20), date(2026, 9, 21), date(2026, 9, 22), date(2026, 9, 23)}
+        return day.weekday() < 5 and (day.month, day.day) not in fixed_holidays and day not in known_holidays
+
+
+def _latest_jpx_session_on_or_before(day: date) -> date:
+    while not _is_jpx_session(day):
+        day -= timedelta(days=1)
+    return day
+
+
 @dataclass(frozen=True)
 class TopixRecord:
     provider: str
@@ -518,13 +535,18 @@ def _valid_current_and_previous_rows(history, expected_date: date):
     import pandas as pd
 
     rows["DateOnly"] = pd.to_datetime(rows[date_col]).dt.date
-    current = rows[rows["DateOnly"] == expected_date]
-    if current.empty:
+    eligible = rows[rows["DateOnly"] <= expected_date].dropna(subset=["Close"])
+    if eligible.empty:
         return None, None
-    idx = current.index[-1]
-    if idx == 0:
+    required_date = _latest_jpx_session_on_or_before(expected_date)
+    current_date = eligible.iloc[-1]["DateOnly"]
+    if current_date != required_date:
         return None, None
-    return rows.loc[idx], rows.loc[idx - 1]
+    idx = eligible.index[-1]
+    prior = rows[(rows.index < idx) & rows["Close"].notna()]
+    if prior.empty:
+        return None, None
+    return rows.loc[idx], prior.iloc[-1]
 
 
 def default_providers() -> list[PriceProvider]:

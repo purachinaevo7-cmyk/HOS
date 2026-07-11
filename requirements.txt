@@ -4,3 +4,5 @@ requests
 python-dotenv
 pytz
 pytest
+
+exchange_calendars
