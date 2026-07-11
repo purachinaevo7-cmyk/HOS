@@ -60,3 +60,33 @@ def test_topix_inconsistent_holds_ab_classification():
     assert result["market_drop"] == []
     assert result["individual_drop"] == []
     assert result["pending"][0].reason == "TOPIX判定保留"
+
+
+def test_etf_reference_median_a_judgement_runs_classification():
+    prices = [PriceRecord("8001", "伊藤忠商事", 970, 1000, date(2026, 7, 9), "mock", "large")]
+    result = analyze_stocks(prices, -1.0, thresholds(), buy_ranges())
+
+    assert result["topix_category"] == "A"
+    assert [stock.code for stock in result["market_drop"]] == ["8001"]
+    assert result["individual_drop"] == []
+    assert result["pending"] == []
+
+
+def test_etf_reference_median_b_judgement_runs_classification():
+    prices = [PriceRecord("8001", "伊藤忠商事", 970, 1000, date(2026, 7, 9), "mock", "large")]
+    result = analyze_stocks(prices, 0.0, thresholds(), buy_ranges())
+
+    assert result["topix_category"] == "B"
+    assert result["market_drop"] == []
+    assert [stock.code for stock in result["individual_drop"]] == ["8001"]
+    assert result["pending"] == []
+
+
+def test_etf_reference_median_positive_outside_rules_has_no_ab_match():
+    prices = [PriceRecord("8001", "伊藤忠商事", 970, 1000, date(2026, 7, 9), "mock", "large")]
+    result = analyze_stocks(prices, 0.72, thresholds(), buy_ranges())
+
+    assert result["topix_category"] is None
+    assert result["market_drop"] == []
+    assert result["individual_drop"] == []
+    assert result["pending"][0].reason == "TOPIX判定対象外"

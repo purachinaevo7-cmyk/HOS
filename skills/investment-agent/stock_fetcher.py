@@ -668,7 +668,7 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         change = selected_direct.change_percent
         source = selected_direct.provider
     elif selected_etf is not None:
-        status = "TOPIX ETF中央値（参考判定）"
+        status = "参考判定"
         change = selected_etf.change_percent
         source = selected_etf.provider
     else:
@@ -722,7 +722,7 @@ def save_daily_prices(result: FetchResult, data_dir: Path) -> Path:
             [asdict(p) | {"price_date": p.price_date.isoformat(), "change_percent": round(percent_change(p.close, p.previous_close), 2), "provider": p.source, "success": True, "reason": "", "used_fallback_data": "前回取得済みデータ" in p.source} for p in result.prices]
             + [asdict(m) | {"close": None, "previous_close": None, "change_percent": None, "price_date": None, "success": False, "provider": None, "used_fallback_data": False} for m in result.missing]
         ),
-        "retry_required": bool(result.missing) or result.topix_source_status not in {"通常判定", "一致", "TOPIX ETF中央値（参考判定）"},
+        "retry_required": bool(result.missing) or result.topix_source_status not in {"通常判定", "一致", "参考判定", "TOPIX ETF中央値（参考判定）"},
         "used_fallback_data": any("前回取得済みデータ" in getattr(p, "source", "") for p in result.prices),
     }
     path = data_dir / f"{result.trade_date.isoformat()}.json"

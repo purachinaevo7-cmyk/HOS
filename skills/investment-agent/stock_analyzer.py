@@ -79,7 +79,7 @@ def analyze_stocks(
         category = topix_category if trigger and topix_category in {"A", "B"} else None
         reason = "しきい値到達" if trigger else "しきい値未達"
         if trigger and topix_category is None:
-            reason = "TOPIX判定保留"
+            reason = "TOPIX判定保留" if topix_change_percent is None else "TOPIX判定対象外"
         analyzed.append(
             AnalyzedStock(
                 code=price.code,

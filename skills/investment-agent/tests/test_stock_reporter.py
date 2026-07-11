@@ -39,3 +39,19 @@ def test_report_marks_etf_median_as_reference_judgement():
     assert "指数ソース：代替（TOPIX ETF中央値）" in report
     assert "参考判定" in report
     assert "TOPIX本体未取得のため参考判定" in report
+
+
+def test_report_reference_judgement_without_ab_match_is_not_pending():
+    report = generate_report(
+        date(2026, 7, 9),
+        0.72,
+        "参考判定",
+        {"topix_category": None, "market_drop": [], "individual_drop": []},
+        [],
+        [],
+        [],
+    )
+
+    assert "指数ソース：TOPIX ETF中央値（参考判定）" in report
+    assert "- 該当銘柄なし（参考判定）" in report
+    assert "A/B判定保留" not in report

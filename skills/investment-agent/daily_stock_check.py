@@ -178,7 +178,7 @@ def _log_latest_available_data_date(result: FetchResult) -> None:
 
 
 def _retry_required(result: FetchResult) -> bool:
-    return bool(result.missing) or result.topix_source_status not in {"通常判定", "一致", "TOPIX ETF中央値（参考判定）"}
+    return bool(result.missing) or result.topix_source_status not in {"通常判定", "一致", "参考判定", "TOPIX ETF中央値（参考判定）"}
 
 
 def _price_from_json(row: dict[str, Any]) -> PriceRecord:
