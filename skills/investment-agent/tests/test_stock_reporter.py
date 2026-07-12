@@ -53,5 +53,21 @@ def test_report_reference_judgement_without_ab_match_is_not_pending():
     )
 
     assert "指数ソース：TOPIX ETF中央値（参考判定）" in report
-    assert "- 該当銘柄なし（参考判定）" in report
+    assert "- 該当なし（参考判定：指数代理値 0.72% のため）" in report
+    assert "- 該当なし（参考判定：指数代理値 0.72% が中立レンジ外のため）" in report
+    assert "07/09のニュースだよ。参考判定：TOPIX本体未取得のためTOPIX ETF中央値で判定。A/B該当なし。正式判断前にTOPIX本体は再確認。" in report
     assert "A/B判定保留" not in report
+
+
+def test_report_reference_judgement_displays_requested_0710_conclusion():
+    report = generate_report(
+        date(2026, 7, 10),
+        0.72,
+        "TOPIX ETF中央値（参考判定）",
+        {"topix_category": None, "market_drop": [], "individual_drop": []},
+        [],
+        [],
+        [],
+    )
+
+    assert "07/10のニュースだよ。参考判定：TOPIX本体未取得のためTOPIX ETF中央値で判定。A/B該当なし。正式判断前にTOPIX本体は再確認。" in report
