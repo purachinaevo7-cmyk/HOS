@@ -21,10 +21,26 @@ def _stock_line(stock: AnalyzedStock) -> str:
     )
 
 
-def _section(title: str, stocks: list[AnalyzedStock], topix_pending: bool, reference_judgement: bool) -> list[str]:
+def _reference_no_match_line(title: str, topix_change_percent: float | None) -> str:
+    pct = _fmt_pct(topix_change_percent)
+    if title.startswith("(A)"):
+        return f"- 該当なし（参考判定：指数代理値 {pct} のため）"
+    return f"- 該当なし（参考判定：指数代理値 {pct} が中立レンジ外のため）"
+
+
+def _section(
+    title: str,
+    stocks: list[AnalyzedStock],
+    topix_pending: bool,
+    reference_judgement: bool,
+    topix_change_percent: float | None,
+    topix_category: str | None,
+) -> list[str]:
     lines = [title]
     if topix_pending:
         lines.append("- A/B判定保留（TOPIXデータ不整合・要確認）")
+    elif not stocks and reference_judgement and topix_category is None:
+        lines.append(_reference_no_match_line(title, topix_change_percent))
     elif not stocks and reference_judgement:
         lines.append("- 該当銘柄なし（参考判定）")
     elif not stocks:
@@ -70,9 +86,10 @@ def generate_report(
             "- TOPIX本体未取得のため参考判定（TOPIX ETF中央値を暫定指数として使用）",
             "",
         ])
-    lines.extend(_section("(A) 相場要因の下げ", analysis["market_drop"], topix_pending, reference_judgement))
+    topix_category = analysis.get("topix_category")
+    lines.extend(_section("(A) 相場要因の下げ", analysis["market_drop"], topix_pending, reference_judgement, topix_change_percent, topix_category))
     lines.append("")
-    lines.extend(_section("(B) 個別要因っぽい下げ", analysis["individual_drop"], topix_pending, reference_judgement))
+    lines.extend(_section("(B) 個別要因っぽい下げ", analysis["individual_drop"], topix_pending, reference_judgement, topix_change_percent, topix_category))
     lines.extend([
         "",
         "全銘柄確認状況",
@@ -103,7 +120,10 @@ def generate_report(
     elif morning_retry_incomplete is True:
         conclusion = f"{mmdd}のニュースだよ。要確認（データ未取得）。朝補完後も不足あり。"
     elif reference_judgement:
-        conclusion = f"{mmdd}のニュースだよ。参考判定：TOPIX本体未取得のため参考判定。TOPIX ETF中央値による暫定A/B判定として扱い、正式判断前にTOPIX本体を再確認してね。"
+        if analysis.get("topix_category") is None:
+            conclusion = f"{mmdd}のニュースだよ。参考判定：TOPIX本体未取得のためTOPIX ETF中央値で判定。A/B該当なし。正式判断前にTOPIX本体は再確認。"
+        else:
+            conclusion = f"{mmdd}のニュースだよ。参考判定：TOPIX本体未取得のためTOPIX ETF中央値で判定。暫定A/B判定として扱い、正式判断前にTOPIX本体は再確認。"
     elif missing or topix_source_status != "一致":
         conclusion = f"{mmdd}のニュースだよ。要確認（データ未取得）を最優先。取得済み銘柄だけで暫定判定し、未取得銘柄は断定しない。"
     elif analysis["market_drop"]:

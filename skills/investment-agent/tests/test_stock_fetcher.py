@@ -254,7 +254,7 @@ def test_etf_only_success_is_reference_value():
 
     r = fetch_market_data([], D, providers=[], topix_providers=[etf])
 
-    assert r.topix_source_status == "参考判定"
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
     assert r.topix_change_percent == -1.0
 
 
@@ -416,7 +416,7 @@ def test_batch_etf_two_success_is_reference_value(monkeypatch):
 
     r = fetch_market_data([], D, providers=[YahooBatchProvider()], topix_providers=None)
 
-    assert r.topix_source_status == "参考判定"
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
     assert r.topix_change_percent == -1.5
 
 
@@ -447,3 +447,40 @@ def test_etf_median_failure_keeps_topix_pending():
 
     assert r.topix_source_status == "判定保留"
     assert r.topix_change_percent is None
+
+def test_topix_direct_missing_etf_positive_reference_no_ab_match():
+    direct = NamedTopixProvider("Yahoo Finance", None)
+    etf = NamedTopixProvider("TOPIX ETF median", (100.72, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[direct, etf])
+
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
+    assert r.topix_change_percent == 0.72
+
+
+def test_topix_direct_missing_etf_market_drop_reference():
+    direct = NamedTopixProvider("Yahoo Finance", None)
+    etf = NamedTopixProvider("TOPIX ETF median", (98.8, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[direct, etf])
+
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
+    assert r.topix_change_percent == -1.2
+
+
+def test_topix_direct_missing_etf_neutral_reference():
+    direct = NamedTopixProvider("Yahoo Finance", None)
+    etf = NamedTopixProvider("TOPIX ETF median", (100, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[direct, etf])
+
+    assert r.topix_source_status == "TOPIX ETF中央値（参考判定）"
+    assert r.topix_change_percent == 0.0
+
+def test_topix_direct_missing_etf_sets_reference_judgement_flag():
+    direct = NamedTopixProvider("Yahoo Finance", None)
+    etf = NamedTopixProvider("TOPIX ETF median", (100.72, 100, D))
+
+    r = fetch_market_data([], D, providers=[], topix_providers=[direct, etf])
+
+    assert r.is_reference_judgement is True

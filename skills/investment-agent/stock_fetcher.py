@@ -54,6 +54,10 @@ class FetchResult:
     topix_records: list[TopixRecord]
     topix_missing: list[str]
 
+    @property
+    def is_reference_judgement(self) -> bool:
+        return self.topix_source_status in {"参考判定", "TOPIX ETF中央値（参考判定）", "代替（TOPIX ETF中央値）"}
+
 
 class PriceProvider(Protocol):
     name: str
@@ -668,7 +672,7 @@ def fetch_market_data(watchlist: list[dict], expected_date: date | None = None, 
         change = selected_direct.change_percent
         source = selected_direct.provider
     elif selected_etf is not None:
-        status = "参考判定"
+        status = "TOPIX ETF中央値（参考判定）"
         change = selected_etf.change_percent
         source = selected_etf.provider
     else:
