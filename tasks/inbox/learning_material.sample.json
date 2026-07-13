@@ -1,0 +1,14 @@
+{
+  "task_id": "LEARNING-MATERIAL-SAMPLE",
+  "workflow": "learning_material",
+  "request": "Learning Material sample request",
+  "target": {
+    "name": "Learning Material",
+    "company_name": "Learning Material",
+    "ticker": ""
+  },
+  "priority": "normal",
+  "constraints": [
+    "mock safe sample"
+  ]
+}

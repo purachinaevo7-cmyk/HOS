@@ -1,5 +1,5 @@
-id: investment_analysis
-name: Investment Analysis
+id: hr_strategy_review
+name: HR Strategy Review
 version: "2.1.0"
 max_rework_cycles: 2
 outputs:

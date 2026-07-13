@@ -1,0 +1,14 @@
+{
+  "task_id": "COMPANY-ANALYSIS-SAMPLE",
+  "workflow": "company_analysis",
+  "request": "Company Analysis sample request",
+  "target": {
+    "name": "Company Analysis",
+    "company_name": "Company Analysis",
+    "ticker": ""
+  },
+  "priority": "normal",
+  "constraints": [
+    "mock safe sample"
+  ]
+}
