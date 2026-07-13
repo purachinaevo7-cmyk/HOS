@@ -105,4 +105,4 @@ python -m orchestrator.cli run tasks/inbox/investment_analysis.sample.json --exe
 
 GitHub Actions workflow: `.github/workflows/hos-ai-company.yml`. It uploads a `hos-run-<run_id>` artifact containing run metadata, step outputs, final report, HOS update JSON, Investment Commander JSON, reflection, logs, and diagnostics.
 
-Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it never reports success by silently falling back to mock. See `docs/QUICKSTART_AI_COMPANY.md`.
+Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it never reports success by silently falling back to mock. See `docs/QUICKSTART_AI_COMPANY.md`. Current audited status and known constraints are documented in `docs/HOS_AI_COMPANY_STATUS_2026-07-13.md`.
