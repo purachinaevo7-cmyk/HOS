@@ -82,3 +82,29 @@ def test_review_rework_only_target_agent(tmp_path):
     ex=BadOnce(); Orchestrator(root=tmp_path, executor=ex).run_task(task)
     assert ex.calls.count('analyst')==2
     assert ex.calls.count('researcher')==1
+
+
+def test_artifact_index_preserves_multiple_runs_for_same_task(tmp_path):
+    copy_repo_min(tmp_path)
+    task=tmp_path/'task.json'
+    task.write_text((ROOT/'tasks/inbox/investment_analysis.sample.json').read_text(encoding='utf-8'),encoding='utf-8')
+    r1=Orchestrator(root=tmp_path).run_task(task)
+    r2=Orchestrator(root=tmp_path).run_task(task)
+    index=json.loads((tmp_path/'outputs/index.json').read_text(encoding='utf-8'))
+    entries=[e for e in index['artifacts'] if e['task_id']=='INV-DEMO-001']
+    assert index['index_key']=='run_id'
+    assert {e['run_id'] for e in entries} == {r1.run_id, r2.run_id}
+    assert len(entries) == 2
+
+def test_investment_commander_update_shape(tmp_path):
+    copy_repo_min(tmp_path)
+    task=tmp_path/'task.json'
+    task.write_text((ROOT/'tasks/inbox/investment_analysis.sample.json').read_text(encoding='utf-8'),encoding='utf-8')
+    r=Orchestrator(root=tmp_path).run_task(task)
+    update=json.loads((tmp_path/'runs'/r.run_id/'outputs/investment_commander.json').read_text(encoding='utf-8'))
+    assert update['app']=='Investment Commander'
+    assert update['responseType']=='stockAnalysisUpdate'
+    stock=update['stocks'][0]
+    for key in ['code','name','marketData','companyEvaluation','priceEvaluation','overallEvaluation','decision','analysisHistoryEntry','lastAnalyzedAt','nextReviewAt','sources','freshnessStatus','riskFlags','scores','themes','investmentPurposes']:
+        assert key in stock
+    assert stock['code']=='285A'
