@@ -66,7 +66,6 @@
     "do_not_auto_adopt": true,
     "selection_criteria": ["novelty", "evidence", "decision_impact"],
     "recommended_shortlist": ["string"]
-  },
-  "handoff_to": "risk_reviewer"
+  }
 }
 ```
