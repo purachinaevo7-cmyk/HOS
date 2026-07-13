@@ -32,3 +32,31 @@ class KnowledgeService:
             if tags and not set(tags).issubset(set(data.get('tags',[]))): continue
             results.append(data)
         return results
+
+
+class ArtifactIndexService:
+    """Maintains a static JSON index for generated HOS artifacts."""
+    def __init__(self, root: Path):
+        self.root = root
+        self.path = root / "outputs" / "index.json"
+
+    def update(self, entry: dict[str, Any]) -> Path:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        entries: list[dict[str, Any]] = []
+        if self.path.exists():
+            current = json.loads(self.path.read_text(encoding="utf-8"))
+            entries = current.get("artifacts", []) if isinstance(current, dict) else []
+        entries = [e for e in entries if e.get("task_id") != entry.get("task_id")]
+        now = datetime.now(timezone.utc).isoformat()
+        entry = {**entry, "indexed_at": now}
+        entries.append(entry)
+        entries.sort(key=lambda e: e.get("created_at") or e.get("indexed_at", ""), reverse=True)
+        payload = {"version": "1.0.0", "updated_at": now, "artifacts": entries}
+        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return self.path
+
+    def list(self) -> list[dict[str, Any]]:
+        if not self.path.exists():
+            return []
+        current = json.loads(self.path.read_text(encoding="utf-8"))
+        return current.get("artifacts", []) if isinstance(current, dict) else []

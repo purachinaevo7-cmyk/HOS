@@ -75,5 +75,8 @@ Add an agent by adding prompt, schema, registry entry, and workflow reference. D
 ## Migration Strategy
 Keep static pages and existing Investment Commander files intact. Connect new artifacts to UI via future adapters if needed.
 
+## Artifact Index
+Each non-dry run updates `outputs/index.json` with task metadata, workflow version, display metadata, tags, keywords, and relative paths for the final report, HOS update JSON, structured log, and reflection. This gives GitHub Pages or other static adapters a single stable manifest instead of requiring directory scans.
+
 ## Current limitations
-The current executor is deterministic mock logic. External market data, real LLM execution, and UI artifact indexing are intentionally deferred.
+The current executor is deterministic mock logic. External market data and real LLM execution are intentionally deferred.

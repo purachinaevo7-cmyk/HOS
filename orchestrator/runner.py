@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from orchestrator.registry import AgentDefinition, AgentRegistry
 from orchestrator.workflow import WorkflowDefinition, WorkflowEngine, WorkflowStep
-from orchestrator.services import MemoryService
+from orchestrator.services import ArtifactIndexService, MemoryService
 ROOT = Path(__file__).resolve().parents[1]
 
 @dataclass
@@ -120,7 +120,36 @@ class Orchestrator:
             reflection=self.executor.execute(self.registry.get('reflection_agent'), ctx['task'], ctx, WorkflowStep(id='reflection',agent='reflection_agent',output_key='reflection'))
             refl.write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8')
             MemoryService(self.root).save('task_history',task_id,{"task_id":task_id,"workflow_id":wf.id,"completed_at":datetime.now(timezone.utc).isoformat()})
+            self._update_artifact_index(task_id, wf, ctx, report, hos, log, refl)
         return report,hos,log,refl
+
+    def _update_artifact_index(self, task_id, wf, ctx, report, hos, log, refl):
+        task = ctx['task']
+        target = task.get('target', {})
+        hos_update = ctx['outputs'].get('hos_update', {}).get('hos_update', {})
+        output_meta = (hos_update.get('outputs') or [{}])[0]
+        created_at = datetime.now(timezone.utc).isoformat()
+        rel = lambda p: str(p.relative_to(self.root)) if p.is_absolute() or str(p).startswith(str(self.root)) else str(p)
+        ArtifactIndexService(self.root).update({
+            "task_id": task_id,
+            "workflow_id": wf.id,
+            "workflow_version": wf.version,
+            "title": output_meta.get("title") or f"Investment Analysis: {target.get('company_name', task_id) if isinstance(target, dict) else target}",
+            "project": output_meta.get("project", "Investment Commander"),
+            "brain": output_meta.get("brain", "HOS AI Company"),
+            "skill": output_meta.get("skill", wf.id),
+            "format": output_meta.get("format", "Markdown"),
+            "tags": output_meta.get("tags", []),
+            "keywords": output_meta.get("keywords", []),
+            "created_at": created_at,
+            "target": target,
+            "artifact_paths": {
+                "report": rel(report),
+                "hos_update_json": rel(hos),
+                "log": rel(log),
+                "reflection": rel(refl),
+            },
+        })
     def _write_log(self,p):
         if not self.dry_run: p.write_text('\n'.join(json.dumps(e,ensure_ascii=False) for e in self.events)+'\n',encoding='utf-8')
     def _event(self, run_id, task_id, wf, step, agent, status, retry_count, error_type, error_message, artifact_paths):

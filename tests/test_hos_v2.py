@@ -61,6 +61,9 @@ def test_artifacts_reflection_and_ceo_only_markdown(tmp_path):
     task=tmp_path/'task.json'; task.write_text((ROOT/'tasks/inbox/investment_analysis.sample.json').read_text(encoding='utf-8'),encoding='utf-8')
     r=Orchestrator(root=tmp_path).run_task(task)
     assert r.report_path.exists() and r.hos_json_path.exists() and r.log_path.exists() and r.reflection_path.exists()
+    index=json.loads((tmp_path/'outputs/index.json').read_text(encoding='utf-8'))
+    assert index['artifacts'][0]['task_id']=='INV-DEMO-001'
+    assert index['artifacts'][0]['artifact_paths']['report']=='outputs/reports/INV-DEMO-001.md'
     assert '# Investment Analysis' in r.report_path.read_text(encoding='utf-8')
     assert 'Markdown' not in json.dumps(json.loads(r.hos_json_path.read_text(encoding='utf-8')), ensure_ascii=False) or True
     refl=json.loads(r.reflection_path.read_text(encoding='utf-8'))
