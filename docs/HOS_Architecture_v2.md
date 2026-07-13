@@ -75,5 +75,15 @@ Add an agent by adding prompt, schema, registry entry, and workflow reference. D
 ## Migration Strategy
 Keep static pages and existing Investment Commander files intact. Connect new artifacts to UI via future adapters if needed.
 
+## Artifact Index
+Each non-dry run updates `outputs/index.json` with task metadata, workflow version, display metadata, tags, keywords, and relative paths for the final report, HOS update JSON, structured log, and reflection. This gives GitHub Pages or other static adapters a single stable manifest instead of requiring directory scans.
+
+## Usable MVP Additions
+- Canonical Agent Registry lives at `agents/registry.yml`; legacy `agents.yaml` is retained for compatibility only.
+- `orchestrator.cli` provides doctor, validation, run, inspect, resume/cancel status updates, export, and UI data export.
+- Run bundles are written to `runs/<run_id>` and legacy `outputs/` paths remain compatible.
+- `ai-company.html` is a static GitHub Pages Control Center for task creation, registry viewing, workflow viewing, and run viewing.
+- `.github/workflows/hos-ai-company.yml` runs mock/openai executions and uploads bundles.
+
 ## Current limitations
-The current executor is deterministic mock logic. External market data, real LLM execution, and UI artifact indexing are intentionally deferred.
+The current executor is deterministic mock logic. External market data and real LLM execution are intentionally deferred.

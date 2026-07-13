@@ -1,0 +1,14 @@
+{
+  "task_id": "IDEA-GENERATION-SAMPLE",
+  "workflow": "idea_generation",
+  "request": "Idea Generation sample request",
+  "target": {
+    "name": "Idea Generation",
+    "company_name": "Idea Generation",
+    "ticker": ""
+  },
+  "priority": "normal",
+  "constraints": [
+    "mock safe sample"
+  ]
+}

@@ -1,0 +1,1634 @@
+{
+  "workflows": [
+    {
+      "id": "company_analysis",
+      "name": "Company Analysis",
+      "version": "2.1.0",
+      "steps": [
+        {
+          "id": "ceo_plan",
+          "agent": "ceo",
+          "action": "plan",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "ceo_plan",
+          "condition": "always",
+          "validation": {
+            "json_only": true
+          },
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "planning",
+          "approval_gate": false,
+          "name": "CEO Plan"
+        },
+        {
+          "id": "research",
+          "agent": "researcher",
+          "action": "research",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "base_analysis",
+          "agent": "analyst",
+          "action": "analyze",
+          "depends_on": [
+            "research"
+          ],
+          "input_mapping": {},
+          "output_key": "base_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 2
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "creative_challenge",
+          "agent": "creative_challenger",
+          "action": "challenge",
+          "depends_on": [
+            "base_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "creative_challenge",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "market_research",
+          "agent": "market_analyst",
+          "action": "research_market",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "market_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "financial_research",
+          "agent": "financial_analyst",
+          "action": "research_financials",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "financial_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "industry_research",
+          "agent": "industry_analyst",
+          "action": "research_industry",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "industry_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "devils_advocate",
+          "agent": "devils_advocate",
+          "action": "oppose",
+          "depends_on": [
+            "creative_challenge"
+          ],
+          "input_mapping": {},
+          "output_key": "devils_advocate",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "risk_review",
+          "agent": "risk_reviewer",
+          "action": "review",
+          "depends_on": [
+            "devils_advocate"
+          ],
+          "input_mapping": {},
+          "output_key": "risk_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "fact_review",
+          "agent": "fact_reviewer",
+          "action": "review",
+          "depends_on": [
+            "risk_review"
+          ],
+          "input_mapping": {},
+          "output_key": "fact_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "logic_review",
+          "agent": "logic_reviewer",
+          "action": "review",
+          "depends_on": [
+            "fact_review"
+          ],
+          "input_mapping": {},
+          "output_key": "logic_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "quality_review",
+          "agent": "quality_reviewer",
+          "action": "review",
+          "depends_on": [
+            "logic_review"
+          ],
+          "input_mapping": {},
+          "output_key": "quality_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "hos_writer",
+          "agent": "hos_writer",
+          "action": "prepare_hos_update",
+          "depends_on": [
+            "quality_review"
+          ],
+          "input_mapping": {},
+          "output_key": "hos_update",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "ceo_integrate",
+          "agent": "ceo_integrator",
+          "action": "integrate_final",
+          "depends_on": [
+            "hos_writer"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "reflection",
+          "agent": "reflection_agent",
+          "action": "reflect",
+          "depends_on": [
+            "ceo_integrate"
+          ],
+          "input_mapping": {},
+          "output_key": "reflection",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    },
+    {
+      "id": "hr_strategy_review",
+      "name": "HR Strategy Review",
+      "version": "2.1.0",
+      "steps": [
+        {
+          "id": "ceo_plan",
+          "agent": "ceo",
+          "action": "plan",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "ceo_plan",
+          "condition": "always",
+          "validation": {
+            "json_only": true
+          },
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "planning",
+          "approval_gate": false,
+          "name": "CEO Plan"
+        },
+        {
+          "id": "research",
+          "agent": "researcher",
+          "action": "research",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "base_analysis",
+          "agent": "analyst",
+          "action": "analyze",
+          "depends_on": [
+            "research"
+          ],
+          "input_mapping": {},
+          "output_key": "base_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 2
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "creative_challenge",
+          "agent": "creative_challenger",
+          "action": "challenge",
+          "depends_on": [
+            "base_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "creative_challenge",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "market_research",
+          "agent": "market_analyst",
+          "action": "research_market",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "market_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "financial_research",
+          "agent": "financial_analyst",
+          "action": "research_financials",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "financial_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "industry_research",
+          "agent": "industry_analyst",
+          "action": "research_industry",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "industry_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "devils_advocate",
+          "agent": "devils_advocate",
+          "action": "oppose",
+          "depends_on": [
+            "creative_challenge"
+          ],
+          "input_mapping": {},
+          "output_key": "devils_advocate",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "risk_review",
+          "agent": "risk_reviewer",
+          "action": "review",
+          "depends_on": [
+            "devils_advocate"
+          ],
+          "input_mapping": {},
+          "output_key": "risk_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "fact_review",
+          "agent": "fact_reviewer",
+          "action": "review",
+          "depends_on": [
+            "risk_review"
+          ],
+          "input_mapping": {},
+          "output_key": "fact_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "logic_review",
+          "agent": "logic_reviewer",
+          "action": "review",
+          "depends_on": [
+            "fact_review"
+          ],
+          "input_mapping": {},
+          "output_key": "logic_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "quality_review",
+          "agent": "quality_reviewer",
+          "action": "review",
+          "depends_on": [
+            "logic_review"
+          ],
+          "input_mapping": {},
+          "output_key": "quality_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "hos_writer",
+          "agent": "hos_writer",
+          "action": "prepare_hos_update",
+          "depends_on": [
+            "quality_review"
+          ],
+          "input_mapping": {},
+          "output_key": "hos_update",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "ceo_integrate",
+          "agent": "ceo_integrator",
+          "action": "integrate_final",
+          "depends_on": [
+            "hos_writer"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "reflection",
+          "agent": "reflection_agent",
+          "action": "reflect",
+          "depends_on": [
+            "ceo_integrate"
+          ],
+          "input_mapping": {},
+          "output_key": "reflection",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    },
+    {
+      "id": "idea_generation",
+      "name": "Idea Generation",
+      "version": "2.1.0",
+      "steps": [
+        {
+          "id": "ceo_plan",
+          "agent": "ceo",
+          "action": "plan",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "ceo_plan",
+          "condition": "always",
+          "validation": {
+            "json_only": true
+          },
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "planning",
+          "approval_gate": false,
+          "name": "CEO Plan"
+        },
+        {
+          "id": "research",
+          "agent": "researcher",
+          "action": "research",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "base_analysis",
+          "agent": "analyst",
+          "action": "analyze",
+          "depends_on": [
+            "research"
+          ],
+          "input_mapping": {},
+          "output_key": "base_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 2
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "creative_challenge",
+          "agent": "creative_challenger",
+          "action": "challenge",
+          "depends_on": [
+            "base_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "creative_challenge",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "market_research",
+          "agent": "market_analyst",
+          "action": "research_market",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "market_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "financial_research",
+          "agent": "financial_analyst",
+          "action": "research_financials",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "financial_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "industry_research",
+          "agent": "industry_analyst",
+          "action": "research_industry",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "industry_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "devils_advocate",
+          "agent": "devils_advocate",
+          "action": "oppose",
+          "depends_on": [
+            "creative_challenge"
+          ],
+          "input_mapping": {},
+          "output_key": "devils_advocate",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "risk_review",
+          "agent": "risk_reviewer",
+          "action": "review",
+          "depends_on": [
+            "devils_advocate"
+          ],
+          "input_mapping": {},
+          "output_key": "risk_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "fact_review",
+          "agent": "fact_reviewer",
+          "action": "review",
+          "depends_on": [
+            "risk_review"
+          ],
+          "input_mapping": {},
+          "output_key": "fact_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "logic_review",
+          "agent": "logic_reviewer",
+          "action": "review",
+          "depends_on": [
+            "fact_review"
+          ],
+          "input_mapping": {},
+          "output_key": "logic_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "quality_review",
+          "agent": "quality_reviewer",
+          "action": "review",
+          "depends_on": [
+            "logic_review"
+          ],
+          "input_mapping": {},
+          "output_key": "quality_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "hos_writer",
+          "agent": "hos_writer",
+          "action": "prepare_hos_update",
+          "depends_on": [
+            "quality_review"
+          ],
+          "input_mapping": {},
+          "output_key": "hos_update",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "ceo_integrate",
+          "agent": "ceo_integrator",
+          "action": "integrate_final",
+          "depends_on": [
+            "hos_writer"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "reflection",
+          "agent": "reflection_agent",
+          "action": "reflect",
+          "depends_on": [
+            "ceo_integrate"
+          ],
+          "input_mapping": {},
+          "output_key": "reflection",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    },
+    {
+      "id": "investment_analysis",
+      "name": "Investment Analysis",
+      "version": "2.1.0",
+      "steps": [
+        {
+          "id": "ceo_plan",
+          "agent": "ceo",
+          "action": "plan",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "ceo_plan",
+          "condition": "always",
+          "validation": {
+            "json_only": true
+          },
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "planning",
+          "approval_gate": false,
+          "name": "CEO Plan"
+        },
+        {
+          "id": "research",
+          "agent": "researcher",
+          "action": "research",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "base_analysis",
+          "agent": "analyst",
+          "action": "analyze",
+          "depends_on": [
+            "research"
+          ],
+          "input_mapping": {},
+          "output_key": "base_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 2
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "creative_challenge",
+          "agent": "creative_challenger",
+          "action": "challenge",
+          "depends_on": [
+            "base_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "creative_challenge",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "market_research",
+          "agent": "market_analyst",
+          "action": "research_market",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "market_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "financial_research",
+          "agent": "financial_analyst",
+          "action": "research_financials",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "financial_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "industry_research",
+          "agent": "industry_analyst",
+          "action": "research_industry",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "industry_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "devils_advocate",
+          "agent": "devils_advocate",
+          "action": "oppose",
+          "depends_on": [
+            "creative_challenge"
+          ],
+          "input_mapping": {},
+          "output_key": "devils_advocate",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "risk_review",
+          "agent": "risk_reviewer",
+          "action": "review",
+          "depends_on": [
+            "devils_advocate"
+          ],
+          "input_mapping": {},
+          "output_key": "risk_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "fact_review",
+          "agent": "fact_reviewer",
+          "action": "review",
+          "depends_on": [
+            "risk_review"
+          ],
+          "input_mapping": {},
+          "output_key": "fact_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "logic_review",
+          "agent": "logic_reviewer",
+          "action": "review",
+          "depends_on": [
+            "fact_review"
+          ],
+          "input_mapping": {},
+          "output_key": "logic_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "quality_review",
+          "agent": "quality_reviewer",
+          "action": "review",
+          "depends_on": [
+            "logic_review"
+          ],
+          "input_mapping": {},
+          "output_key": "quality_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "hos_writer",
+          "agent": "hos_writer",
+          "action": "prepare_hos_update",
+          "depends_on": [
+            "quality_review"
+          ],
+          "input_mapping": {},
+          "output_key": "hos_update",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "ceo_integrate",
+          "agent": "ceo_integrator",
+          "action": "integrate_final",
+          "depends_on": [
+            "hos_writer"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "reflection",
+          "agent": "reflection_agent",
+          "action": "reflect",
+          "depends_on": [
+            "ceo_integrate"
+          ],
+          "input_mapping": {},
+          "output_key": "reflection",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    },
+    {
+      "id": "learning_material",
+      "name": "Learning Material",
+      "version": "2.1.0",
+      "steps": [
+        {
+          "id": "ceo_plan",
+          "agent": "ceo",
+          "action": "plan",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "ceo_plan",
+          "condition": "always",
+          "validation": {
+            "json_only": true
+          },
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "planning",
+          "approval_gate": false,
+          "name": "CEO Plan"
+        },
+        {
+          "id": "research",
+          "agent": "researcher",
+          "action": "research",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "base_analysis",
+          "agent": "analyst",
+          "action": "analyze",
+          "depends_on": [
+            "research"
+          ],
+          "input_mapping": {},
+          "output_key": "base_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 2
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "creative_challenge",
+          "agent": "creative_challenger",
+          "action": "challenge",
+          "depends_on": [
+            "base_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "creative_challenge",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "market_research",
+          "agent": "market_analyst",
+          "action": "research_market",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "market_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "financial_research",
+          "agent": "financial_analyst",
+          "action": "research_financials",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "financial_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "industry_research",
+          "agent": "industry_analyst",
+          "action": "research_industry",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "industry_research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "research",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "devils_advocate",
+          "agent": "devils_advocate",
+          "action": "oppose",
+          "depends_on": [
+            "creative_challenge"
+          ],
+          "input_mapping": {},
+          "output_key": "devils_advocate",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "risk_review",
+          "agent": "risk_reviewer",
+          "action": "review",
+          "depends_on": [
+            "devils_advocate"
+          ],
+          "input_mapping": {},
+          "output_key": "risk_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "fact_review",
+          "agent": "fact_reviewer",
+          "action": "review",
+          "depends_on": [
+            "risk_review"
+          ],
+          "input_mapping": {},
+          "output_key": "fact_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "logic_review",
+          "agent": "logic_reviewer",
+          "action": "review",
+          "depends_on": [
+            "fact_review"
+          ],
+          "input_mapping": {},
+          "output_key": "logic_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "quality_review",
+          "agent": "quality_reviewer",
+          "action": "review",
+          "depends_on": [
+            "logic_review"
+          ],
+          "input_mapping": {},
+          "output_key": "quality_review",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "hos_writer",
+          "agent": "hos_writer",
+          "action": "prepare_hos_update",
+          "depends_on": [
+            "quality_review"
+          ],
+          "input_mapping": {},
+          "output_key": "hos_update",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "ceo_integrate",
+          "agent": "ceo_integrator",
+          "action": "integrate_final",
+          "depends_on": [
+            "hos_writer"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        },
+        {
+          "id": "reflection",
+          "agent": "reflection_agent",
+          "action": "reflect",
+          "depends_on": [
+            "ceo_integrate"
+          ],
+          "input_mapping": {},
+          "output_key": "reflection",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": ""
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    }
+  ]
+}

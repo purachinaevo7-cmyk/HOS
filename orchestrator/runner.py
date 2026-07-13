@@ -1,133 +1,112 @@
-"""HOS v2 orchestrator: registry-driven, workflow-defined dry-run capable execution."""
+"""HOS v2 orchestrator: registry-driven, workflow-defined execution."""
 from __future__ import annotations
 import argparse, json, time, uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from orchestrator.artifacts import RunStore
+from orchestrator.executor import DeterministicMockExecutor, build_executor
 from orchestrator.registry import AgentDefinition, AgentRegistry
-from orchestrator.workflow import WorkflowDefinition, WorkflowEngine, WorkflowStep
-from orchestrator.services import MemoryService
-ROOT = Path(__file__).resolve().parents[1]
-
+from orchestrator.schemas import validate_task
+from orchestrator.services import ArtifactIndexService, MemoryService
+from orchestrator.workflow import WorkflowEngine, WorkflowStep
+ROOT=Path(__file__).resolve().parents[1]
 @dataclass
 class RunResult:
-    task_id: str; approved: bool; report_path: Path; hos_json_path: Path; log_path: Path; reflection_path: Path; dry_run: bool
-
-class MockAgentExecutor:
-    def execute(self, agent: AgentDefinition, task: dict[str,Any], context: dict[str,Any], step: WorkflowStep) -> dict[str,Any]:
-        aid=agent.id; target=task.get('target',{}); target_name=target.get('company_name') if isinstance(target,dict) else str(target)
-        ticker=target.get('ticker','') if isinstance(target,dict) else ''
-        missing=["latest price", "latest earnings", "verified news", "valuation multiples"] if context.get('dry_run') else []
-        if aid=='ceo': return {"agent":aid,"status":"completed","summary":f"{target_name}の投資分析目的を整理し、専門Agentへ割り当てます。","assignments":[{"agent":"researcher","task":"available data and gaps"},{"agent":"analyst","task":"base analysis"}],"assumptions":["dry-runでは最新株価・決算・ニュースを捏造しない"],"next_agents":["researcher","analyst"]}
-        if aid=='researcher': return {"agent":aid,"status":"completed","findings":[{"topic":"target","detail":f"ticker={ticker}, company={target_name}","source_required":False}],"data_gaps":missing,"missing_information":missing}
-        if aid=='analyst': return {"agent":aid,"status":"completed","company_evaluation":{"summary":"事業品質は公開情報確認後に評価する","confidence":"low"},"price_evaluation":{"summary":"dry-runでは現在株価を取得せず割安/割高を判定しない","confidence":"low"},"overall_judgment":"情報不足のため保留。分析構造と確認項目を先に確定する。","investment_view":"データ確認待ちの候補","scenarios":{"bull":"NAND市況回復と収益性改善","base":"市況循環に沿った回復待ち","bear":"需給悪化と価格下落"},"key_metrics":["売上成長率","営業利益率","FCF","有利子負債","市況指標"],"open_questions":["最新決算の利益率","現在株価と時価総額","需給サイクル"]}
-        if aid=='creative_challenger': return {"agent":aid,"status":"completed","input_summary":{"base_analysis_used":bool(context["outputs"].get("base_analysis")),"research_findings_used":bool(context["outputs"].get("research")),"other_inputs":["ceo_plan"]},"evaluation":{"novelty":"medium","impact":"medium","evidence":"low","feasibility":"high","learning_value":"high"},"challenged_assumptions":[{"assumption":"半導体市況は平均回帰する","challenge":"構造変化で従来サイクルが短期化/長期化する可能性","evidence":"未取得のため検証候補","evidence_strength":"low","decision_relevance":"買付時期と安全域"}],"ideas":[{"title":"市況回復を待つのではなく在庫循環の先行指標で段階判断","type":"alternative_action","hypothesis":"価格そのものより在庫・稼働率・契約価格を先に見る","rationale":"半導体メモリは市況循環の影響が大きい","evidence":"dry-runでは未検証","evidence_strength":"low","feasibility":"high","expected_impact":"medium","decision_impact":"次回レビュー項目を明確化","validation_steps":["在庫水準確認","同業決算比較"],"risks_or_limits":["先行指標が公開されない可能性"]}],"ceo_selection_guidance":{"do_not_auto_adopt":True,"selection_criteria":["novelty","impact","evidence","feasibility","learning_value"],"recommended_shortlist":["在庫循環の先行指標"]}}
-        if aid=='devils_advocate': return {"agent":aid,"status":"completed","rejection_reasons":["最新財務と株価なしでは投資判断不可"],"broken_assumptions":["市況回復の時期を読める"],"failure_scenarios":["価格下落長期化","設備投資負担増"],"missing_evidence":missing,"disconfirming_signals":["粗利率悪化","在庫増加","ガイダンス下方修正"]}
-        if aid in {'risk_reviewer','fact_reviewer','logic_reviewer','quality_reviewer'}:
-            critical=[]; warnings=[]; rework=[]
-            if aid=='fact_reviewer' and not context['outputs'].get('research'): warnings.append('最新情報は未取得として扱われている')
-            if aid=='quality_reviewer' and 'base_analysis' not in context['outputs']: critical.append('base_analysis missing'); rework.append('analyst')
-            return {"agent":aid,"status":"completed","approved":not critical,"severity":"critical" if critical else ("warning" if warnings else "none"),"critical_errors":critical,"warnings":warnings,"missing_information":missing,"rework_agents":rework,"reviewed_output_keys":list(context['outputs'].keys())}
-        if aid=='hos_writer': return {"agent":aid,"status":"completed","report_material":{"title":f"Investment Analysis: {target_name}","target":target,"required_sections":["Request","Data Availability","Company Evaluation","Price Evaluation","Overall Judgment","Base Analysis","Creative Challenge","Devil’s Advocate","Risks","Review Findings","Missing Information","Next Review Items","Reflection Summary"]},"hos_update":{"outputs":[{"title":f"Investment Analysis: {target_name}","project":"Investment Commander","brain":"HOS AI Company","skill":"investment_analysis","format":"Markdown","tags":["investment","analysis",ticker,target_name],"keywords":[ticker,target_name,"risk","valuation"]}],"investment_analysis":{"company_evaluation":context['outputs'].get('base_analysis',{}).get('company_evaluation'),"price_evaluation":context['outputs'].get('base_analysis',{}).get('price_evaluation'),"overall_judgment":context['outputs'].get('base_analysis',{}).get('overall_judgment'),"freshness_status":"missing_latest_data","next_review_date":"manual_after_data_update"}}}
-        if aid=='reflection_agent': return {"task_id":task['task_id'],"workflow_id":context['workflow_id'],"workflow_version":context['workflow_version'],"what_worked":["registry-driven workflow completed in dry-run"],"what_failed":["external market data unavailable by design"],"agent_evaluations":[{"agent":k,"status":"completed"} for k in context['outputs']],"workflow_improvements":["connect verified market data adapter later"],"knowledge_candidates":[],"follow_up_tasks":["fetch latest price and earnings before final investment decision"]}
-        raise KeyError(f"Unknown agent id: {aid}")
-
+    task_id:str; approved:bool; report_path:Path; hos_json_path:Path; log_path:Path; reflection_path:Path; dry_run:bool; run_id:str=''
+MockAgentExecutor=DeterministicMockExecutor
 class Orchestrator:
-    def __init__(self, root: Path=ROOT, dry_run: bool=False, executor: MockAgentExecutor|None=None):
-        self.root=root; self.dry_run=dry_run;
-        if not (root/'agents.yaml').exists():
+    def __init__(self, root:Path=ROOT, dry_run:bool=False, executor:Any|None=None, executor_name:str='mock', scenario:str='success'):
+        self.root=root; self.dry_run=dry_run; self.executor=executor or build_executor(executor_name,scenario=scenario)
+        if not (root/'agents/registry.yml').exists() and not (root/'agents.yaml').exists():
             import shutil
-            shutil.copy2(ROOT/'agents.yaml', root/'agents.yaml')
+            (root/'agents').mkdir(parents=True,exist_ok=True); shutil.copy2(ROOT/'agents/registry.yml', root/'agents/registry.yml')
             if not (root/'schemas').exists(): shutil.copytree(ROOT/'schemas', root/'schemas')
-        self.registry=AgentRegistry.load(root); self.executor=executor or MockAgentExecutor(); self.events=[]
-    def run_task(self, task_path: str|Path) -> RunResult:
+        self.registry=AgentRegistry.load(root); self.events=[]; self.store=RunStore(root)
+    def run_task(self, task_path:str|Path)->RunResult:
         task_file=Path(task_path); task_file=task_file if task_file.is_absolute() else self.root/task_file
         task=json.loads(task_file.read_text(encoding='utf-8')); self._validate_task(task)
-        wf=WorkflowEngine.load(self.root, task.get('workflow') or task.get('type')); WorkflowEngine.validate(wf,self.registry)
-        run_id=str(uuid.uuid4()); ctx={"task":task,"outputs":{},"step_status":{},"dry_run":self.dry_run,"workflow_id":wf.id,"workflow_version":wf.version}
-        self._event(run_id, task['task_id'], wf, None, None, 'run_started', 0, None, None, [])
-        rework_cycles=0; i=0
-        while i < len(wf.steps):
-            step=wf.steps[i]
-            if not all(ctx['step_status'].get(d)=='completed' for d in step.depends_on): i+=1; continue
-            if not WorkflowEngine.condition_passes(step.condition, ctx): ctx['step_status'][step.id]='skipped'; i+=1; continue
-            out=self._run_step(run_id, task, wf, step, ctx); ctx['outputs'][step.output_key or step.id]=out
-            if out.get('severity')=='critical' and out.get('rework_agents') and rework_cycles < wf.max_rework_cycles:
-                rework_cycles += 1
-                for agent_id in out['rework_agents']:
-                    target_step=next((s for s in wf.steps if s.agent==agent_id), None)
-                    if target_step:
-                        rw=self._run_step(run_id, task, wf, target_step, ctx, retry_count=rework_cycles)
-                        ctx['outputs'][target_step.output_key or target_step.id]=rw
-            i+=1
-        markdown=self._ceo_final_markdown(task, ctx)
-        paths=self._write_artifacts(task['task_id'], wf, ctx, markdown)
-        self._event(run_id, task['task_id'], wf, None, None, 'run_completed', 0, None, None, [str(p) for p in paths])
-        self._write_log(paths[2])
-        return RunResult(task['task_id'], True, paths[0], paths[1], paths[2], paths[3], self.dry_run)
+        wf=WorkflowEngine.load(self.root, task.get('workflow') or task.get('type') or 'investment_analysis'); WorkflowEngine.validate(wf,self.registry)
+        run_id=str(uuid.uuid4()); run_dir=self.store.create(run_id,task,wf.id)
+        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[]}
+        self._event(run_id,task['task_id'],wf,None,None,'run_started',0,None,None,[])
+        rework_cycles=0
+        for step in WorkflowEngine.topological_sort(wf):
+            if not all(ctx['step_status'].get(d) in {'completed','partial','skipped'} for d in step.depends_on):
+                ctx['step_status'][step.id]='skipped'; continue
+            if not WorkflowEngine.condition_passes(step.condition,ctx): ctx['step_status'][step.id]='skipped'; continue
+            out=self._run_with_retry(run_id,task,wf,step,ctx); ctx['outputs'][step.output_key or step.id]=out; self.store.save_step(run_dir,step.id,out)
+            data=out.get('data',out)
+            requests=data.get('rework_requests') or [{'target_agent':a,'target_output_key':'','reason':'legacy','required_changes':[],'priority':'high'} for a in data.get('rework_agents',[])]
+            if data.get('severity')=='critical' and requests and rework_cycles < wf.max_rework_cycles:
+                rework_cycles+=1
+                for req in requests:
+                    target=next((s for s in wf.steps if s.agent==req.get('target_agent') or (s.output_key or s.id)==req.get('target_output_key')),None)
+                    if target:
+                        ctx['rework_history'].append({'cycle':rework_cycles,'request':req,'target_step':target.id})
+                        rw=self._run_with_retry(run_id,task,wf,target,ctx,retry_count=rework_cycles); ctx['outputs'][target.output_key or target.id]=rw; self.store.save_step(run_dir,target.id,rw)
+        markdown=self._ceo_final_markdown(task,ctx)
+        paths=self._write_artifacts(task['task_id'],wf,ctx,markdown,run_dir)
+        run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':'completed','step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
+        self.store.save_run(run_dir,run)
+        self._event(run_id,task['task_id'],wf,None,None,'run_completed',0,None,None,[str(p) for p in paths])
+        self._write_log(paths[2], run_dir)
+        return RunResult(task['task_id'],True,paths[0],paths[1],paths[2],paths[3],self.dry_run,run_id)
     def _execute_agent(self, agent_id, context):
-        # Backward-compatible test helper; production uses executor adapter.
-        task=context.get('task', {})
-        step=WorkflowStep(id=agent_id, agent=agent_id, output_key=agent_id)
-        ctx={'task': task, 'outputs': context.get('outputs', {}), 'dry_run': self.dry_run, 'workflow_id': 'compat', 'workflow_version': 'compat'}
-        aliases={'ceo':'ceo_plan','researcher':'research','analyst':'base_analysis','creative_challenger':'creative_challenge','risk_reviewer':'risk_review'}
-        for old,new in aliases.items():
-            if old in ctx['outputs'] and new not in ctx['outputs']:
-                ctx['outputs'][new]=ctx['outputs'][old]
-        out=self.executor.execute(self.registry.get(agent_id), task, ctx, step)
+        step=WorkflowStep(id=agent_id,agent=agent_id,output_key=agent_id); task=context.get('task',{'task_id':'compat','request':'compat','target':{}}); ctx={'task':task,'outputs':context.get('outputs',{}),'dry_run':self.dry_run,'workflow_id':'compat','workflow_version':'compat','run_id':'compat'}
+        out=self.executor.execute(self.registry.get(agent_id),task,ctx,step)
+        data=out.get('data',out)
         if agent_id=='quality_reviewer':
             old_creative=context.get('outputs',{}).get('creative_challenger')
             if old_creative:
-                bad=[]
-                for idea in old_creative.get('ideas',[]):
-                    if not idea.get('evidence') or not idea.get('expected_impact') or not idea.get('feasibility'):
-                        bad.append('creative_challenger idea missing evidence/feasibility/expected_impact')
-                if bad:
-                    return {'agent':'quality_reviewer','status':'completed','approved':False,'score':0.4,'issues':bad,'rerun_agent':'creative_challenger','rerun_reason':'creative challenge evidence issue'}
-            # compatibility with v1 tests
-            if 'approved' in out and out.get('severity')=='critical':
-                out['rerun_agent']=(out.get('rework_agents') or [None])[0]
-            elif 'base_analysis' not in ctx['outputs']:
-                out={'agent':'quality_reviewer','status':'completed','approved':False,'score':0.4,'issues':['missing analyst'],'rerun_agent':'analyst','rerun_reason':'required output missing'}
-        return out
-
-    def _validate_task(self, task):
-        for k in ['task_id','request','target']: 
-            if k not in task: raise ValueError(f"Task missing {k}")
-    def _run_step(self, run_id, task, wf, step, ctx, retry_count=0):
-        agent=self.registry.get(step.agent); start=time.time(); ctx['step_status'][step.id]='running'
-        self._event(run_id, task['task_id'], wf, step, agent, 'running', retry_count, None, None, [])
-        try:
-            out=self.executor.execute(agent, task, ctx, step); ctx['step_status'][step.id]='completed'
-            self._event(run_id, task['task_id'], wf, step, agent, 'completed', retry_count, None, None, [])
-            return out
-        except Exception as e:
-            ctx['step_status'][step.id]='failed'; self._event(run_id, task['task_id'], wf, step, agent, 'failed', retry_count, type(e).__name__, str(e), [])
-            if step.continue_on_error: return {"agent":agent.id,"status":"failed","error":str(e)}
-            raise
-    def _ceo_final_markdown(self, task, ctx):
-        target=task.get('target',{}); name=target.get('company_name') if isinstance(target,dict) else target
-        o=ctx['outputs']; base=o.get('base_analysis',{}); reviews=[v for k,v in o.items() if k.endswith('review')]
-        lines=[f"# Investment Analysis: {name}","","## Request",task.get('request',''),"","## Data Availability", "dry-run: 最新株価・決算・ニュースは取得せず、missing_informationとして扱いました。", "", "## Company Evaluation", json.dumps(base.get('company_evaluation',{}),ensure_ascii=False), "", "## Price Evaluation", json.dumps(base.get('price_evaluation',{}),ensure_ascii=False), "", "## Overall Judgment", base.get('overall_judgment',''), "", "## Base Analysis", json.dumps(base,ensure_ascii=False,indent=2), "", "## Creative Challenge", json.dumps(o.get('creative_challenge',{}),ensure_ascii=False,indent=2), "feasibility=high", "", "## Devil’s Advocate", json.dumps(o.get('devils_advocate',{}),ensure_ascii=False,indent=2), "", "## Risks", json.dumps(o.get('risk_review',{}),ensure_ascii=False,indent=2), "", "## Review Findings", json.dumps(reviews,ensure_ascii=False,indent=2), "", "## Missing Information", json.dumps(sorted({m for v in o.values() if isinstance(v,dict) for m in v.get('missing_information',[])}),ensure_ascii=False), "", "## Next Review Items", "- 最新株価、決算、同業比較、在庫循環を確認する。", "", "## Reflection Summary", "Reflection JSONを参照してください。"]
-        return "\n".join(lines)+"\n"
-    def _write_artifacts(self, task_id, wf, ctx, markdown):
-        report=self.root/wf.outputs['final_report'].format(task_id=task_id); hos=self.root/wf.outputs['hos_update_json'].format(task_id=task_id); log=self.root/'outputs/logs'/f'{task_id}.jsonl'; refl=self.root/'outputs/reflections'/f'{task_id}.json'
+                bad=[i for i in old_creative.get('ideas',[]) if not i.get('evidence') or not i.get('expected_impact') or not i.get('feasibility')]
+                if bad: data={**data,'approved':False,'score':0.4,'issues':['creative_challenger idea missing evidence/feasibility/expected_impact'],'rerun_agent':'creative_challenger','rerun_reason':'creative challenge evidence issue'}
+            elif 'base_analysis' not in ctx['outputs'] and 'analyst' not in ctx['outputs']:
+                data={**data,'approved':False,'score':0.4,'issues':['missing analyst'],'rerun_agent':'analyst','rerun_reason':'required output missing'}
+        return data
+    def _validate_task(self,task): validate_task(task)
+    def _run_with_retry(self,run_id,task,wf,step,ctx,retry_count=0):
+        max_attempts=int((step.retry_policy or {}).get('max_attempts',1)); last=None
+        for attempt in range(max_attempts):
+            try: return self._run_step(run_id,task,wf,step,ctx,retry_count+attempt)
+            except Exception as e:
+                last=e; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'retrying' if attempt+1<max_attempts else 'failed',retry_count+attempt,type(e).__name__,str(e),[])
+        if step.continue_on_error: return {'schema_version':'1.0','agent_id':step.agent,'agent_version':'unknown','run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'failed','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':[],'errors':[str(last)]}
+        raise last
+    def _run_step(self,run_id,task,wf,step,ctx,retry_count=0):
+        agent=self.registry.get(step.agent); ctx['step_status'][step.id]='running'; self._event(run_id,task['task_id'],wf,step,agent,'running',retry_count,None,None,[])
+        out=self.executor.execute(agent,task,ctx,step); ctx['step_status'][step.id]=out.get('status','completed'); self._event(run_id,task['task_id'],wf,step,agent,ctx['step_status'][step.id],retry_count,None,None,[]); return out
+    def _ceo_final_markdown(self,task,ctx):
+        target=task.get('target',{}); name=target.get('company_name') or target.get('name') if isinstance(target,dict) else target
+        base=ctx['outputs'].get('base_analysis',{}).get('data',{}); reviews=[v.get('data',v) for k,v in ctx['outputs'].items() if k.endswith('review')]
+        lines=[f'# Investment Analysis: {name}','','## Request',task.get('request',''),'','## Execution Mode','mock' if isinstance(self.executor,DeterministicMockExecutor) else 'openai/replay','','## Data Availability','Live external research is not claimed unless evidence says verified.','','## Base Analysis',json.dumps(base,ensure_ascii=False,indent=2),'','## Creative Challenge',json.dumps(ctx['outputs'].get('creative_challenge',{}).get('data',{}),ensure_ascii=False,indent=2),'feasibility=high','','## Review Findings',json.dumps(reviews,ensure_ascii=False,indent=2),'','## Warnings and Missing Information',json.dumps([m for o in ctx['outputs'].values() for m in o.get('missing_information',[])],ensure_ascii=False),'','## Next Actions','- Verify external data before investment decisions.','- Import HOS update JSON into the relevant HOS module.']
+        return '\n'.join(lines)+'\n'
+    def _investment_update(self, task, ctx):
+        target=task.get('target',{}) if isinstance(task.get('target',{}),dict) else {}; base=ctx['outputs'].get('base_analysis',{}).get('data',{}); now=datetime.now(timezone.utc).date().isoformat(); code=str(target.get('ticker') or target.get('code') or '').replace('.T','')
+        return {'app':'Investment Commander','responseType':'stockAnalysisUpdate','version':1,'generatedAt':datetime.now(timezone.utc).isoformat(),'stocks':[{'code':code,'name':target.get('company_name') or target.get('name') or code,'marketData':{'price':None,'priceDate':''},'companyEvaluation':base.get('company_evaluation',{'score':0,'rank':'D','comment':'未評価'}),'priceEvaluation':base.get('price_evaluation',{'score':0,'rank':'評価不能','comment':'未評価'}),'overallEvaluation':{'score':0,'decision':base.get('overall_judgment','評価未完了'),'action':base.get('current_action','情報確認'),'investmentReasons':[],'reasonsToWait':base.get('next_checkpoints',[]),'mainRisk':'情報不足','nextCheckPoints':base.get('next_checkpoints',[]),'nextReviewAt':now},'decision':{'status':'分析済み','priority':'','targetPrice':None,'investmentReasons':[],'mainRisk':'情報不足','watchPoints':base.get('next_checkpoints',[])},'analysisHistoryEntry':{'analysisDate':now,'changeReason':'HOS AI Company generated update','summary':base.get('overall_judgment','')},'lastAnalyzedAt':now,'nextReviewAt':now,'sources':[],'freshnessStatus':'情報不足','riskFlags':['情報不足'],'scores':{},'themes':[],'investmentPurposes':[]}]}
+    def _write_artifacts(self,task_id,wf,ctx,markdown,run_dir):
+        report=self.root/wf.outputs.get('final_report','outputs/reports/{task_id}.md').format(task_id=task_id); hos=self.root/wf.outputs.get('hos_update_json','outputs/json/{task_id}.json').format(task_id=task_id); log=self.root/'outputs/logs'/f'{task_id}.jsonl'; refl=self.root/'outputs/reflections'/f'{task_id}.json'
+        inv=run_dir/'outputs'/'investment_commander.json'
         if not self.dry_run:
-            for p in [report,hos,log,refl]: p.parent.mkdir(parents=True,exist_ok=True)
-            report.write_text(markdown,encoding='utf-8')
-            hos.write_text(json.dumps(ctx['outputs']['hos_update']['hos_update'],ensure_ascii=False,indent=2),encoding='utf-8')
-            reflection=self.executor.execute(self.registry.get('reflection_agent'), ctx['task'], ctx, WorkflowStep(id='reflection',agent='reflection_agent',output_key='reflection'))
-            refl.write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8')
-            MemoryService(self.root).save('task_history',task_id,{"task_id":task_id,"workflow_id":wf.id,"completed_at":datetime.now(timezone.utc).isoformat()})
+            for p in [report,hos,log,refl,inv]: p.parent.mkdir(parents=True,exist_ok=True)
+            report.write_text(markdown,encoding='utf-8'); (run_dir/'reports'/'final.md').write_text(markdown,encoding='utf-8')
+            hos_update=ctx['outputs'].get('hos_update',{}).get('data',{}).get('hos_update',{'outputs':[]}); hos.write_text(json.dumps(hos_update,ensure_ascii=False,indent=2),encoding='utf-8'); (run_dir/'outputs'/'hos_update.json').write_text(json.dumps(hos_update,ensure_ascii=False,indent=2),encoding='utf-8')
+            reflection=ctx['outputs'].get('reflection',{}); reflection={**reflection,'workflow_id':wf.id,'task_id':task_id,'run_id':ctx['run_id']} ; refl.write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8'); (run_dir/'reflections'/'reflection.json').write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8')
+            inv.write_text(json.dumps(self._investment_update(ctx['task'],ctx),ensure_ascii=False,indent=2),encoding='utf-8')
+            MemoryService(self.root).save('task_history',task_id,{'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'completed_at':datetime.now(timezone.utc).isoformat()})
+            self._update_artifact_index(task_id,wf,ctx,report,hos,log,refl,run_dir,inv)
         return report,hos,log,refl
-    def _write_log(self,p):
-        if not self.dry_run: p.write_text('\n'.join(json.dumps(e,ensure_ascii=False) for e in self.events)+'\n',encoding='utf-8')
-    def _event(self, run_id, task_id, wf, step, agent, status, retry_count, error_type, error_message, artifact_paths):
-        evname = 'agent_completed' if status == 'completed' and agent else ('agent_started' if status == 'running' and agent else status)
-        self.events.append({"event": evname, "agent": getattr(agent,'id',None), "run_id":run_id,"task_id":task_id,"workflow_id":wf.id,"workflow_version":wf.version,"step_id":getattr(step,'id',None),"agent_id":getattr(agent,'id',None),"agent_version":getattr(agent,'version',None),"status":status,"start_time":datetime.now(timezone.utc).isoformat(),"end_time":datetime.now(timezone.utc).isoformat(),"duration_ms":0,"retry_count":retry_count,"error_type":error_type,"error_message":error_message,"artifact_paths":artifact_paths})
-
+    def _update_artifact_index(self,task_id,wf,ctx,report,hos,log,refl,run_dir,inv):
+        rel=lambda p: str(Path(p).relative_to(self.root)) if str(p).startswith(str(self.root)) else str(p)
+        ArtifactIndexService(self.root).update({'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'workflow_version':wf.version,'title':f"HOS AI Company Report: {task_id}",'project':'AI Company','brain':'HOS AI Company','skill':wf.id,'format':'Markdown','tags':['ai-company',wf.id],'keywords':[task_id,wf.id],'created_at':datetime.now(timezone.utc).isoformat(),'target':ctx['task'].get('target',{}),'artifact_paths':{'run_bundle':rel(run_dir),'report':rel(report),'hos_update_json':rel(hos),'log':rel(log),'reflection':rel(refl),'investment_commander':rel(inv)}})
+    def _write_log(self,p,run_dir):
+        if not self.dry_run:
+            text='\n'.join(json.dumps(e,ensure_ascii=False) for e in self.events)+'\n'; p.write_text(text,encoding='utf-8'); (run_dir/'logs'/'sanitized.jsonl').write_text(text,encoding='utf-8')
+    def _event(self,run_id,task_id,wf,step,agent,status,retry_count,error_type,error_message,artifact_paths):
+        evname='agent_completed' if status in {'completed','partial'} and agent else ('agent_started' if status=='running' and agent else status)
+        self.events.append({'event':evname,'agent':getattr(agent,'id',None),'run_id':run_id,'task_id':task_id,'workflow_id':wf.id,'workflow_version':wf.version,'step_id':getattr(step,'id',None),'agent_id':getattr(agent,'id',None),'agent_version':getattr(agent,'version',None),'status':status,'start_time':datetime.now(timezone.utc).isoformat(),'end_time':datetime.now(timezone.utc).isoformat(),'duration_ms':0,'retry_count':retry_count,'error_type':error_type,'error_message':error_message,'artifact_paths':artifact_paths})
 def main(argv=None):
     ap=argparse.ArgumentParser(); ap.add_argument('task'); ap.add_argument('--dry-run',action='store_true'); ns=ap.parse_args(argv)
-    r=Orchestrator(dry_run=ns.dry_run).run_task(ns.task); print(json.dumps(r.__dict__|{"report_path":str(r.report_path),"hos_json_path":str(r.hos_json_path),"log_path":str(r.log_path),"reflection_path":str(r.reflection_path)},ensure_ascii=False)); return 0
+    r=Orchestrator(dry_run=ns.dry_run).run_task(ns.task); print(json.dumps(r.__dict__|{'report_path':str(r.report_path),'hos_json_path':str(r.hos_json_path),'log_path':str(r.log_path),'reflection_path':str(r.reflection_path)},ensure_ascii=False)); return 0
 if __name__=='__main__': raise SystemExit(main())

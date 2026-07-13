@@ -1,0 +1,106 @@
+name: HOS AI Company
+on:
+  workflow_dispatch:
+    inputs:
+      task_json:
+        description: 'Task JSON payload (preferred)'
+        required: false
+        type: string
+      task_path:
+        description: 'Repository task path, e.g. tasks/inbox/investment_analysis.sample.json'
+        required: false
+        default: 'tasks/inbox/investment_analysis.sample.json'
+        type: string
+      workflow:
+        description: 'Workflow id override for generated task_json only'
+        required: false
+        default: 'investment_analysis'
+        type: string
+      executor:
+        description: 'Executor: mock or openai'
+        required: true
+        default: 'mock'
+        type: choice
+        options: [mock, openai]
+      dry_run:
+        description: 'Dry run without legacy artifact writes'
+        required: true
+        default: false
+        type: boolean
+      max_parallel_agents:
+        description: 'Reserved; max parallel agents'
+        required: false
+        default: '3'
+        type: string
+permissions:
+  contents: read
+jobs:
+  run-hos-ai-company:
+    runs-on: ubuntu-latest
+    env:
+      HOS_EXECUTOR: ${{ inputs.executor }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      HOS_MAX_PARALLEL_AGENTS: ${{ inputs.max_parallel_agents }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Prepare task
+        shell: python
+        run: |
+          import json, os, pathlib, sys
+          raw = '''${{ inputs.task_json }}'''.strip()
+          if raw:
+              data=json.loads(raw)
+              if '${{ inputs.workflow }}': data.setdefault('workflow','${{ inputs.workflow }}')
+              p=pathlib.Path('tasks/working/actions-task.json'); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+              print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
+          else:
+              p=pathlib.Path('${{ inputs.task_path }}')
+              if not str(p).startswith('tasks/') or '..' in p.parts: raise SystemExit('task_path must stay under tasks/')
+              print(f'TASK_FILE={p}', file=open(os.environ['GITHUB_ENV'],'a'))
+      - name: Doctor and validation
+        run: |
+          python -m orchestrator.cli doctor
+          python -m orchestrator.cli validate-agents
+          python -m orchestrator.cli validate-workflows
+          python -m orchestrator.cli validate-task "$TASK_FILE"
+      - name: Run orchestrator
+        id: run
+        shell: bash
+        run: |
+          set -o pipefail
+          DRY=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY="--dry-run"; fi
+          python -m orchestrator.cli run "$TASK_FILE" --executor "${{ inputs.executor }}" $DRY | tee hos-run-result.json
+          RUN_ID=$(python - <<'PY'
+          import json
+          print(json.load(open('hos-run-result.json'))['run_id'])
+          PY
+          )
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Smoke test bundle
+        if: always()
+        run: |
+          python -m orchestrator.cli list-runs || true
+          test -d "runs/${{ steps.run.outputs.run_id }}" || true
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## HOS AI Company" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run ID: ${{ steps.run.outputs.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Executor: ${{ inputs.executor }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload run bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hos-run-${{ steps.run.outputs.run_id }}
+          path: |
+            runs/${{ steps.run.outputs.run_id }}/
+            outputs/index.json
+            hos-run-result.json
+          if-no-files-found: warn

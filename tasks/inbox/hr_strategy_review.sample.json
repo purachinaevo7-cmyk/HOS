@@ -1,0 +1,14 @@
+{
+  "task_id": "HR-STRATEGY-REVIEW-SAMPLE",
+  "workflow": "hr_strategy_review",
+  "request": "HR Strategy Review sample request",
+  "target": {
+    "name": "HR Strategy Review",
+    "company_name": "HR Strategy Review",
+    "ticker": ""
+  },
+  "priority": "normal",
+  "constraints": [
+    "mock safe sample"
+  ]
+}

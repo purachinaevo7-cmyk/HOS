@@ -1,0 +1,326 @@
+agents:
+- id: ceo_planner
+  display_name: Ceo Planner
+  description: ceo_planner specialist for HOS AI Company
+  role: ceo_planner executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/ceo_planner.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: researcher
+  display_name: Researcher
+  description: researcher specialist for HOS AI Company
+  role: researcher executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/researcher.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: market_analyst
+  display_name: Market Analyst
+  description: market_analyst specialist for HOS AI Company
+  role: market_analyst executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/market_analyst.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: financial_analyst
+  display_name: Financial Analyst
+  description: financial_analyst specialist for HOS AI Company
+  role: financial_analyst executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/financial_analyst.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: industry_analyst
+  display_name: Industry Analyst
+  description: industry_analyst specialist for HOS AI Company
+  role: industry_analyst executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/industry_analyst.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: base_analyst
+  display_name: Base Analyst
+  description: base_analyst specialist for HOS AI Company
+  role: base_analyst executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/base_analyst.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: creative_challenger
+  display_name: Creative Challenger
+  description: creative_challenger specialist for HOS AI Company
+  role: creative_challenger executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/creative_challenger.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: devils_advocate
+  display_name: Devils Advocate
+  description: devils_advocate specialist for HOS AI Company
+  role: devils_advocate executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/devils_advocate.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: risk_reviewer
+  display_name: Risk Reviewer
+  description: risk_reviewer specialist for HOS AI Company
+  role: risk_reviewer executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/risk_reviewer.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: fact_reviewer
+  display_name: Fact Reviewer
+  description: fact_reviewer specialist for HOS AI Company
+  role: fact_reviewer executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/fact_reviewer.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: logic_reviewer
+  display_name: Logic Reviewer
+  description: logic_reviewer specialist for HOS AI Company
+  role: logic_reviewer executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/logic_reviewer.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: quality_reviewer
+  display_name: Quality Reviewer
+  description: quality_reviewer specialist for HOS AI Company
+  role: quality_reviewer executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/quality_reviewer.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: hos_writer
+  display_name: Hos Writer
+  description: hos_writer specialist for HOS AI Company
+  role: hos_writer executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/hos_writer.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: ceo_integrator
+  display_name: Ceo Integrator
+  description: ceo_integrator specialist for HOS AI Company
+  role: ceo_integrator executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/ceo_integrator.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: reflection_agent
+  display_name: Reflection Agent
+  description: reflection_agent specialist for HOS AI Company
+  role: reflection_agent executes its bounded workflow responsibility.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/reflection_agent.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+- id: ceo
+  display_name: Ceo
+  description: Legacy ceo alias
+  role: Legacy ceo compatibility agent.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/ceo.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+  - legacy
+- id: analyst
+  display_name: Analyst
+  description: Legacy analyst alias
+  role: Legacy analyst compatibility agent.
+  version: 1.0.0
+  enabled: true
+  prompt_path: agents/analyst.md
+  input_schema: schemas/agent_input.schema.json
+  output_schema: schemas/agent_output_envelope.schema.json
+  executor: mock
+  provider: mock
+  model: hos-mock-v1
+  temperature: 0.2
+  max_output_tokens: 3000
+  timeout_seconds: 30
+  max_retries: 1
+  allowed_tools: []
+  tags:
+  - ai-company
+  - legacy

@@ -88,3 +88,21 @@ python -m orchestrator.runner tasks/inbox/investment_analysis.sample.json --dry-
 ```
 
 Architecture details are in `docs/HOS_Architecture_v2.md` and ADRs in `docs/adr/`.
+
+
+## HOS AI Company Usable MVP
+
+Open `ai-company.html` to create Task JSON, inspect the Agent Registry, view workflows, and paste Run bundle JSON into the Run Viewer.
+
+Core commands:
+
+```bash
+python -m orchestrator.cli doctor
+python -m orchestrator.cli validate-agents
+python -m orchestrator.cli validate-workflows
+python -m orchestrator.cli run tasks/inbox/investment_analysis.sample.json --executor mock
+```
+
+GitHub Actions workflow: `.github/workflows/hos-ai-company.yml`. It uploads a `hos-run-<run_id>` artifact containing run metadata, step outputs, final report, HOS update JSON, Investment Commander JSON, reflection, logs, and diagnostics.
+
+Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it never reports success by silently falling back to mock. See `docs/QUICKSTART_AI_COMPANY.md`.

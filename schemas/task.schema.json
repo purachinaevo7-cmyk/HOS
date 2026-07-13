@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["task_id","request","target"],"properties":{"task_id":{"type":"string"},"workflow":{"type":"string"},"type":{"type":"string"},"request":{"type":"string"},"target":{"oneOf":[{"type":"object"},{"type":"string"}]},"priority":{"type":"string"},"constraints":{"type":"array"}}}
