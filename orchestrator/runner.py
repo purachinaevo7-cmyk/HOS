@@ -95,7 +95,7 @@ class Orchestrator:
         if agent == "ceo":
             output = {"agent": agent, "status": "completed", "summary": f"{target}の投資分析を分解しました。", "assignments": [{"agent": "researcher", "task": "投資調査", "inputs": {"target": target}}, {"agent": "analyst", "task": "投資仮説分析", "inputs": {"target": target}}, {"agent": "creative_challenger", "task": "通常分析後の前提見直し・反対仮説・代替案提示", "inputs": {"base_analysis": "analyst", "research_findings": "researcher"}}], "assumptions": ["外部APIを使う場合はAPIキーを環境変数から読む。", "creative_challengerの案は新規性、根拠、意思決定への影響でCEOが選別する。"], "next_agents": ["researcher", "analyst", "creative_challenger", "risk_reviewer"]}
         elif agent == "researcher":
-            output = {"agent": agent, "status": "completed", "findings": [{"topic": "対象", "detail": f"対象は{target}。依頼内容: {request}", "source_required": False}], "data_gaps": ["最新価格・財務データは外部データソースで確認する。"], "handoff_to": "analyst"}
+            output = {"agent": agent, "status": "completed", "findings": [{"topic": "対象", "detail": f"対象は{target}。依頼内容: {request}", "source_required": False}], "data_gaps": ["最新価格・財務データは外部データソースで確認する。"]}
         elif agent == "analyst":
             output = {"agent": agent, "status": "completed", "investment_view": f"{target}は定量データ確認後に判断する候補。", "scenarios": {"bull": "成長率と利益率が改善する。", "base": "現状トレンドが継続する。", "bear": "需要悪化またはバリュエーション低下。"}, "key_metrics": ["売上成長率", "営業利益率", "ROIC", "FCF", "PER/EV-EBITDA"], "open_questions": ["安全域は十分か。"]}
         elif agent == "creative_challenger":
@@ -151,7 +151,6 @@ class Orchestrator:
                     "selection_criteria": ["novelty", "evidence", "decision_impact"],
                     "recommended_shortlist": ["反対仮説として需要悪化時の勝ち筋を検証"],
                 },
-                "handoff_to": "risk_reviewer",
             }
         elif agent == "risk_reviewer":
             creative_output = context["outputs"].get("creative_challenger", {})
@@ -185,9 +184,29 @@ class Orchestrator:
             f"- {idea.get('title', '')}: feasibility={idea.get('feasibility', '')}, expected_impact={idea.get('expected_impact', '')}"
             for idea in creative_ideas
         )
-        report = f"# Investment Analysis: {target}\n\n## Request\n{task.get('request', '')}\n\n## Investment View\n{context['outputs'].get('analyst', {}).get('investment_view', '')}\n\n## Creative Challenge\n{creative_section}\n\n## Risks\n- " + "\n- ".join(r.get("description", "") for r in context["outputs"].get("risk_reviewer", {}).get("risks", [])) + "\n"
         hos_update = {"outputs": [{"title": f"Investment Analysis: {target}", "project": "Investment", "brain": "HOS multi-agent", "skill": "investment_analysis", "format": "Markdown", "tags": ["investment", "analysis", str(target)], "keywords": [str(target), "risk", "valuation"]}]}
-        return {"agent": "hos_writer", "status": "completed", "report_markdown": report, "hos_update": hos_update}
+        report_material = {
+            "title": f"Investment Analysis: {target}",
+            "sections": [
+                {"heading": "Request", "content": task.get("request", "")},
+                {"heading": "Investment View", "content": context["outputs"].get("analyst", {}).get("investment_view", "")},
+                {"heading": "Creative Challenge", "content": creative_section},
+                {"heading": "Risks", "items": [r.get("description", "") for r in context["outputs"].get("risk_reviewer", {}).get("risks", [])]},
+            ],
+        }
+        return {"agent": "hos_writer", "status": "completed", "report_material": report_material, "hos_update": hos_update}
+
+    def _build_ceo_markdown(self, context: dict[str, Any]) -> str:
+        """CEO final integration: convert JSON-only agent outputs into Markdown."""
+        material = context["outputs"].get("hos_writer", {}).get("report_material", {})
+        title = material.get("title", "Investment Analysis")
+        lines = [f"# {title}", ""]
+        for section in material.get("sections", []):
+            lines.extend([f"## {section.get('heading', '')}", str(section.get("content", ""))])
+            for item in section.get("items", []):
+                lines.append(f"- {item}")
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
 
     def _write_artifacts(self, task_id: str, workflow: dict[str, Any], context: dict[str, Any]) -> tuple[Path, Path, Path]:
         report = self.root / workflow["outputs"]["final_report"].format(task_id=task_id)
@@ -197,7 +216,7 @@ class Orchestrator:
             report.parent.mkdir(parents=True, exist_ok=True)
             hos_json.parent.mkdir(parents=True, exist_ok=True)
             log.parent.mkdir(parents=True, exist_ok=True)
-            report.write_text(context["outputs"]["hos_writer"]["report_markdown"], encoding="utf-8")
+            report.write_text(self._build_ceo_markdown(context), encoding="utf-8")
             hos_json.write_text(json.dumps(context["outputs"]["hos_writer"]["hos_update"], ensure_ascii=False, indent=2), encoding="utf-8")
         return report, hos_json, log
 

@@ -1,6 +1,19 @@
 name: investment_analysis
 version: 1
 max_reruns: 2
+design_principles:
+  operating_model: HOS AI Company
+  ceo_role:
+    - request_clarification
+    - assignment
+    - quality_judgment
+    - final_integration
+  agent_output_format: json_only
+  markdown_owner: ceo
+  communication: orchestrator_only
+  dependency_source: workflow_only
+  extension_model: plugin_agents
+  target_agent_scale: 100
 artifact_paths:
   report_dir: outputs/reports
   json_dir: outputs/json

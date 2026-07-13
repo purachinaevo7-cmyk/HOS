@@ -14,7 +14,6 @@
   "agent": "researcher",
   "status": "completed",
   "findings": [{"topic": "string", "detail": "string", "source_required": true}],
-  "data_gaps": ["string"],
-  "handoff_to": "analyst"
+  "data_gaps": ["string"]
 }
 ```

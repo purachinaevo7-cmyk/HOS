@@ -29,6 +29,32 @@
 ## Philosophy
 Think First. Build Second.
 
+
+## 長期運用の設計原則
+HOSは単なるチャットボットではなく、**HOS AI Company**という仮想企業として動作する個人OSです。
+
+### Company Model
+- CEO（ひーちゃん）は、基本的に自ら専門作業を行わない。
+- CEOは、依頼整理、担当割当、品質判断、最終統合のみを担当する。
+- 各Agentは、明確に区切られた担当範囲を持つ独立した専門家として振る舞う。
+- Agentは、他Agentの担当範囲へ介入したり、他Agentの成果物を書き換えたりしない。
+
+### Orchestration Model
+- Agent同士は直接通信しない。
+- Agent間の情報受け渡しは、必ずOrchestratorとWorkflow contextを経由する。
+- Agentの依存関係はWorkflow定義のみで管理する。
+- Agentの追加、削除、実行順序変更は、Agent同士の依存をハードコードせず、Workflowを書き換えるだけで実現できる構造にする。
+
+### Output Contract
+- 全Agentは、成果物をJSON形式のみで返却する。
+- Markdown文章は、最終統合時にCEOのみが生成する。
+- 専門Agentはレポート素材を構造化データとして返してよいが、最終Markdown文書は生成しない。
+
+### Extensibility
+- 新Agentは、Agent定義を追加し、Workflowへ登録し、Orchestrator管理のcontextで入力を受け取るプラグイン形式で追加する。
+- 将来的に100人程度のAgentまで増えることを前提に設計する。
+- WorkflowをAgent依存関係の唯一の情報源にし、HOSを直接結合なしで拡張できる状態に保つ。
+
 ## GitHub Actions: Stock Watch
 
 `.github/workflows/stock-watch.yml` は、平日18:00頃（JST）に `skills/investment-agent/daily_stock_check.py` を実行するワークフローです。`workflow_dispatch` にも対応しているため、GitHub Actions画面から手動実行できます。
