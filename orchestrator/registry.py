@@ -5,7 +5,7 @@ from typing import Any
 import json, yaml
 REQUIRED={"id","display_name","role","prompt_path","version","enabled","model","temperature","max_output_tokens","timeout_seconds","allowed_tools","output_schema","tags"}
 CANONICAL="agents/registry.yml"
-VALID_EXECUTORS={"mock","openai","replay"}; VALID_PROVIDERS={"mock","openai","openai-compatible","replay"}
+VALID_EXECUTORS={"mock","openai","gemini","replay"}; VALID_PROVIDERS={"mock","openai","openai-compatible","gemini","replay"}
 @dataclass(frozen=True)
 class AgentDefinition:
     id:str; display_name:str; role:str; prompt_path:str; version:str; enabled:bool

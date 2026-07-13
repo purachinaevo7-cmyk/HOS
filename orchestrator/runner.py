@@ -1,12 +1,12 @@
 """HOS v2 orchestrator: registry-driven, workflow-defined execution."""
 from __future__ import annotations
-import argparse, json, time, uuid
+import argparse, json, os, time, uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from orchestrator.artifacts import RunStore
-from orchestrator.executor import DeterministicMockExecutor, build_executor
+from orchestrator.executor import DeterministicMockExecutor, build_executor, QuotaExhaustedError, RateLimitError, ExecutorTimeout
 from orchestrator.registry import AgentDefinition, AgentRegistry
 from orchestrator.schemas import validate_task
 from orchestrator.services import ArtifactIndexService, MemoryService
@@ -29,7 +29,8 @@ class Orchestrator:
         task=json.loads(task_file.read_text(encoding='utf-8')); self._validate_task(task)
         wf=WorkflowEngine.load(self.root, task.get('workflow') or task.get('type') or 'investment_analysis'); WorkflowEngine.validate(wf,self.registry)
         run_id=str(uuid.uuid4()); run_dir=self.store.create(run_id,task,wf.id)
-        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[]}
+        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[],'usage':{'estimated_calls':len(wf.steps),'actual_calls':0,'limit':int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0),'events':[]}}
+        self._enforce_free_tier_preflight(wf, run_dir)
         self._event(run_id,task['task_id'],wf,None,None,'run_started',0,None,None,[])
         rework_cycles=0
         for step in WorkflowEngine.topological_sort(wf):
@@ -48,11 +49,39 @@ class Orchestrator:
                         rw=self._run_with_retry(run_id,task,wf,target,ctx,retry_count=rework_cycles); ctx['outputs'][target.output_key or target.id]=rw; self.store.save_step(run_dir,target.id,rw)
         markdown=self._ceo_final_markdown(task,ctx)
         paths=self._write_artifacts(task['task_id'],wf,ctx,markdown,run_dir)
-        run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':'completed','step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
+        status='partial' if any(v in {'partial','failed'} for v in ctx['step_status'].values()) else 'completed'
+        self._write_usage(run_dir, ctx)
+        run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':status,'step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
         self.store.save_run(run_dir,run)
         self._event(run_id,task['task_id'],wf,None,None,'run_completed',0,None,None,[str(p) for p in paths])
         self._write_log(paths[2], run_dir)
         return RunResult(task['task_id'],True,paths[0],paths[1],paths[2],paths[3],self.dry_run,run_id)
+
+    def _enforce_free_tier_preflight(self,wf,run_dir):
+        est=len(wf.steps); limit=int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0)
+        daily=int(os.getenv('HOS_DAILY_RUN_LIMIT','0') or 0)
+        if daily:
+            today=datetime.now(timezone.utc).date().isoformat(); used=sum(1 for f in (self.root/'runs').glob('*/manifest.json') if today in f.read_text(encoding='utf-8'))
+            if used>=daily: raise RuntimeError(f'HOS_DAILY_RUN_LIMIT={daily} reached; refusing to run')
+        print(json.dumps({'free_tier_mode':os.getenv('HOS_FREE_TIER_MODE','').lower()=='true','estimated_agent_calls':est,'max_agent_calls':limit or None,'daily_run_limit':daily or None},ensure_ascii=False))
+        if limit and est>limit: raise RuntimeError(f'estimated agent calls {est} exceed HOS_MAX_AGENT_CALLS={limit}; refusing to run')
+    def _record_call_or_fail(self,ctx,step):
+        limit=int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0)
+        if limit and ctx['usage']['actual_calls']>=limit: raise RuntimeError(f'HOS_MAX_AGENT_CALLS exceeded at step {step.id}')
+        ctx['usage']['actual_calls']+=1
+        ctx['usage']['events'].append({'step_id':step.id,'event':'call_started','call_index':ctx['usage']['actual_calls']})
+    def _record_usage(self,ctx,step,out):
+        usage=out.get('usage_metadata') or {}
+        ctx['usage']['events'].append({'step_id':step.id,'event':'call_completed','status':out.get('status'),'usage_metadata':usage})
+        total=sum((e.get('usage_metadata') or {}).get('totalTokenCount',0) for e in ctx['usage']['events'])
+        ctx['usage']['total_tokens_observed']=total
+        max_total=int(os.getenv('HOS_MAX_TOTAL_TOKENS','0') or 0)
+        if max_total and total>max_total: raise RuntimeError(f'HOS_MAX_TOTAL_TOKENS exceeded: {total}>{max_total}')
+    def _write_usage(self,run_dir,ctx):
+        data=ctx.get('usage',{})
+        if hasattr(self.executor,'usage'): data={**data,'provider_usage':getattr(self.executor,'usage')}
+        (run_dir/'usage.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+
     def _execute_agent(self, agent_id, context):
         step=WorkflowStep(id=agent_id,agent=agent_id,output_key=agent_id); task=context.get('task',{'task_id':'compat','request':'compat','target':{}}); ctx={'task':task,'outputs':context.get('outputs',{}),'dry_run':self.dry_run,'workflow_id':'compat','workflow_version':'compat','run_id':'compat'}
         out=self.executor.execute(self.registry.get(agent_id),task,ctx,step)
@@ -67,20 +96,23 @@ class Orchestrator:
         return data
     def _validate_task(self,task): validate_task(task)
     def _run_with_retry(self,run_id,task,wf,step,ctx,retry_count=0):
-        max_attempts=int((step.retry_policy or {}).get('max_attempts',1)); last=None
+        max_attempts=int((step.retry_policy or {}).get('max_attempts',1)); max_attempts=min(max_attempts, int(os.getenv('HOS_MAX_RETRIES','999') or 999)+1); last=None
         for attempt in range(max_attempts):
             try: return self._run_step(run_id,task,wf,step,ctx,retry_count+attempt)
+            except QuotaExhaustedError as e:
+                last=e; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'partial',retry_count+attempt,type(e).__name__,str(e),[])
+                return {'schema_version':'1.0','agent_id':step.agent,'agent_version':getattr(self.registry.get(step.agent),'version','unknown'),'run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'partial','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':['quota exhausted; no paid API fallback and no mock fallback'],'errors':[str(e)]}
             except Exception as e:
                 last=e; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'retrying' if attempt+1<max_attempts else 'failed',retry_count+attempt,type(e).__name__,str(e),[])
         if step.continue_on_error: return {'schema_version':'1.0','agent_id':step.agent,'agent_version':'unknown','run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'failed','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':[],'errors':[str(last)]}
         raise last
     def _run_step(self,run_id,task,wf,step,ctx,retry_count=0):
-        agent=self.registry.get(step.agent); ctx['step_status'][step.id]='running'; self._event(run_id,task['task_id'],wf,step,agent,'running',retry_count,None,None,[])
-        out=self.executor.execute(agent,task,ctx,step); ctx['step_status'][step.id]=out.get('status','completed'); self._event(run_id,task['task_id'],wf,step,agent,ctx['step_status'][step.id],retry_count,None,None,[]); return out
+        agent=self.registry.get(step.agent); self._record_call_or_fail(ctx, step); ctx['step_status'][step.id]='running'; self._event(run_id,task['task_id'],wf,step,agent,'running',retry_count,None,None,[])
+        out=self.executor.execute(agent,task,ctx,step); self._record_usage(ctx, step, out); ctx['step_status'][step.id]=out.get('status','completed'); self._event(run_id,task['task_id'],wf,step,agent,ctx['step_status'][step.id],retry_count,None,None,[]); return out
     def _ceo_final_markdown(self,task,ctx):
         target=task.get('target',{}); name=target.get('company_name') or target.get('name') if isinstance(target,dict) else target
         base=ctx['outputs'].get('base_analysis',{}).get('data',{}); reviews=[v.get('data',v) for k,v in ctx['outputs'].items() if k.endswith('review')]
-        lines=[f'# Investment Analysis: {name}','','## Request',task.get('request',''),'','## Execution Mode','mock' if isinstance(self.executor,DeterministicMockExecutor) else 'openai/replay','','## Data Availability','Live external research is not claimed unless evidence says verified.','','## Base Analysis',json.dumps(base,ensure_ascii=False,indent=2),'','## Creative Challenge',json.dumps(ctx['outputs'].get('creative_challenge',{}).get('data',{}),ensure_ascii=False,indent=2),'feasibility=high','','## Review Findings',json.dumps(reviews,ensure_ascii=False,indent=2),'','## Warnings and Missing Information',json.dumps([m for o in ctx['outputs'].values() for m in o.get('missing_information',[])],ensure_ascii=False),'','## Next Actions','- Verify external data before investment decisions.','- Import HOS update JSON into the relevant HOS module.']
+        lines=[f'# Investment Analysis: {name}','','## Request',task.get('request',''),'','## Execution Mode','mock' if isinstance(self.executor,DeterministicMockExecutor) else self.executor.__class__.__name__,'','## Data Availability','Live external research is not claimed unless evidence says verified.','','## Base Analysis',json.dumps(base,ensure_ascii=False,indent=2),'','## Creative Challenge',json.dumps(ctx['outputs'].get('creative_challenge',{}).get('data',{}),ensure_ascii=False,indent=2),'feasibility=high','','## Review Findings',json.dumps(reviews,ensure_ascii=False,indent=2),'','## Warnings and Missing Information',json.dumps([m for o in ctx['outputs'].values() for m in o.get('missing_information',[])],ensure_ascii=False),'','## Next Actions','- Verify external data before investment decisions.','- Import HOS update JSON into the relevant HOS module.']
         return '\n'.join(lines)+'\n'
     def _investment_update(self, task, ctx):
         target=task.get('target',{}) if isinstance(task.get('target',{}),dict) else {}; base=ctx['outputs'].get('base_analysis',{}).get('data',{}); now=datetime.now(timezone.utc).date().isoformat(); code=str(target.get('ticker') or target.get('code') or '').replace('.T','')
