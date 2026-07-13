@@ -106,3 +106,8 @@ python -m orchestrator.cli run tasks/inbox/investment_analysis.sample.json --exe
 GitHub Actions workflow: `.github/workflows/hos-ai-company.yml`. It uploads a `hos-run-<run_id>` artifact containing run metadata, step outputs, final report, HOS update JSON, Investment Commander JSON, reflection, logs, and diagnostics.
 
 Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it never reports success by silently falling back to mock. See `docs/QUICKSTART_AI_COMPANY.md`. Current audited status and known constraints are documented in `docs/HOS_AI_COMPANY_STATUS_2026-07-13.md`.
+
+
+## Gemini free-tier AI Company execution
+
+HOS AI Company can run against Google Gemini API without requiring OpenAI paid API usage. Use `--executor gemini`, set `GEMINI_API_KEY`, and prefer the 5-agent `investment_analysis_free` workflow for free-tier tests. Usage is written to `runs/<run_id>/usage.json`; quota exhaustion produces partial/failed results and never auto-switches to OpenAI or mock. See `docs/QUICKSTART_GEMINI_FREE.md`, `docs/SECURITY_AI_COMPANY.md`, and `docs/OPERATIONS_AI_COMPANY.md`.

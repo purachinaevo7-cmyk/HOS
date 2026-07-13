@@ -1,0 +1,49 @@
+id: investment_analysis_free
+name: Investment Analysis Free Tier Lite
+version: "1.0.0"
+max_rework_cycles: 0
+outputs:
+  final_report: outputs/reports/{task_id}.md
+  hos_update_json: outputs/json/{task_id}.json
+steps:
+  - id: ceo_plan
+    name: CEO Plan Lite
+    agent: ceo_planner
+    action: plan_lite
+    depends_on: []
+    output_key: ceo_plan
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 30
+  - id: research
+    name: Compact Research
+    agent: researcher
+    action: research_compact
+    depends_on: [ceo_plan]
+    output_key: research
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 45
+  - id: base_analysis
+    name: Base Analysis
+    agent: base_analyst
+    action: analyze_compact
+    depends_on: [research]
+    output_key: base_analysis
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 45
+  - id: devils_advocate
+    name: Integrated Risk / Devil's Advocate
+    agent: devils_advocate
+    action: risk_review_compact
+    depends_on: [base_analysis]
+    output_key: devils_advocate
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 30
+    continue_on_error: true
+  - id: ceo_integrate
+    name: CEO Integrator Lite
+    agent: ceo_integrator
+    action: integrate_final_lite
+    depends_on: [devils_advocate]
+    output_key: ceo_integration
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 45

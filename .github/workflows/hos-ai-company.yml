@@ -17,11 +17,11 @@ on:
         default: 'investment_analysis'
         type: string
       executor:
-        description: 'Executor: mock or openai'
+        description: 'Executor: mock, gemini, or openai'
         required: true
         default: 'mock'
         type: choice
-        options: [mock, openai]
+        options: [mock, gemini, openai]
       dry_run:
         description: 'Dry run without legacy artifact writes'
         required: true
@@ -41,6 +41,11 @@ jobs:
       HOS_EXECUTOR: ${{ inputs.executor }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-1.5-flash' }}
+      HOS_FREE_TIER_MODE: ${{ inputs.executor == 'gemini' && 'true' || '' }}
+      HOS_MAX_AGENT_CALLS: ${{ inputs.executor == 'gemini' && '5' || '' }}
+      HOS_MAX_RETRIES: ${{ inputs.executor == 'gemini' && '1' || '' }}
       HOS_MAX_PARALLEL_AGENTS: ${{ inputs.max_parallel_agents }}
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +68,10 @@ jobs:
               p=pathlib.Path('${{ inputs.task_path }}')
               if not str(p).startswith('tasks/') or '..' in p.parts: raise SystemExit('task_path must stay under tasks/')
               print(f'TASK_FILE={p}', file=open(os.environ['GITHUB_ENV'],'a'))
+      - name: Validate Gemini secret
+        if: ${{ inputs.executor == 'gemini' }}
+        run: |
+          test -n "$GEMINI_API_KEY" || (echo "GEMINI_API_KEY GitHub Secret is required for executor=gemini" >&2; exit 1)
       - name: Doctor and validation
         run: |
           python -m orchestrator.cli doctor
@@ -101,6 +110,7 @@ jobs:
           name: hos-run-${{ steps.run.outputs.run_id }}
           path: |
             runs/${{ steps.run.outputs.run_id }}/
+            runs/${{ steps.run.outputs.run_id }}/usage.json
             outputs/index.json
             hos-run-result.json
           if-no-files-found: warn

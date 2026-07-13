@@ -1305,6 +1305,120 @@
       }
     },
     {
+      "id": "investment_analysis_free",
+      "name": "Investment Analysis Free Tier Lite",
+      "version": "1.0.0",
+      "steps": [
+        {
+          "id": "ceo_plan",
+          "agent": "ceo_planner",
+          "action": "plan_lite",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "ceo_plan",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "CEO Plan Lite"
+        },
+        {
+          "id": "research",
+          "agent": "researcher",
+          "action": "research_compact",
+          "depends_on": [
+            "ceo_plan"
+          ],
+          "input_mapping": {},
+          "output_key": "research",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 45,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "Compact Research"
+        },
+        {
+          "id": "base_analysis",
+          "agent": "base_analyst",
+          "action": "analyze_compact",
+          "depends_on": [
+            "research"
+          ],
+          "input_mapping": {},
+          "output_key": "base_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 45,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "Base Analysis"
+        },
+        {
+          "id": "devils_advocate",
+          "agent": "devils_advocate",
+          "action": "risk_review_compact",
+          "depends_on": [
+            "base_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "devils_advocate",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 30,
+          "continue_on_error": true,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "Integrated Risk / Devil's Advocate"
+        },
+        {
+          "id": "ceo_integrate",
+          "agent": "ceo_integrator",
+          "action": "integrate_final_lite",
+          "depends_on": [
+            "devils_advocate"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 45,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "CEO Integrator Lite"
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    },
+    {
       "id": "learning_material",
       "name": "Learning Material",
       "version": "2.1.0",
