@@ -1,0 +1,31 @@
+name: investment_analysis
+version: 1
+max_reruns: 2
+artifact_paths:
+  report_dir: outputs/reports
+  json_dir: outputs/json
+  log_dir: logs
+agents:
+  - ceo
+  - researcher
+  - analyst
+  - risk_reviewer
+  - quality_reviewer
+  - hos_writer
+steps:
+  - id: plan
+    agent: ceo
+  - id: research
+    agent: researcher
+  - id: analyze
+    agent: analyst
+  - id: risk_review
+    agent: risk_reviewer
+  - id: quality_review
+    agent: quality_reviewer
+    on_reject: rerun_agent
+  - id: write_hos
+    agent: hos_writer
+outputs:
+  final_report: outputs/reports/{task_id}.md
+  hos_update_json: outputs/json/{task_id}.json
