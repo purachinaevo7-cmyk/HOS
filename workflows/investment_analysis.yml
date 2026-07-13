@@ -9,6 +9,7 @@ agents:
   - ceo
   - researcher
   - analyst
+  - creative_challenger
   - risk_reviewer
   - quality_reviewer
   - hos_writer
@@ -19,6 +20,8 @@ steps:
     agent: researcher
   - id: analyze
     agent: analyst
+  - id: creative_challenge
+    agent: creative_challenger
   - id: risk_review
     agent: risk_reviewer
   - id: quality_review
