@@ -6,3 +6,4 @@ pytz
 pytest
 
 exchange_calendars
+PyYAML

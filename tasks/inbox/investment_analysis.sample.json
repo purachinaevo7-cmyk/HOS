@@ -1,0 +1,8 @@
+{
+  "task_id": "sample-investment-analysis",
+  "workflow": "investment_analysis",
+  "request": "Analyze a target investment idea and prepare a HOS-ready output.",
+  "target": "Example Corp",
+  "created_by": "HOS",
+  "status": "inbox"
+}
