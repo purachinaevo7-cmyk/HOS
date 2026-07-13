@@ -1,0 +1,1 @@
+{"type":"object","required":["agent","status"],"properties":{"agent":{"type":"string"},"status":{"type":"string"}}}

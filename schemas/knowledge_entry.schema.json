@@ -1,0 +1,1 @@
+{"type":"object","required":["id","title","content","source","source_date","confidence","created_at","updated_at","created_by_agent","version","tags","freshness_status","next_review_date"]}

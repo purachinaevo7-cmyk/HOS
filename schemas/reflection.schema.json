@@ -1,0 +1,1 @@
+{"type":"object","required":["task_id","workflow_id","workflow_version","what_worked","what_failed","agent_evaluations","workflow_improvements","knowledge_candidates","follow_up_tasks"]}
