@@ -1,0 +1,36 @@
+{
+  "outputs": [
+    {
+      "title": "Investment Analysis: キオクシアホールディングス",
+      "project": "Investment Commander",
+      "brain": "HOS AI Company",
+      "skill": "investment_analysis",
+      "format": "Markdown",
+      "tags": [
+        "investment",
+        "analysis",
+        "285A",
+        "キオクシアホールディングス"
+      ],
+      "keywords": [
+        "285A",
+        "キオクシアホールディングス",
+        "risk",
+        "valuation"
+      ]
+    }
+  ],
+  "investment_analysis": {
+    "company_evaluation": {
+      "summary": "事業品質は公開情報確認後に評価する",
+      "confidence": "low"
+    },
+    "price_evaluation": {
+      "summary": "dry-runでは現在株価を取得せず割安/割高を判定しない",
+      "confidence": "low"
+    },
+    "overall_judgment": "情報不足のため保留。分析構造と確認項目を先に確定する。",
+    "freshness_status": "missing_latest_data",
+    "next_review_date": "manual_after_data_update"
+  }
+}

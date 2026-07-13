@@ -1,0 +1,155 @@
+agents:
+  - id: ceo
+    display_name: CEO
+    role: Request framing, assignment, quality judgment, and final Markdown integration.
+    prompt_path: agents/ceo.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.2
+    max_output_tokens: 3000
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/ceo.schema.json
+    tags: [core, executive]
+  - id: researcher
+    display_name: Researcher
+    role: Structures facts, source needs, and missing information.
+    prompt_path: agents/researcher.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.1
+    max_output_tokens: 3000
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/researcher.schema.json
+    tags: [investment, research]
+  - id: analyst
+    display_name: Analyst
+    role: Builds base investment analysis and scenarios.
+    prompt_path: agents/analyst.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.2
+    max_output_tokens: 3000
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/analyst.schema.json
+    tags: [investment, analysis]
+  - id: creative_challenger
+    display_name: Creative Challenger
+    role: Challenges assumptions after normal analysis and proposes evidenced alternatives.
+    prompt_path: agents/creative_challenger.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.5
+    max_output_tokens: 3000
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/creative_challenger.schema.json
+    tags: [creative, review]
+  - id: risk_reviewer
+    display_name: Risk Reviewer
+    role: Reviews material business, financial, market, and execution risks.
+    prompt_path: agents/risk_reviewer.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.1
+    max_output_tokens: 2500
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/review.schema.json
+    tags: [review, risk]
+  - id: devils_advocate
+    display_name: Devil's Advocate
+    role: Argues against the analysis with rejection reasons and disconfirming signals.
+    prompt_path: agents/devils_advocate.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.3
+    max_output_tokens: 2500
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/devils_advocate.schema.json
+    tags: [review, challenge]
+  - id: quality_reviewer
+    display_name: Quality Reviewer
+    role: Checks output completeness and requirement fit.
+    prompt_path: agents/quality_reviewer.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.1
+    max_output_tokens: 2500
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/review.schema.json
+    tags: [review, quality]
+  - id: fact_reviewer
+    display_name: Fact Reviewer
+    role: Separates known facts from unavailable or unsupported claims.
+    prompt_path: agents/fact_reviewer.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.1
+    max_output_tokens: 2500
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/review.schema.json
+    tags: [review, facts]
+  - id: logic_reviewer
+    display_name: Logic Reviewer
+    role: Checks reasoning consistency and decision logic.
+    prompt_path: agents/logic_reviewer.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.1
+    max_output_tokens: 2500
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/review.schema.json
+    tags: [review, logic]
+  - id: hos_writer
+    display_name: HOS Writer
+    role: Produces HOS update JSON and structured report material only.
+    prompt_path: agents/hos_writer.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.2
+    max_output_tokens: 3000
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/agent_outputs/hos_writer.schema.json
+    tags: [writer, outputs]
+  - id: reflection_agent
+    display_name: Reflection Agent
+    role: Produces post-run reflection and improvement candidates without editing workflow or prompts.
+    prompt_path: agents/reflection_agent.md
+    version: 1.0.0
+    enabled: true
+    model_provider: mock
+    model: hos-mock-v1
+    temperature: 0.2
+    max_output_tokens: 2500
+    timeout_seconds: 30
+    allowed_tools: []
+    output_schema: schemas/reflection.schema.json
+    tags: [reflection]

@@ -1,0 +1,60 @@
+{
+  "task_id": "INV-DEMO-001",
+  "workflow_id": "investment_analysis",
+  "workflow_version": "2.0.0",
+  "what_worked": [
+    "registry-driven workflow completed in dry-run"
+  ],
+  "what_failed": [
+    "external market data unavailable by design"
+  ],
+  "agent_evaluations": [
+    {
+      "agent": "ceo_plan",
+      "status": "completed"
+    },
+    {
+      "agent": "research",
+      "status": "completed"
+    },
+    {
+      "agent": "base_analysis",
+      "status": "completed"
+    },
+    {
+      "agent": "creative_challenge",
+      "status": "completed"
+    },
+    {
+      "agent": "devils_advocate",
+      "status": "completed"
+    },
+    {
+      "agent": "risk_review",
+      "status": "completed"
+    },
+    {
+      "agent": "fact_review",
+      "status": "completed"
+    },
+    {
+      "agent": "logic_review",
+      "status": "completed"
+    },
+    {
+      "agent": "quality_review",
+      "status": "completed"
+    },
+    {
+      "agent": "hos_update",
+      "status": "completed"
+    }
+  ],
+  "workflow_improvements": [
+    "connect verified market data adapter later"
+  ],
+  "knowledge_candidates": [],
+  "follow_up_tasks": [
+    "fetch latest price and earnings before final investment decision"
+  ]
+}
