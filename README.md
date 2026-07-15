@@ -111,3 +111,17 @@ Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it nev
 ## Gemini free-tier AI Company execution
 
 HOS AI Company can run against Google Gemini API without requiring OpenAI paid API usage. Use `--executor gemini`, set `GEMINI_API_KEY`, and prefer the 5-agent `investment_analysis_free` workflow for free-tier tests. Usage is written to `runs/<run_id>/usage.json`; quota exhaustion produces partial/failed results and never auto-switches to OpenAI or mock. See `docs/QUICKSTART_GEMINI_FREE.md`, `docs/SECURITY_AI_COMPANY.md`, and `docs/OPERATIONS_AI_COMPANY.md`.
+
+## Stock Watch V2
+
+Stock Watch V2 converts the legacy daily drop/TOPIX comparison into a long-term buy-candidate monitor for the age-60 goal of ¥200,000,000 financial assets and ¥6,000,000 annual dividends. The runtime uses the existing free price/index fetchers and does not require paid AI APIs. Missing fundamentals, valuation, news, budget, or portfolio inputs are recorded as missing fields and block BUY decisions.
+
+Main configuration:
+
+- `skills/investment-agent/config/stock_watch_universe.json`: 40-symbol role-based universe, owned flags, limits, lots, and entry levels.
+- `skills/investment-agent/config/portfolio_policy.json`: goal, cash, budget, single-stock and sector limits, Discord thresholds.
+- `outputs/stock_watch_decisions.json`: per-symbol decision, score, hard blocks, freshness, and staged entry levels.
+- `outputs/stock_watch_summary.json`: status counts for Investment Commander.
+- `outputs/portfolio_goal_progress.json`: goal-progress bridge for Investment Commander / Dividend Empire.
+
+GitHub Pages settings edited in the browser are localStorage-only. To make them official for scheduled runs, copy the values into the JSON config files and commit them through a PR.

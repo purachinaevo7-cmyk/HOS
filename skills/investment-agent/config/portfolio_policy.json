@@ -1,0 +1,40 @@
+{
+  "target_asset_value_at_age_60": 200000000,
+  "target_annual_dividend": 6000000,
+  "target_age": 60,
+  "birth_date": "1985-11-01",
+  "current_financial_assets": 25270000,
+  "current_investment_trust": 15290000,
+  "current_individual_stocks": 8200000,
+  "monthly_index_investment": 100000,
+  "monthly_individual_stock_budget": null,
+  "annual_individual_stock_budget": null,
+  "current_cash_balance": null,
+  "minimum_cash_ratio": 0.1,
+  "max_single_stock_weight": 0.08,
+  "max_sector_weights": {
+    "通信・インフラ・ディフェンシブ": 0.3,
+    "商社・金融・リース": 0.3,
+    "製造業・半導体・電子部品": 0.25,
+    "資源・素材": 0.15,
+    "ゲーム・コンテンツ": 0.15,
+    "生活・医薬・住宅": 0.3,
+    "その他成長・ブランド": 0.1
+  },
+  "max_high_volatility_weight": 0.05,
+  "max_cyclical_weight": 0.25,
+  "max_entertainment_weight": 0.15,
+  "max_resource_weight": 0.15,
+  "minimum_expected_dividend_yield": 0.03,
+  "portfolio_rebalance_tolerance": 0.02,
+  "default_tranches": 3,
+  "notification": {
+    "discord_notify_no_alert": false,
+    "summary_limit": 800,
+    "watch_limit": 600,
+    "buy_candidate_limit": 900,
+    "buy_limit": 1200,
+    "data_error_limit": 500,
+    "price_change_renotify_threshold_percent": 1.0
+  }
+}

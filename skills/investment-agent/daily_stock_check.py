@@ -13,6 +13,7 @@ from stock_analyzer import MissingRecord, PriceRecord, analyze_stocks
 from notifier import ConsoleNotifier, DiscordNotifier, GitHubSummaryNotifier
 from stock_fetcher import FetchResult, fetch_market_data, save_daily_prices
 from stock_reporter import generate_report
+from stock_watch_v2 import decide as decide_v2, dedupe as dedupe_v2, load_json, load_universe, render_short, v2_watchlist, write_outputs
 
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parents[1]
@@ -252,10 +253,19 @@ def _build_report(result: FetchResult, thresholds: Any, buy_ranges: Any, mode: s
 
 def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DATA_DIR) -> str | None:
     load_env()
-    watchlist_data = load_yaml(BASE_DIR / "config" / "watchlist.yaml")
+    universe_path = BASE_DIR / "config" / "stock_watch_universe.json"
+    policy_path = BASE_DIR / "config" / "portfolio_policy.json"
+    # Keep legacy tests/custom callers stable when they provide a non-default data_dir.
+    if universe_path.exists() and data_dir == DATA_DIR:
+        universe = load_universe(universe_path)
+        watchlist = v2_watchlist(universe)
+    else:
+        universe = []
+        watchlist_data = load_yaml(BASE_DIR / "config" / "watchlist.yaml")
+        watchlist = watchlist_data["watchlist"]
+    policy = load_json(policy_path) if policy_path.exists() else {}
     thresholds = load_yaml(BASE_DIR / "config" / "thresholds.yaml")
     buy_ranges_data = load_yaml(BASE_DIR / "config" / "buy_ranges.yaml")
-    watchlist = watchlist_data["watchlist"]
     buy_ranges = buy_ranges_data["buy_ranges_percent"]
 
     now = _jst_now()
@@ -273,6 +283,13 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         _log_latest_available_data_date(result)
         retry_required = _retry_required(result)
         _write_mode_log(result, mode, retry_required, data_dir, context)
+        if universe:
+            decisions = decide_v2(universe, result.prices, policy, result.topix_change_percent, result.trade_date)
+            write_outputs(decisions, universe, policy, ROOT_DIR / "outputs")
+            state = data_dir / "notification_state_v2.json"
+            deduped = dedupe_v2(decisions, state, float(policy.get("notification", {}).get("price_change_renotify_threshold_percent", 1.0)))
+            report = render_short(deduped, result.trade_date, bool(policy.get("notification", {}).get("discord_notify_no_alert", False)))
+            return report
         return _build_report(result, thresholds, buy_ranges, mode)
 
     if mode == MORNING_RETRY:
@@ -308,6 +325,13 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         )
         still_required = _retry_required(result)
         _write_mode_log(result, mode, still_required, data_dir, context)
+        if universe:
+            decisions = decide_v2(universe, result.prices, policy, result.topix_change_percent, result.trade_date)
+            write_outputs(decisions, universe, policy, ROOT_DIR / "outputs")
+            state = data_dir / "notification_state_v2.json"
+            deduped = dedupe_v2(decisions, state, float(policy.get("notification", {}).get("price_change_renotify_threshold_percent", 1.0)))
+            report = render_short(deduped, result.trade_date, bool(policy.get("notification", {}).get("discord_notify_no_alert", False)))
+            return report
         return _build_report(result, thresholds, buy_ranges, mode, morning_incomplete=still_required)
 
     raise ValueError(f"unknown mode: {mode}")

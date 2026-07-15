@@ -1,0 +1,34 @@
+{
+  "current_financial_assets": 25270000,
+  "target_financial_assets": 200000000,
+  "target_age": 60,
+  "years_remaining": null,
+  "current_annual_dividend": null,
+  "target_annual_dividend": 6000000,
+  "monthly_investment": 100000,
+  "estimated_required_return": null,
+  "projected_asset_at_60": null,
+  "projected_dividend_at_60": null,
+  "goal_gap": null,
+  "portfolio_sector_weights": {},
+  "watchlist_role_weights": {
+    "CORE_DIVIDEND": 8,
+    "QUALITY_GROWTH": 7,
+    "DEFENSIVE": 5,
+    "RESOURCE_HEDGE": 3,
+    "FINANCIAL_INCOME": 6,
+    "ENTERTAINMENT_IP": 3,
+    "CYCLICAL_VALUE": 3,
+    "WATCH_ONLY": 5
+  },
+  "cash_ratio": null,
+  "last_updated": "2026-07-15T15:51:34.459705+00:00",
+  "missing_inputs": [
+    "current_annual_dividend",
+    "monthly_individual_stock_budget",
+    "annual_individual_stock_budget",
+    "current_cash_balance",
+    "current_shares",
+    "average_cost"
+  ]
+}

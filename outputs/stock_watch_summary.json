@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "status_counts": {
+    "NO_ALERT": 0,
+    "WATCH": 0,
+    "BUY_CANDIDATE": 0,
+    "BUY": 0,
+    "STRONG_BUY_CANDIDATE": 0,
+    "HOLD": 3,
+    "DO_NOT_BUY": 0,
+    "REVIEW_REQUIRED": 0,
+    "DATA_INSUFFICIENT": 0,
+    "DATA_ERROR": 37
+  },
+  "watchlist_count": 40,
+  "generated_at": "2026-07-15T15:51:34.459483+00:00"
+}
