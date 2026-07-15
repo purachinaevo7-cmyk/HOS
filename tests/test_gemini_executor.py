@@ -51,3 +51,34 @@ def test_timeout(monkeypatch):
     env(monkeypatch)
     monkeypatch.setattr('orchestrator.executor.request.urlopen', lambda *a,**k: (_ for _ in ()).throw(socket.timeout()))
     with pytest.raises(ExecutorTimeout): GeminiExecutor().execute(agent(), task(), ctx(), step())
+
+
+def test_timeout_env_default_and_override(monkeypatch):
+    env(monkeypatch)
+    monkeypatch.delenv('GEMINI_TIMEOUT_SECONDS', raising=False)
+    assert GeminiExecutor.configured_timeout_seconds(1) == 90
+    monkeypatch.setenv('GEMINI_TIMEOUT_SECONDS','90')
+    assert GeminiExecutor.configured_timeout_seconds(30) == 90
+
+
+def test_timeout_invalid_and_clamped(monkeypatch):
+    env(monkeypatch)
+    monkeypatch.setenv('GEMINI_TIMEOUT_SECONDS','invalid')
+    with pytest.raises(ExecutorError): GeminiExecutor.configured_timeout_seconds(30)
+    monkeypatch.setenv('GEMINI_TIMEOUT_SECONDS','999')
+    assert GeminiExecutor.configured_timeout_seconds(30) == 300
+    monkeypatch.setenv('GEMINI_TIMEOUT_SECONDS','1')
+    assert GeminiExecutor.configured_timeout_seconds(30) == 30
+
+
+def test_urlopen_uses_gemini_timeout_env(monkeypatch):
+    env(monkeypatch)
+    monkeypatch.setenv('GEMINI_TIMEOUT_SECONDS','90')
+    seen={}
+    body={'candidates':[{'content':{'parts':[{'text':json.dumps({'data':{'ok':True}})}]}}]}
+    def fake_urlopen(*a, **k):
+        seen['timeout']=k.get('timeout')
+        return Resp(json.dumps(body))
+    monkeypatch.setattr('orchestrator.executor.request.urlopen', fake_urlopen)
+    GeminiExecutor().execute(agent(), task(), ctx(), step())
+    assert seen['timeout'] == 90

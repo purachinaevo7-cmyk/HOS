@@ -57,10 +57,25 @@ class OpenAICompatibleExecutor:
         out=data if data.get('schema_version') else envelope(agent.id, agent.version, context.get('run_id',''), task.get('task_id','compat'), step.id, 'completed', data)
         validate_agent_output_envelope(out); return out
 class GeminiExecutor:
+    DEFAULT_TIMEOUT_SECONDS=90
+    MIN_TIMEOUT_SECONDS=30
+    MAX_TIMEOUT_SECONDS=300
     def __init__(self):
         self.api_key=os.getenv('GEMINI_API_KEY',''); self.model=os.getenv('GEMINI_MODEL','gemini-1.5-flash')
         if not self.api_key: raise ExecutorError('GEMINI_API_KEY is required for gemini executor; refusing to auto-switch to mock or paid OpenAI')
         self.usage=[]
+    @classmethod
+    def configured_timeout_seconds(cls, agent_timeout_seconds:int|None=None)->int:
+        raw=os.getenv('GEMINI_TIMEOUT_SECONDS')
+        if raw is None or str(raw).strip()=='':
+            return cls.DEFAULT_TIMEOUT_SECONDS
+        try:
+            value=int(str(raw).strip())
+        except (TypeError, ValueError) as e:
+            raise ExecutorError('GEMINI_TIMEOUT_SECONDS must be an integer number of seconds') from e
+        if value < cls.MIN_TIMEOUT_SECONDS: return cls.MIN_TIMEOUT_SECONDS
+        if value > cls.MAX_TIMEOUT_SECONDS: return cls.MAX_TIMEOUT_SECONDS
+        return value
     @staticmethod
     def extract_json(text:str)->dict[str,Any]:
         s=text.strip()
@@ -82,7 +97,8 @@ class GeminiExecutor:
         url=f'https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}'
         req=request.Request(url,data=body,headers={'Content-Type':'application/json'},method='POST')
         try:
-            with request.urlopen(req,timeout=agent.timeout_seconds) as res: raw=res.read().decode()
+            timeout_seconds=self.configured_timeout_seconds(getattr(agent,'timeout_seconds',None))
+            with request.urlopen(req,timeout=timeout_seconds) as res: raw=res.read().decode()
         except error.HTTPError as e:
             try:
                 msg=e.read().decode(errors='ignore')[:500]
@@ -93,14 +109,16 @@ class GeminiExecutor:
             if e.code==429: raise RateLimitError('gemini 429 rate limit')
             if e.code>=500: raise ExecutorError(f'gemini server error {e.code}')
             raise ExecutorError(f'gemini http error {e.code}: {redact_secret(msg)}')
-        except (TimeoutError, socket.timeout) as e: raise ExecutorTimeout('gemini timeout') from e
+        except (TimeoutError, socket.timeout) as e:
+            attempt=int(context.get('attempt_number') or context.get('retry_count',0)+1)
+            raise ExecutorTimeout(f'gemini timeout after {timeout_seconds}s (agent={agent.id}, attempt={attempt})') from e
         parsed=json.loads(raw); usage=parsed.get('usageMetadata') or {}; text=''
         try: text=parsed['candidates'][0]['content']['parts'][0]['text']
         except Exception as e: raise InvalidExecutorJSON('gemini response missing candidate text') from e
         out=self.extract_json(text)
         if not out.get('schema_version'): out=envelope(agent.id, agent.version, context.get('run_id',''), task.get('task_id','compat'), step.id, 'completed', out)
         out.setdefault('usage_metadata',usage); validate_agent_output_envelope(out)
-        self.usage.append({'agent_id':agent.id,'step_id':step.id,'provider':'gemini','model':self.model,'usage_metadata':usage})
+        self.usage.append({'agent_id':agent.id,'step_id':step.id,'provider':'gemini','model':self.model,'timeout_seconds':timeout_seconds,'usage_metadata':usage})
         return out
 class ReplayExecutor:
     def __init__(self, run_dir: Path): self.run_dir=run_dir
