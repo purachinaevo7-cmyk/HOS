@@ -32,6 +32,11 @@ on:
         required: false
         default: '3'
         type: string
+      gemini_timeout_seconds:
+        description: 'Gemini request timeout seconds (30-300)'
+        required: false
+        default: '90'
+        type: string
 permissions:
   contents: read
 jobs:
@@ -43,6 +48,7 @@ jobs:
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-1.5-flash' }}
+      GEMINI_TIMEOUT_SECONDS: ${{ inputs.gemini_timeout_seconds || '90' }}
       HOS_FREE_TIER_MODE: ${{ inputs.executor == 'gemini' && 'true' || '' }}
       HOS_MAX_AGENT_CALLS: ${{ inputs.executor == 'gemini' && '5' || '' }}
       HOS_MAX_RETRIES: ${{ inputs.executor == 'gemini' && '1' || '' }}
