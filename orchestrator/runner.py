@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from orchestrator.artifacts import RunStore
-from orchestrator.executor import DeterministicMockExecutor, GeminiExecutor, build_executor, QuotaExhaustedError, RateLimitError, ExecutorTimeout
+from orchestrator.executor import DeterministicMockExecutor, GeminiExecutor, build_executor, QuotaExhaustedError, RateLimitError, ExecutorTimeout, OutputTruncatedError, InvalidExecutorJSON, GeminiProviderError
 from orchestrator.registry import AgentDefinition, AgentRegistry
 from orchestrator.schemas import validate_task
 from orchestrator.services import ArtifactIndexService, MemoryService
@@ -29,7 +29,7 @@ class Orchestrator:
         task=json.loads(task_file.read_text(encoding='utf-8')); self._validate_task(task)
         wf=WorkflowEngine.load(self.root, task.get('workflow') or task.get('type') or 'investment_analysis'); WorkflowEngine.validate(wf,self.registry)
         run_id=str(uuid.uuid4()); run_dir=self.store.create(run_id,task,wf.id)
-        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[],'usage':{'estimated_calls':len(wf.steps),'actual_calls':0,'limit':int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0),'events':[]}}
+        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[],'usage':{'planned_calls':len(wf.steps),'estimated_calls':len(wf.steps),'actual_calls':0,'successful_calls':0,'failed_calls':0,'retry_calls':0,'limit':int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0),'events':[],'calls_by_agent':{},'token_usage_by_agent':{},'finish_reasons':{},'provider_errors':[]}}
         self._enforce_free_tier_preflight(wf, run_dir)
         self._event(run_id,task['task_id'],wf,None,None,'run_started',0,None,None,[])
         rework_cycles=0
@@ -70,10 +70,17 @@ class Orchestrator:
         free_gemini=isinstance(self.executor, GeminiExecutor) and os.getenv('HOS_FREE_TIER_MODE','').lower()=='true'
         if limit and ctx['usage']['actual_calls']>=limit and not free_gemini: raise RuntimeError(f'HOS_MAX_AGENT_CALLS exceeded at step {step.id}')
         ctx['usage']['actual_calls']+=1
-        ctx['usage']['events'].append({'step_id':step.id,'event':'call_started','call_index':ctx['usage']['actual_calls']})
+        ctx['usage']['calls_by_agent'][step.agent]=ctx['usage']['calls_by_agent'].get(step.agent,0)+1
+        if ctx['usage']['calls_by_agent'][step.agent]>1: ctx['usage']['retry_calls']+=1
+        ctx['usage']['events'].append({'step_id':step.id,'agent_id':step.agent,'event':'call_started','call_index':ctx['usage']['actual_calls']})
     def _record_usage(self,ctx,step,out):
         usage=out.get('usage_metadata') or {}
-        ctx['usage']['events'].append({'step_id':step.id,'event':'call_completed','status':out.get('status'),'usage_metadata':usage})
+        ctx['usage']['successful_calls']+=1
+        ctx['usage']['events'].append({'step_id':step.id,'agent_id':step.agent,'event':'call_completed','status':out.get('status'),'usage_metadata':usage})
+        ctx['usage']['token_usage_by_agent'][step.agent]=ctx['usage']['token_usage_by_agent'].get(step.agent,0)+(usage.get('totalTokenCount') or 0)
+        if hasattr(self.executor,'usage') and getattr(self.executor,'usage'):
+            fr=getattr(self.executor,'usage')[-1].get('finish_reason')
+            if fr: ctx['usage']['finish_reasons'][fr]=ctx['usage']['finish_reasons'].get(fr,0)+1
         total=sum((e.get('usage_metadata') or {}).get('totalTokenCount',0) for e in ctx['usage']['events'])
         ctx['usage']['total_tokens_observed']=total
         max_total=int(os.getenv('HOS_MAX_TOTAL_TOKENS','0') or 0)
@@ -105,14 +112,18 @@ class Orchestrator:
             except QuotaExhaustedError as e:
                 last=e; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'partial',retry_count+attempt,type(e).__name__,str(e),[])
                 return {'schema_version':'1.0','agent_id':step.agent,'agent_version':getattr(self.registry.get(step.agent),'version','unknown'),'run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'partial','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':['quota exhausted; no paid API fallback and no mock fallback'],'errors':[str(e)]}
-            except ExecutorTimeout as e:
-                last=e; agent=self.registry.get(step.agent); waited=getattr(self.executor,'configured_timeout_seconds',lambda v: getattr(agent,'timeout_seconds',None))(getattr(agent,'timeout_seconds',None))
-                self._event(run_id,task['task_id'],wf,step,agent,'retrying' if attempt+1<max_attempts else 'partial',retry_count+attempt,type(e).__name__,str(e),[],{'timeout_seconds':waited,'attempt_number':attempt+1})
-                if attempt+1>=max_attempts and isinstance(self.executor, GeminiExecutor) and os.getenv('HOS_FREE_TIER_MODE','').lower()=='true':
+            except (ExecutorTimeout, OutputTruncatedError, GeminiProviderError, InvalidExecutorJSON) as e:
+                last=e; agent=self.registry.get(step.agent); ctx['usage']['failed_calls']+=1
+                if isinstance(e,GeminiProviderError): ctx['usage']['provider_errors'].append({'step_id':step.id,'status_code':e.status_code,'error_kind':e.error_kind,'retry_after':e.retry_after,'body_prefix':str(e.body)[:500]})
+                waited=getattr(self.executor,'configured_timeout_seconds',lambda v: getattr(agent,'timeout_seconds',None))(getattr(agent,'timeout_seconds',None))
+                terminal=attempt+1>=max_attempts or isinstance(e,InvalidExecutorJSON) and not isinstance(e,OutputTruncatedError)
+                self._event(run_id,task['task_id'],wf,step,agent,'retrying' if not terminal else 'partial',retry_count+attempt,type(e).__name__,str(e),[],{'timeout_seconds':waited,'attempt_number':attempt+1})
+                if terminal and isinstance(self.executor, GeminiExecutor) and os.getenv('HOS_FREE_TIER_MODE','').lower()=='true':
                     ctx['step_status'][step.id]='partial'
-                    return {'schema_version':'1.0','agent_id':step.agent,'agent_version':getattr(agent,'version','unknown'),'run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'partial','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':['gemini timeout; no paid API fallback and no mock fallback'],'errors':[str(e)]}
+                    return {'schema_version':'1.0','agent_id':step.agent,'agent_version':getattr(agent,'version','unknown'),'run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'partial','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':['gemini provider issue; no paid API fallback and no mock fallback'],'errors':[str(e)]}
+                if isinstance(e,GeminiProviderError) and e.status_code==503 and attempt+1<max_attempts: time.sleep(min(2, 0.5*(2**attempt)))
             except Exception as e:
-                last=e; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'retrying' if attempt+1<max_attempts else 'failed',retry_count+attempt,type(e).__name__,str(e),[])
+                last=e; ctx['usage']['failed_calls']+=1; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'retrying' if attempt+1<max_attempts else 'failed',retry_count+attempt,type(e).__name__,str(e),[])
         if step.continue_on_error: return {'schema_version':'1.0','agent_id':step.agent,'agent_version':'unknown','run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'failed','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':[],'errors':[str(last)]}
         raise last
     def _run_step(self,run_id,task,wf,step,ctx,retry_count=0):

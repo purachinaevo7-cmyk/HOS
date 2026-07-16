@@ -37,6 +37,11 @@ on:
         required: false
         default: '90'
         type: string
+      gemini_smoke_test:
+        description: 'Run one Gemini structured-output smoke call only'
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -47,7 +52,9 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-1.5-flash' }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+      GEMINI_MAX_OUTPUT_TOKENS_DEFAULT: '2048'
+      GEMINI_MAX_OUTPUT_TOKENS_CEO: '3000'
       GEMINI_TIMEOUT_SECONDS: ${{ inputs.gemini_timeout_seconds || '90' }}
       HOS_FREE_TIER_MODE: ${{ inputs.executor == 'gemini' && 'true' || '' }}
       HOS_MAX_AGENT_CALLS: ${{ inputs.executor == 'gemini' && '5' || '' }}
@@ -78,13 +85,18 @@ jobs:
         if: ${{ inputs.executor == 'gemini' }}
         run: |
           test -n "$GEMINI_API_KEY" || (echo "GEMINI_API_KEY GitHub Secret is required for executor=gemini" >&2; exit 1)
+      - name: Gemini one-call smoke test
+        if: ${{ inputs.executor == 'gemini' && inputs.gemini_smoke_test }}
+        run: python -m orchestrator.cli gemini-smoke-test
       - name: Doctor and validation
+        if: ${{ !inputs.gemini_smoke_test }}
         run: |
           python -m orchestrator.cli doctor
           python -m orchestrator.cli validate-agents
           python -m orchestrator.cli validate-workflows
           python -m orchestrator.cli validate-task "$TASK_FILE"
       - name: Run orchestrator
+        if: ${{ !inputs.gemini_smoke_test }}
         id: run
         shell: bash
         run: |
