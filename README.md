@@ -125,3 +125,7 @@ Main configuration:
 - `outputs/portfolio_goal_progress.json`: goal-progress bridge for Investment Commander / Dividend Empire.
 
 GitHub Pages settings edited in the browser are localStorage-only. To make them official for scheduled runs, copy the values into the JSON config files and commit them through a PR.
+
+### Gemini structured-output smoke test
+
+Gemini executor uses official Structured Output (`responseSchema`) for agent-specific data and builds the HOS envelope locally. Set `GEMINI_MODEL=gemini-2.5-flash` or another validated generateContent model, then run `python -m orchestrator.cli gemini-smoke-test` or dispatch the GitHub Action with `gemini_smoke_test=true` for a single-call connectivity/schema check.

@@ -2,7 +2,7 @@ from __future__ import annotations
 import argparse, json, os, platform, shutil, subprocess, sys
 from pathlib import Path
 from orchestrator.artifacts import RunStore
-from orchestrator.executor import build_executor, ExecutorError
+from orchestrator.executor import build_executor, ExecutorError, GeminiExecutor
 from orchestrator.registry import AgentRegistry
 from orchestrator.runner import Orchestrator, ROOT
 from orchestrator.schemas import validate_json_file
@@ -38,6 +38,22 @@ def run(args):
     ex=build_executor(args.executor,scenario=args.scenario,replay_run=args.replay_run)
     r=Orchestrator(root=ROOT,dry_run=args.dry_run,executor=ex).run_task(args.file)
     _print({'run_id':r.run_id,'task_id':r.task_id,'report_path':str(r.report_path),'hos_json_path':str(r.hos_json_path),'dry_run':r.dry_run}); return 0
+def gemini_smoke_test(args):
+    import types
+    ex=GeminiExecutor()
+    agent=types.SimpleNamespace(id='ceo_planner',version='1.0.0',prompt_path='agents/ceo_planner.md',temperature=0.0,timeout_seconds=30)
+    step=types.SimpleNamespace(id='gemini_smoke',output_key='gemini_smoke')
+    old=os.environ.get('GEMINI_MAX_OUTPUT_TOKENS_CEO_PLANNER')
+    os.environ['GEMINI_MAX_OUTPUT_TOKENS_CEO_PLANNER']='512'
+    try:
+        out=ex.execute(agent,{'task_id':'GEMINI-SMOKE','request':'Return a tiny plan.','target':{'name':'smoke'},'workflow':'investment_analysis_free'},{'run_id':'gemini-smoke','run_dir':'runs/gemini-smoke','outputs':{},'attempt_number':1},step)
+    finally:
+        if old is None: os.environ.pop('GEMINI_MAX_OUTPUT_TOKENS_CEO_PLANNER',None)
+        else: os.environ['GEMINI_MAX_OUTPUT_TOKENS_CEO_PLANNER']=old
+    fr=(ex.usage[-1] if ex.usage else {}).get('finish_reason')
+    print(f'Gemini smoke test: PASS\nmodel: {ex.model}\nfinishReason: {fr}\nvalidJSON: true')
+    return 0
+
 def list_runs(args):
     rows=[]
     for p in sorted((ROOT/'runs').glob('*/run.json')):
@@ -69,7 +85,7 @@ def approve_knowledge(args): print(f'knowledge candidate approval pending human 
 def reject_knowledge(args): print(f'knowledge candidate rejected: {args.id}'); return 0
 def main(argv=None):
     ap=argparse.ArgumentParser(prog='python -m orchestrator.cli'); sub=ap.add_subparsers(dest='cmd',required=True)
-    for name,fn in [('doctor',doctor),('validate-agents',validate_agents),('export-agents-ui',export_agents_ui),('validate-workflows',validate_workflows),('list-runs',list_runs),('demo',demo),('list-knowledge-candidates',list_knowledge_candidates)]: sub.add_parser(name).set_defaults(func=fn)
+    for name,fn in [('doctor',doctor),('validate-agents',validate_agents),('export-agents-ui',export_agents_ui),('validate-workflows',validate_workflows),('list-runs',list_runs),('gemini-smoke-test',gemini_smoke_test),('demo',demo),('list-knowledge-candidates',list_knowledge_candidates)]: sub.add_parser(name).set_defaults(func=fn)
     p=sub.add_parser('visualize-workflow'); p.add_argument('workflow'); p.set_defaults(func=visualize_workflow)
     p=sub.add_parser('validate-task'); p.add_argument('file'); p.set_defaults(func=validate_task)
     p=sub.add_parser('run'); p.add_argument('file'); p.add_argument('--executor',choices=['mock','openai','gemini','replay'],default=os.getenv('HOS_EXECUTOR','mock')); p.add_argument('--scenario',default='success'); p.add_argument('--replay-run'); p.add_argument('--dry-run',action='store_true'); p.set_defaults(func=run)
