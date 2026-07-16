@@ -37,7 +37,19 @@ def validate_task(args): validate_json_file(Path(args.file)); print('task: ok');
 def run(args):
     ex=build_executor(args.executor,scenario=args.scenario,replay_run=args.replay_run)
     r=Orchestrator(root=ROOT,dry_run=args.dry_run,executor=ex).run_task(args.file)
-    _print({'run_id':r.run_id,'task_id':r.task_id,'report_path':str(r.report_path),'hos_json_path':str(r.hos_json_path),'dry_run':r.dry_run}); return 0
+    run_file=ROOT/'runs'/r.run_id/'run.json'
+    status=json.loads(run_file.read_text(encoding='utf-8'))['status']
+    result={'run_id':r.run_id,'task_id':r.task_id,'status':status,'report_path':str(r.report_path),'hos_json_path':str(r.hos_json_path),'usage_path':str(ROOT/'runs'/r.run_id/'usage.json'),'dry_run':r.dry_run}
+    # Keep the existing human-readable stdout contract.  The optional manifest is
+    # written independently so executor logs can never make it invalid JSON.
+    _print(result)
+    if args.json_output:
+        output=Path(args.json_output)
+        output.parent.mkdir(parents=True,exist_ok=True)
+        temporary=output.with_name(f'.{output.name}.tmp')
+        temporary.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+        temporary.replace(output)
+    return 0
 def gemini_smoke_test(args):
     import types
     ex=GeminiExecutor()
@@ -88,7 +100,7 @@ def main(argv=None):
     for name,fn in [('doctor',doctor),('validate-agents',validate_agents),('export-agents-ui',export_agents_ui),('validate-workflows',validate_workflows),('list-runs',list_runs),('gemini-smoke-test',gemini_smoke_test),('demo',demo),('list-knowledge-candidates',list_knowledge_candidates)]: sub.add_parser(name).set_defaults(func=fn)
     p=sub.add_parser('visualize-workflow'); p.add_argument('workflow'); p.set_defaults(func=visualize_workflow)
     p=sub.add_parser('validate-task'); p.add_argument('file'); p.set_defaults(func=validate_task)
-    p=sub.add_parser('run'); p.add_argument('file'); p.add_argument('--executor',choices=['mock','openai','gemini','replay'],default=os.getenv('HOS_EXECUTOR','mock')); p.add_argument('--scenario',default='success'); p.add_argument('--replay-run'); p.add_argument('--dry-run',action='store_true'); p.set_defaults(func=run)
+    p=sub.add_parser('run'); p.add_argument('file'); p.add_argument('--executor',choices=['mock','openai','gemini','replay'],default=os.getenv('HOS_EXECUTOR','mock')); p.add_argument('--scenario',default='success'); p.add_argument('--replay-run'); p.add_argument('--dry-run',action='store_true'); p.add_argument('--json-output',metavar='FILE',help='write one machine-readable result JSON object to FILE'); p.set_defaults(func=run)
     for name,fn in [('inspect-run',inspect_run),('resume',resume),('cancel',cancel),('export-run',export_run)]: p=sub.add_parser(name); p.add_argument('run_id'); p.set_defaults(func=fn)
     p=sub.add_parser('approve-knowledge'); p.add_argument('id'); p.set_defaults(func=approve_knowledge)
     p=sub.add_parser('reject-knowledge'); p.add_argument('id'); p.set_defaults(func=reject_knowledge)
