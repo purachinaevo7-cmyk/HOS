@@ -8,7 +8,7 @@ class RunStore:
     def __init__(self, root:Path): self.root=root
     def create(self, run_id:str, task:dict[str,Any], workflow_id:str)->Path:
         d=self.root/'runs'/run_id
-        for sub in ['context','steps','reviews','artifacts','reports','outputs','reflections','logs','diagnostics']: (d/sub).mkdir(parents=True,exist_ok=True)
+        for sub in ['context','steps','reviews','artifacts','reports','outputs','reflections','logs','diagnostics','facts','sources','claims']: (d/sub).mkdir(parents=True,exist_ok=True)
         (d/'task.json').write_text(json.dumps(task,ensure_ascii=False,indent=2),encoding='utf-8')
         (d/'manifest.json').write_text(json.dumps({'run_id':run_id,'task_id':task['task_id'],'workflow_id':workflow_id,'created_at':datetime.now(timezone.utc).isoformat(),'artifacts':{}},ensure_ascii=False,indent=2),encoding='utf-8')
         return d
