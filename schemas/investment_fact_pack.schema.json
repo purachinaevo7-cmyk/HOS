@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","title":"Investment Fact Pack","type":"object",
+  "required":["schema_version","task_id","ticker","company","price","price_trend","financials","valuation","shareholder_returns","news","risks","source_map","identity_validation","data_quality"],
+  "properties":{"schema_version":{"const":"1.0"},"task_id":{"type":"string"},"ticker":{"type":["string","null"]},"company":{"type":"object"},"price":{"type":"object"},"price_trend":{"type":"object"},"financials":{"type":"object"},"valuation":{"type":"object"},"shareholder_returns":{"type":"object"},"news":{"type":"array"},"risks":{"type":"array"},"source_map":{"type":"object"},"identity_validation":{"type":"object","required":["status","checks","human_review_required"]},"data_quality":{"type":"object","required":["generated_at","stale_fields","missing_fields","conflicting_fields","provider_errors","data_quality","verified_sources_count"]}}
+}

@@ -129,3 +129,6 @@ GitHub Pages settings edited in the browser are localStorage-only. To make them 
 ### Gemini structured-output smoke test
 
 Gemini executor uses official Structured Output (`responseSchema`) for agent-specific data and builds the HOS envelope locally. Set `GEMINI_MODEL=gemini-2.5-flash` or another validated generateContent model, then run `python -m orchestrator.cli gemini-smoke-test` or dispatch the GitHub Action with `gemini_smoke_test=true` for a single-call connectivity/schema check.
+
+## Verified Investment Fact Pipeline
+Investment workflows now build a deterministic Fact Pack before any Gemini agent runs. Agents may only use its `fact_refs` and `source_map`; missing data produces `DATA_INSUFFICIENT`, contradictions produce `REVIEW_REQUIRED`, and automatic BUY/orders are prohibited. See [design](docs/INVESTMENT_FACT_PIPELINE_DESIGN.md), [operations](docs/INVESTMENT_FACT_PIPELINE_OPERATIONS.md), [source policy](docs/INVESTMENT_SOURCE_POLICY.md), and [evidence policy](docs/INVESTMENT_EVIDENCE_POLICY.md).

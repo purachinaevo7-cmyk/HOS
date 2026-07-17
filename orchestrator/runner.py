@@ -11,6 +11,7 @@ from orchestrator.registry import AgentDefinition, AgentRegistry
 from orchestrator.schemas import validate_task
 from orchestrator.services import ArtifactIndexService, MemoryService
 from orchestrator.workflow import WorkflowEngine, WorkflowStep
+from orchestrator.investment_facts import build_fact_pack, detect_contradictions, validate_evidence
 ROOT=Path(__file__).resolve().parents[1]
 @dataclass
 class RunResult:
@@ -30,6 +31,11 @@ class Orchestrator:
         wf=WorkflowEngine.load(self.root, task.get('workflow') or task.get('type') or 'investment_analysis'); WorkflowEngine.validate(wf,self.registry)
         run_id=str(uuid.uuid4()); run_dir=self.store.create(run_id,task,wf.id)
         ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[],'usage':{'planned_calls':len(wf.steps),'estimated_calls':len(wf.steps),'actual_calls':0,'successful_calls':0,'failed_calls':0,'retry_calls':0,'limit':int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0),'events':[],'calls_by_agent':{},'token_usage_by_agent':{},'finish_reasons':{},'provider_errors':[]}}
+        if wf.id.startswith('investment_analysis'):
+            fact_pack, gate=build_fact_pack(task,self.root)
+            ctx.update({'fact_pack':fact_pack,'source_map':fact_pack['source_map'],'missing_information':gate['missing_information'],'data_quality':fact_pack['data_quality'],'data_sufficiency_gate':gate,'contradictions':[]})
+            (run_dir/'fact_pack.json').write_text(json.dumps(fact_pack,ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'facts'/'investment_fact_pack.json').write_text(json.dumps(fact_pack,ensure_ascii=False,indent=2),encoding='utf-8')
         self._enforce_free_tier_preflight(wf, run_dir)
         self._event(run_id,task['task_id'],wf,None,None,'run_started',0,None,None,[])
         rework_cycles=0
@@ -38,6 +44,12 @@ class Orchestrator:
                 ctx['step_status'][step.id]='skipped'; continue
             if not WorkflowEngine.condition_passes(step.condition,ctx): ctx['step_status'][step.id]='skipped'; continue
             out=self._run_with_retry(run_id,task,wf,step,ctx); ctx['outputs'][step.output_key or step.id]=out; self.store.save_step(run_dir,step.id,out)
+            if ctx.get('fact_pack'):
+                evidence_check=validate_evidence(out,ctx['fact_pack']); contradictions=detect_contradictions(out,ctx['fact_pack'])
+                (run_dir/'claims'/f'{step.id}.json').write_text(json.dumps({'evidence_validation':evidence_check,'contradictions':contradictions},ensure_ascii=False,indent=2),encoding='utf-8')
+                ctx['contradictions'].extend([{'step_id':step.id,**c} for c in contradictions])
+                if contradictions or (step.agent in {'base_analyst','ceo_integrator'} and not evidence_check['valid']):
+                    ctx['data_sufficiency_gate']['status']='REVIEW_REQUIRED'; ctx['data_sufficiency_gate']['buy_allowed']=False
             data=out.get('data',out)
             requests=data.get('rework_requests') or [{'target_agent':a,'target_output_key':'','reason':'legacy','required_changes':[],'priority':'high'} for a in data.get('rework_agents',[])]
             if data.get('severity')=='critical' and requests and rework_cycles < wf.max_rework_cycles:
@@ -51,6 +63,9 @@ class Orchestrator:
         paths=self._write_artifacts(task['task_id'],wf,ctx,markdown,run_dir)
         status='partial' if any(v in {'partial','failed'} for v in ctx['step_status'].values()) else 'completed'
         self._write_usage(run_dir, ctx)
+        if ctx.get('fact_pack'):
+            (run_dir/'contradictions.json').write_text(json.dumps(ctx['contradictions'],ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'diagnostics'/'data_sufficiency_gate.json').write_text(json.dumps(ctx['data_sufficiency_gate'],ensure_ascii=False,indent=2),encoding='utf-8')
         run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':status,'step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
         self.store.save_run(run_dir,run)
         self._event(run_id,task['task_id'],wf,None,None,'run_completed',0,None,None,[str(p) for p in paths])
@@ -152,12 +167,19 @@ class Orchestrator:
             hos_update=ctx['outputs'].get('hos_update',{}).get('data',{}).get('hos_update',{'outputs':[]}); hos.write_text(json.dumps(hos_update,ensure_ascii=False,indent=2),encoding='utf-8'); (run_dir/'outputs'/'hos_update.json').write_text(json.dumps(hos_update,ensure_ascii=False,indent=2),encoding='utf-8')
             reflection=ctx['outputs'].get('reflection',{}); reflection={**reflection,'workflow_id':wf.id,'task_id':task_id,'run_id':ctx['run_id']} ; refl.write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8'); (run_dir/'reflections'/'reflection.json').write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8')
             inv.write_text(json.dumps(self._investment_update(ctx['task'],ctx),ensure_ascii=False,indent=2),encoding='utf-8')
+            if ctx.get('fact_pack'):
+                fp=ctx['fact_pack']; gate=ctx['data_sufficiency_gate']; final=ctx['outputs'].get('ceo_integration',{}).get('data',{})
+                decision={"task_id":task_id,"ticker":fp.get('ticker'),"generated_at":datetime.now(timezone.utc).isoformat(),"data_quality":fp['data_quality']['data_quality'],"source_count":len(fp['source_map']),"missing_fields":fp['data_quality']['missing_fields'],"verified_facts":final.get('verified_facts',[]),"decision":gate['status'] if gate['status']!='PASS' else final.get('decision','WATCH'),"confidence":final.get('confidence','low'),"evidence":final.get('evidence',[]),"next_review_items":gate['missing_information'],"valid_until":None,"contradictions":ctx['contradictions']}
+                (self.root/'outputs'/f'investment_fact_pack_{task_id}.json').write_text(json.dumps(fp,ensure_ascii=False,indent=2),encoding='utf-8')
+                (self.root/'outputs'/f'investment_decision_{task_id}.json').write_text(json.dumps(decision,ensure_ascii=False,indent=2),encoding='utf-8')
+                (run_dir/'final_decision.json').write_text(json.dumps(decision,ensure_ascii=False,indent=2),encoding='utf-8')
             MemoryService(self.root).save('task_history',task_id,{'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'completed_at':datetime.now(timezone.utc).isoformat()})
             self._update_artifact_index(task_id,wf,ctx,report,hos,log,refl,run_dir,inv)
         return report,hos,log,refl
     def _update_artifact_index(self,task_id,wf,ctx,report,hos,log,refl,run_dir,inv):
         rel=lambda p: str(Path(p).relative_to(self.root)) if str(p).startswith(str(self.root)) else str(p)
-        ArtifactIndexService(self.root).update({'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'workflow_version':wf.version,'title':f"HOS AI Company Report: {task_id}",'project':'AI Company','brain':'HOS AI Company','skill':wf.id,'format':'Markdown','tags':['ai-company',wf.id],'keywords':[task_id,wf.id],'created_at':datetime.now(timezone.utc).isoformat(),'target':ctx['task'].get('target',{}),'artifact_paths':{'run_bundle':rel(run_dir),'report':rel(report),'hos_update_json':rel(hos),'log':rel(log),'reflection':rel(refl),'investment_commander':rel(inv)}})
+        extra={'fact_pack':rel(run_dir/'fact_pack.json'),'final_decision':rel(run_dir/'final_decision.json'),'contradictions':rel(run_dir/'contradictions.json')} if ctx.get('fact_pack') else {}
+        ArtifactIndexService(self.root).update({'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'workflow_version':wf.version,'title':f"HOS AI Company Report: {task_id}",'project':'AI Company','brain':'HOS AI Company','skill':wf.id,'format':'Markdown','tags':['ai-company',wf.id],'keywords':[task_id,wf.id],'created_at':datetime.now(timezone.utc).isoformat(),'target':ctx['task'].get('target',{}),'artifact_paths':{'run_bundle':rel(run_dir),'report':rel(report),'hos_update_json':rel(hos),'log':rel(log),'reflection':rel(refl),'investment_commander':rel(inv),**extra}})
     def _write_log(self,p,run_dir):
         if not self.dry_run:
             text='\n'.join(json.dumps(e,ensure_ascii=False) for e in self.events)+'\n'; p.write_text(text,encoding='utf-8'); (run_dir/'logs'/'sanitized.jsonl').write_text(text,encoding='utf-8')
