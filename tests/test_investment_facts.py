@@ -112,9 +112,8 @@ def test_yahoo_chart_provider_rejects_array_length_mismatch():
 
 def test_285a_fixture_source_map_and_gate_semantics(tmp_path):
     pack,gate=build_fact_pack(TASK,tmp_path)
-    assert pack["financials"]["fiscal_period"]=="2026年3月期"
-    assert pack["financials"]["earnings_release_date"]=="2026-05-15"
-    assert pack["financials"]["source_document_url"] != pack["company"]["official_ir_url"]
+    assert pack["financials"]["document_discovery_status"] in {"discovery_not_attempted","discovery_page_fetched","candidate_discovered","content_fetched","failed"}
+    assert pack["financials"].get("source_document_url") != "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html"
     assert all(n["title"]!="Official IR updates page" and n["published_at"] for n in pack["news"])
     assert len([s for s in pack["source_map"].values() if s["source_type"]=="index_page" and s["evidence_eligible"] is False])>=1
     assert len(pack["source_map"])==pack["data_quality"]["total_source_records"]
@@ -124,12 +123,11 @@ def test_285a_fixture_source_map_and_gate_semantics(tmp_path):
     assert {"valuation.per","valuation.per_or_pbr","risks","shareholder_returns.dividend_forecast"} <= fields
 
 
-def test_285a_candidate_keeps_url_and_fetch_is_attempted(tmp_path):
+def test_285a_candidate_does_not_use_inferred_news_url(tmp_path):
     pack,_=build_fact_pack(TASK,tmp_path)
     fin=pack["financials"]
-    assert fin["document_discovery_status"]=="candidate_found"
-    assert fin["source_document_url"]
-    assert fin["html_fetch_status"] in {"fetched","fetch_failed","network_disabled"}
+    assert fin.get("source_document_url") != "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html"
+    assert fin["html_fetch_status"] in {"fetched","fetch_failed","network_disabled","not_attempted"}
     assert fin["numeric_extraction_status"] in {"parsed","no_numeric_values_found","not_attempted"}
 
 
@@ -144,3 +142,67 @@ def test_shareholder_returns_records_official_ir_attempt(tmp_path):
     assert sr["source_document_url"]==pack["company"]["official_ir_url"]
     assert sr["fetch_status"] in {"fetched","fetch_failed","network_disabled"}
     assert {"annual_dividend","dividend_forecast","buyback"} <= set(sr)
+
+
+def test_fact_285a_regression_document_discovery_and_source_semantics(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    html='''<html><body>
+      <a href="/ja-jp/ir/news/20260515.html">決算発表ニュース</a>
+      <a href="https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf">2026年3月期 決算短信 PDF</a>
+    </body></html>'''
+    pdf_text='''%PDF キオクシアホールディングス 285A 2026年3月期 決算短信
+      売上収益 2,337,628 営業利益 870,369 親会社の所有者に帰属する当期利益 554,490
+      基本的1株当たり当期利益 1024.07 当期利益 554,496 税引前利益 784,095
+    '''
+    def fake_fetch(url, *args, **kwargs):
+        if url == 'https://www.kioxia-holdings.com/ja-jp/ir.html':
+            return {"text":html,"raw":html.encode(),"http_status":200,"content_type":"text/html","url":url,"final_url":url}
+        if url == 'https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf':
+            return {"text":pdf_text,"raw":pdf_text.encode(),"http_status":200,"content_type":"application/pdf","url":url,"final_url":url}
+        raise RuntimeError('unexpected url '+url)
+    monkeypatch.setattr(f, 'network_allowed', lambda: True)
+    monkeypatch.setattr(f, 'fetch_http', fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    fin=pack['financials']
+    assert fin['source_document_url']=='https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf'
+    assert fin['authority_chain_verified'] is True
+    assert fin['document_validation_status']=='VERIFIED'
+    assert fin['revenue']==2337628
+    assert fin['operating_income']==870369
+    assert fin['net_income']==554490
+    assert fin['eps']==1024.07
+    assert not any('/news/20260515.html' == (s.get('canonical_url') or '') for s in pack['source_map'].values() if s['source_type']=='financial_document')
+    assert sum(1 for s in pack['source_map'].values() if s['canonical_url']=='https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf')==1
+    assert pack['data_quality']['financial_source_count']>=1
+
+
+def test_fact_285a_404_is_failed_error_and_missing_attempt(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    def fake_fetch(url, *args, **kwargs):
+        if url == 'https://www.kioxia-holdings.com/ja-jp/ir.html':
+            return {"text":'<a href="https://ssl4.eir-parts.net/doc/285A/tdnet/missing/00.pdf">決算短信</a>',"raw":b'',"http_status":200,"content_type":"text/html","url":url,"final_url":url}
+        e=urllib.error.HTTPError(url,404,'Not Found',{},None)
+        raise e
+    import urllib.error
+    monkeypatch.setattr(f, 'network_allowed', lambda: True)
+    monkeypatch.setattr(f, 'fetch_http', fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    fin=pack['financials']
+    assert fin['document_validation_status']=='FAILED'
+    assert fin['source_document_url'] is None
+    assert any(e.get('http_status')==404 and e.get('provider')=='financials' for e in pack['data_quality']['provider_errors'])
+    assert any(m['field']=='financials.revenue' and m['provider_attempts'] for m in pack['data_quality']['missing_information'])
+
+
+def test_price_source_url_cache_source_map_and_evidence(tmp_path):
+    (tmp_path/'outputs').mkdir()
+    (tmp_path/'outputs'/'stock_watch_decisions.json').write_text(json.dumps({'decisions':[{'ticker':'285A.T','close':1800,'previous_close':1790,'price_date':'2026-07-15'}]}))
+    pack,_=build_fact_pack(TASK,tmp_path)
+    pack2,_=build_fact_pack(TASK,tmp_path)
+    assert pack['price']['source_url']==pack2['price']['source_url']=='outputs/stock_watch_decisions.json'
+    price_src=[s for s in pack2['source_map'].values() if s['source_type']=='market_data'][0]
+    assert price_src['url']=='outputs/stock_watch_decisions.json'
+    assert price_src['evidence_eligible'] is True
+    from orchestrator.investment_facts import SourceRegistry
+    sr=SourceRegistry(); sr.add('SRC-PRICE','Market price',None,'market_data','price','Yahoo Finance chart')
+    assert list(sr.map.values())[0]['evidence_eligible'] is False
