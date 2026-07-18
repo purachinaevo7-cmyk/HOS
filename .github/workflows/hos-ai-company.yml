@@ -99,17 +99,28 @@ jobs:
         run: |
           import json, os, pathlib, sys
           raw = '''${{ inputs.task_json }}'''.strip()
+          task_path = '''${{ inputs.task_path }}'''.strip()
+          mode='${{ inputs.analysis_mode }}'
+          requested_wf='''${{ inputs.workflow }}'''.strip()
+          fact_pack_only='''${{ inputs.fact_pack_only }}'''.lower() == 'true'
+          mode_wf={'smoke':'investment_analysis_free','verified_lite':'investment_analysis_verified_lite','full_5_agent':'investment_analysis'}.get(mode,'investment_analysis_verified_lite')
+          effective_wf='investment_analysis_verified_lite' if fact_pack_only else (requested_wf or mode_wf)
+          warnings=[]
           if raw:
-              data=json.loads(raw)
-              mode='${{ inputs.analysis_mode }}'
-              wf={'smoke':'investment_analysis_free','verified_lite':'investment_analysis_verified_lite','full_5_agent':'investment_analysis'}.get(mode,'investment_analysis_verified_lite')
-              data['workflow']=wf
-              p=pathlib.Path('tasks/working/actions-task.json'); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
-              print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
-          else:
-              p=pathlib.Path('${{ inputs.task_path }}')
+              data=json.loads(raw); source='task_json_payload'
+              if task_path: warnings.append('task_json payload takes precedence over repository task path')
+          elif task_path:
+              p=pathlib.Path(task_path)
               if not str(p).startswith('tasks/') or '..' in p.parts: raise SystemExit('task_path must stay under tasks/')
-              print(f'TASK_FILE={p}', file=open(os.environ['GITHUB_ENV'],'a'))
+              data=json.loads(p.read_text(encoding='utf-8')); source='repository_task_path'
+          else:
+              data={'task_id':'ACTIONS-GENERATED','request':'Generated from workflow form inputs','target':{}}; source='form_inputs'
+          original_wf=data.get('workflow')
+          if requested_wf and original_wf and requested_wf != original_wf: warnings.append('workflow override conflicts with task workflow')
+          data['workflow']=effective_wf
+          data.update({'requested_analysis_mode':mode,'analysis_mode':'verified_lite' if fact_pack_only else mode,'requested_workflow_id':requested_wf or original_wf,'task_source':source,'task_payload_used':bool(raw),'repository_task_path_used':task_path if (not raw and task_path) else None,'workflow_override_applied':effective_wf != original_wf,'input_warnings':warnings,'fact_pack_only':fact_pack_only})
+          p=pathlib.Path('tasks/working/actions-task.json'); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+          print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
       - name: Validate Gemini secret
         if: ${{ inputs.executor == 'gemini' }}
         run: |

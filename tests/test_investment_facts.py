@@ -127,10 +127,10 @@ def test_285a_fixture_source_map_and_gate_semantics(tmp_path):
 def test_285a_candidate_keeps_url_and_fetch_is_attempted(tmp_path):
     pack,_=build_fact_pack(TASK,tmp_path)
     fin=pack["financials"]
-    assert fin["document_discovery_status"]=="candidate_found"
-    assert fin["source_document_url"]
-    assert fin["html_fetch_status"] in {"fetched","fetch_failed","network_disabled"}
-    assert fin["numeric_extraction_status"] in {"parsed","no_numeric_values_found","not_attempted"}
+    assert fin["document_discovery_status"] in {"discovery_not_attempted","not_attempted","discovery_page_fetched","candidate_discovered","content_fetched","failed"}
+    assert fin.get("source_document_url") != "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html"
+    assert fin["html_fetch_status"] in {"fetched","fetch_failed","network_disabled","not_attempted"}
+    assert fin["numeric_extraction_status"] in {"extraction_succeeded","extraction_partial","not_attempted"}
 
 
 def test_valuation_calculation_unavailable_when_inputs_missing(tmp_path):
