@@ -1419,6 +1419,57 @@
       }
     },
     {
+      "id": "investment_analysis_verified_lite",
+      "name": "Verified Fact Investment Analysis Lite",
+      "version": "1.0.0",
+      "steps": [
+        {
+          "id": "verified_analysis",
+          "agent": "base_analyst",
+          "action": "analyze_verified_fact_pack",
+          "depends_on": [],
+          "input_mapping": {},
+          "output_key": "verified_analysis",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 60,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "Gemini Analysis Agent (Fact Pack only)"
+        },
+        {
+          "id": "review_integration",
+          "agent": "ceo_integrator",
+          "action": "review_and_integrate_verified_lite",
+          "depends_on": [
+            "verified_analysis"
+          ],
+          "input_mapping": {},
+          "output_key": "ceo_integration",
+          "condition": "always",
+          "validation": {},
+          "retry_policy": {
+            "max_attempts": 1
+          },
+          "timeout_seconds": 60,
+          "continue_on_error": false,
+          "optional": false,
+          "concurrency_group": "default",
+          "approval_gate": false,
+          "name": "Gemini Review and Integration Agent"
+        }
+      ],
+      "outputs": {
+        "final_report": "outputs/reports/{task_id}.md",
+        "hos_update_json": "outputs/json/{task_id}.json"
+      }
+    },
+    {
       "id": "learning_material",
       "name": "Learning Material",
       "version": "2.1.0",

@@ -11,7 +11,7 @@ from orchestrator.registry import AgentDefinition, AgentRegistry
 from orchestrator.schemas import validate_task
 from orchestrator.services import ArtifactIndexService, MemoryService
 from orchestrator.workflow import WorkflowEngine, WorkflowStep
-from orchestrator.investment_facts import build_fact_pack, detect_contradictions, validate_evidence
+from orchestrator.investment_facts import build_fact_pack, detect_contradictions, validate_evidence, discord_message, investment_commander_update
 ROOT=Path(__file__).resolve().parents[1]
 @dataclass
 class RunResult:
@@ -36,6 +36,15 @@ class Orchestrator:
             ctx.update({'fact_pack':fact_pack,'source_map':fact_pack['source_map'],'missing_information':gate['missing_information'],'data_quality':fact_pack['data_quality'],'data_sufficiency_gate':gate,'contradictions':[]})
             (run_dir/'fact_pack.json').write_text(json.dumps(fact_pack,ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'facts'/'investment_fact_pack.json').write_text(json.dumps(fact_pack,ensure_ascii=False,indent=2),encoding='utf-8')
+        if os.getenv('HOS_FACT_PACK_ONLY','').lower()=='true':
+            final={'final_decision': ctx['data_sufficiency_gate'].get('final_decision') or ctx['data_sufficiency_gate']['status'], 'confidence':'low', 'evidence':[]}
+            (run_dir/'source_map.json').write_text(json.dumps(ctx['source_map'],ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'diagnostics'/'fact_pack_only_summary.json').write_text(json.dumps({'fact_pack_status':ctx['data_sufficiency_gate']['status'],'verified_source_count':ctx['data_quality']['verified_sources_count'],'missing_fields':ctx['data_quality']['missing_fields'],'provider_errors':ctx['data_quality']['provider_errors'],'final_decision':final['final_decision']},ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'discord_message.txt').write_text(discord_message(final,ctx['fact_pack'],ctx['data_sufficiency_gate']),encoding='utf-8')
+            (run_dir/'investment_commander_update.json').write_text(json.dumps(investment_commander_update(final,ctx['fact_pack'],ctx['data_sufficiency_gate'],trigger=task.get('trigger'),gemini_calls=0),ensure_ascii=False,indent=2),encoding='utf-8')
+            markdown=self._ceo_final_markdown(task,ctx); paths=self._write_artifacts(task['task_id'],wf,ctx,markdown,run_dir); self._write_usage(run_dir, ctx)
+            run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':'completed','step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
+            self.store.save_run(run_dir,run); self._write_log(paths[2], run_dir); return RunResult(task['task_id'],True,paths[0],paths[1],paths[2],paths[3],self.dry_run,run_id)
         self._enforce_free_tier_preflight(wf, run_dir)
         self._event(run_id,task['task_id'],wf,None,None,'run_started',0,None,None,[])
         rework_cycles=0
@@ -64,8 +73,12 @@ class Orchestrator:
         status='partial' if any(v in {'partial','failed'} for v in ctx['step_status'].values()) else 'completed'
         self._write_usage(run_dir, ctx)
         if ctx.get('fact_pack'):
+            final_data=(ctx['outputs'].get('ceo_integration') or ctx['outputs'].get('review_integration') or {}).get('data',{})
+            final={'final_decision': final_data.get('final_decision') or final_data.get('decision') or ctx['data_sufficiency_gate'].get('final_decision'), 'confidence': final_data.get('confidence'), 'evidence': final_data.get('evidence',[]), 'risks': final_data.get('risks',[]), 'contradictions': ctx['contradictions'], 'next_review_items': final_data.get('next_review_items') or final_data.get('next_actions',[])}
             (run_dir/'contradictions.json').write_text(json.dumps(ctx['contradictions'],ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'diagnostics'/'data_sufficiency_gate.json').write_text(json.dumps(ctx['data_sufficiency_gate'],ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'discord_message.txt').write_text(discord_message(final,ctx['fact_pack'],ctx['data_sufficiency_gate']),encoding='utf-8')
+            (run_dir/'investment_commander_update.json').write_text(json.dumps(investment_commander_update(final,ctx['fact_pack'],ctx['data_sufficiency_gate'],trigger=task.get('trigger'),gemini_calls=ctx['usage']['actual_calls']),ensure_ascii=False,indent=2),encoding='utf-8')
         run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':status,'step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
         self.store.save_run(run_dir,run)
         self._event(run_id,task['task_id'],wf,None,None,'run_completed',0,None,None,[str(p) for p in paths])
