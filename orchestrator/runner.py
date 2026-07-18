@@ -30,13 +30,15 @@ class Orchestrator:
         task=json.loads(task_file.read_text(encoding='utf-8')); self._validate_task(task)
         wf=WorkflowEngine.load(self.root, task.get('workflow') or task.get('type') or 'investment_analysis'); WorkflowEngine.validate(wf,self.registry)
         run_id=str(uuid.uuid4()); run_dir=self.store.create(run_id,task,wf.id)
-        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[],'usage':{'planned_calls':len(wf.steps),'estimated_calls':len(wf.steps),'actual_calls':0,'successful_calls':0,'failed_calls':0,'retry_calls':0,'limit':int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0),'events':[],'calls_by_agent':{},'token_usage_by_agent':{},'finish_reasons':{},'provider_errors':[]}}
+        fact_pack_only=os.getenv('HOS_FACT_PACK_ONLY','').lower()=='true'
+        planned=0 if fact_pack_only else len(wf.steps)
+        ctx={'task':task,'outputs':{},'step_status':{},'dry_run':self.dry_run,'workflow_id':wf.id,'workflow_version':wf.version,'run_id':run_id,'run_dir':str(run_dir),'rework_history':[],'usage':{'planned_calls':planned,'estimated_calls':planned,'actual_calls':0,'successful_calls':0,'failed_calls':0,'retry_calls':0,'limit':int(os.getenv('HOS_MAX_AGENT_CALLS','0') or 0),'events':[],'calls_by_agent':{},'token_usage_by_agent':{},'finish_reasons':{},'provider_errors':[], 'gemini_calls_planned':planned, 'gemini_calls_actual':0, 'deterministic_provider_calls':0, 'network_requests':0}}
         if wf.id.startswith('investment_analysis'):
             fact_pack, gate=build_fact_pack(task,self.root)
             ctx.update({'fact_pack':fact_pack,'source_map':fact_pack['source_map'],'missing_information':gate['missing_information'],'data_quality':fact_pack['data_quality'],'data_sufficiency_gate':gate,'contradictions':[]})
             (run_dir/'fact_pack.json').write_text(json.dumps(fact_pack,ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'facts'/'investment_fact_pack.json').write_text(json.dumps(fact_pack,ensure_ascii=False,indent=2),encoding='utf-8')
-        if os.getenv('HOS_FACT_PACK_ONLY','').lower()=='true':
+        if fact_pack_only:
             final={'final_decision': ctx['data_sufficiency_gate'].get('final_decision') or ctx['data_sufficiency_gate']['status'], 'confidence':'low', 'evidence':[]}
             (run_dir/'source_map.json').write_text(json.dumps(ctx['source_map'],ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'provider_errors.json').write_text(json.dumps(ctx['data_quality'].get('provider_errors',[]),ensure_ascii=False,indent=2),encoding='utf-8')
@@ -45,7 +47,7 @@ class Orchestrator:
             (run_dir/'diagnostics'/'fact_pack_only_summary.json').write_text(json.dumps({'fact_pack_status':ctx['data_sufficiency_gate']['status'],'verified_source_count':ctx['data_quality']['verified_sources_count'],'missing_fields':ctx['data_quality']['missing_fields'],'provider_errors':ctx['data_quality']['provider_errors'],'final_decision':final['final_decision']},ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'discord_message.txt').write_text(discord_message(final,ctx['fact_pack'],ctx['data_sufficiency_gate']),encoding='utf-8')
             (run_dir/'investment_commander_update.json').write_text(json.dumps(investment_commander_update(final,ctx['fact_pack'],ctx['data_sufficiency_gate'],trigger=task.get('trigger'),gemini_calls=0),ensure_ascii=False,indent=2),encoding='utf-8')
-            markdown=self._ceo_final_markdown(task,ctx); paths=self._write_artifacts(task['task_id'],wf,ctx,markdown,run_dir); self._write_usage(run_dir, ctx)
+            ctx['usage']['deterministic_provider_calls']=ctx.get('fact_pack',{}).get('cache',{}).get('provider_calls',0); ctx['usage']['network_requests']=ctx.get('fact_pack',{}).get('cache',{}).get('network_requests',0); markdown=self._ceo_final_markdown(task,ctx); paths=self._write_artifacts(task['task_id'],wf,ctx,markdown,run_dir); self._write_usage(run_dir, ctx)
             run={'run_id':run_id,'task_id':task['task_id'],'workflow_id':wf.id,'workflow_version':wf.version,'status':'completed','step_status':ctx['step_status'],'rework_history':ctx['rework_history'],'completed_at':datetime.now(timezone.utc).isoformat()}
             self.store.save_run(run_dir,run); self._write_log(paths[2], run_dir); return RunResult(task['task_id'],True,paths[0],paths[1],paths[2],paths[3],self.dry_run,run_id)
         self._enforce_free_tier_preflight(wf, run_dir)
