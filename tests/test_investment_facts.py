@@ -55,3 +55,35 @@ def test_discord_message_length_and_trigger_dedupe(tmp_path):
     assert ok and key["ticker_key"]
     ok2,_=should_trigger_verified_analysis("NO_ALERT","NO_ALERT","2026-07-18",seen=set())
     assert not ok2
+
+def test_provider_result_normalization_handles_bad_url_and_types():
+    from orchestrator.investment_facts import normalize_provider_result
+    got=normalize_provider_result({"status":"mystery","data":[],"source":123,"source_url":None,"error_message":{"token":"secret"}},"bad",dict)
+    assert got["status"]=="error"
+    assert got["source_url"] is None
+    assert got["error_type"]=="INVALID_PROVIDER_RESULT"
+    assert got["provider"]=="bad"
+
+
+def test_section_survives_provider_exception_and_records_error(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    class Boom(f.JPXProvider):
+        name="boom"
+        def fetch_company_profile(self,target):
+            raise AttributeError("NoneType has no attribute startswith token=abc")
+    monkeypatch.setattr(f, "JPXProvider", Boom)
+    pack,gate=f.build_fact_pack(TASK,tmp_path)
+    assert pack["company"]["listed"] is True
+    err=pack["data_quality"]["provider_errors"][0]
+    assert err["error_type"]=="PROVIDER_EXCEPTION"
+    assert err["exception_class"]=="AttributeError"
+
+
+def test_network_requests_use_attempted_network_not_source_url(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    class NetValuation(f.ValuationProvider):
+        def fetch_valuation(self,target):
+            return f.result("ok",{"per":None},"test",None,attempted_network=True,provider=self.name)
+    monkeypatch.setattr(f, "ValuationProvider", NetValuation)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    assert pack["cache"]["network_requests"]==1

@@ -4,7 +4,7 @@ This module does not use an LLM. Unknown values remain ``None`` and provider
 failures are recorded instead of being papered over with model knowledge.
 """
 from __future__ import annotations
-import json, os, re, urllib.request
+import json, os, re, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -19,18 +19,74 @@ PHASE_A={
 }
 
 def now(): return datetime.now(timezone.utc).isoformat()
-def result(status="unavailable",data=None,source=None,url=None,error_type=None,error_message=None,confidence="low",published_at=None):
-    return {"status":status,"data":data,"source":source,"source_url":url,"published_at":published_at,"fetched_at":now(),"error_type":error_type,"error_message":error_message,"confidence":confidence}
+VALID_STATUSES={"ok","partial","unavailable","error","skipped"}
+SECRET_PATTERNS=[re.compile(r"([?&](?:api[_-]?key|token|key|secret)=)[^&\s]+",re.I),re.compile(r"(EDINET_API_KEY=)[^\s]+",re.I),re.compile(r"(Bearer\s+)[A-Za-z0-9._~+/-]+=*",re.I)]
+
+def safe_str(value):
+    if value is None: return None
+    try:
+        text=value if isinstance(value,str) else json.dumps(value,ensure_ascii=False) if isinstance(value,(dict,list,tuple,set)) else str(value)
+    except Exception:
+        text=f"<unstringifiable {type(value).__name__}>"
+    return sanitize_error_message(text)[:2000]
+
+def sanitize_error_message(value):
+    text="" if value is None else str(value)
+    for pat in SECRET_PATTERNS: text=pat.sub(r"\1[REDACTED]",text)
+    text=re.sub(r"(?i)(api[_-]?key|token|secret)\s*[:=]\s*[^\s,;]+",r"\1=[REDACTED]",text)
+    return text[:2000]
+
+def safe_url(value):
+    if not isinstance(value,str): return None
+    value=value.strip()
+    if not value: return None
+    parsed=urllib.parse.urlparse(value)
+    return value if parsed.scheme in {"http","https"} and parsed.netloc else value
+
+def safe_dict(value): return value if isinstance(value,dict) else {}
+def safe_list(value): return value if isinstance(value,list) else []
+
+def normalize_provider_result(raw, provider="provider", expected_data_type=None):
+    r=raw if isinstance(raw,dict) else {"status":"error","data":raw,"error_type":"INVALID_PROVIDER_RESULT","error_message":f"provider returned {type(raw).__name__}"}
+    status=r.get("status") if r.get("status") in VALID_STATUSES else "error"
+    data=r.get("data")
+    error_type=safe_str(r.get("error_type"))
+    error_message=sanitize_error_message(r.get("error_message")) if r.get("error_message") is not None else None
+    if expected_data_type and data is not None and not isinstance(data,expected_data_type):
+        status="error"; data=None; error_type="INVALID_PROVIDER_RESULT"; error_message=f"data expected {getattr(expected_data_type,'__name__',expected_data_type)} got {type(r.get('data')).__name__}"
+    if status=="ok" and (data is None or data=={} or data==[]):
+        status="partial"; error_type=error_type or "DATA_INSUFFICIENT"; error_message=error_message or "provider status ok but data is empty"
+    return {"status":status,"data":data,"source":safe_str(r.get("source")),"source_url":safe_url(r.get("source_url") if "source_url" in r else r.get("url")),"published_at":safe_str(r.get("published_at")),"fetched_at":safe_str(r.get("fetched_at")) or now(),"error_type":error_type,"error_message":error_message,"confidence":safe_str(r.get("confidence")) or "low","attempted_network":bool(r.get("attempted_network",False)),"http_status":r.get("http_status") if isinstance(r.get("http_status"),int) else None,"retryable":bool(r.get("retryable",False)),"provider":safe_str(r.get("provider")) or provider}
+
+def result(status="unavailable",data=None,source=None,url=None,error_type=None,error_message=None,confidence="low",published_at=None,attempted_network=False,http_status=None,retryable=False,provider=None):
+    return normalize_provider_result({"status":status,"data":data,"source":source,"source_url":url,"published_at":published_at,"fetched_at":now(),"error_type":error_type,"error_message":error_message,"confidence":confidence,"attempted_network":attempted_network,"http_status":http_status,"retryable":retryable,"provider":provider})
 def network_allowed(): return os.getenv("HOS_ENABLE_NETWORK_FACTS","").lower()=="true" and os.getenv("HOS_FACT_MODE","cached_only")=="network_verified"
 def _code(target): return str(target.get("securities_code") or target.get("ticker") or "").upper().replace(".T","")
 def _safe_json(path):
     try: return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     except Exception: return None
 
-def _fetch_url(url, timeout=15):
+def fetch_http(url, timeout, expected_content_types=None, max_bytes=1_000_000, retries=0):
     if not network_allowed(): raise RuntimeError("network facts disabled by HOS_FACT_MODE/HOS_ENABLE_NETWORK_FACTS")
-    req=urllib.request.Request(url,headers={"User-Agent":"HOS-FactPipeline/2.0 (free sources; no secrets)"})
-    with urllib.request.urlopen(req,timeout=timeout) as r: return r.read().decode("utf-8",errors="ignore")
+    if timeout is None: raise ValueError("timeout is required")
+    clean=safe_url(url); parsed=urllib.parse.urlparse(clean or "")
+    if parsed.scheme not in {"http","https"} or not parsed.netloc: raise ValueError("invalid http url")
+    last=None
+    for attempt in range(max(0,retries)+1):
+        try:
+            req=urllib.request.Request(clean,headers={"User-Agent":"HOS-FactPipeline/2.0 (free sources; no secrets)"})
+            with urllib.request.urlopen(req,timeout=timeout) as r:
+                ctype=(r.headers.get("Content-Type") or "").split(";")[0].lower()
+                if expected_content_types and ctype and not any(ctype.startswith(x.lower()) for x in expected_content_types): raise ValueError(f"unexpected content-type {ctype}")
+                raw=r.read(max_bytes+1)
+                if len(raw)>max_bytes: raise ValueError("response exceeds max_bytes")
+                return {"text":raw.decode("utf-8",errors="ignore"),"http_status":getattr(r,"status",None) or r.getcode(),"content_type":ctype,"attempted_network":True,"url":clean}
+        except (TimeoutError, urllib.error.URLError, OSError) as e:
+            last=e
+            if attempt>=retries: raise
+    raise last
+
+def _fetch_url(url, timeout=15): return fetch_http(url,timeout,["text/html","application/json","text/plain"],1_000_000,0)["text"]
 
 class FactCache:
     def __init__(self,root,ticker): self.dir=Path(root)/"cache"/"investment_facts"/_code({"ticker":ticker}); self.dir.mkdir(parents=True,exist_ok=True)
@@ -41,7 +97,9 @@ class FactCache:
         try: age=datetime.now(timezone.utc)-datetime.fromisoformat(fetched.replace("Z","+00:00"))
         except Exception: return None, "expired"
         return (data.get("data"), "hit") if age <= timedelta(days=TTL_DAYS.get(section,1)) else (data.get("data"), "expired")
-    def set(self,section,data): (self.dir/f"{section}.json").write_text(json.dumps({"_cache":{"fetched_at":now(),"ttl_days":TTL_DAYS.get(section,1)},"data":data},ensure_ascii=False,indent=2),encoding="utf-8")
+    def set(self,section,data):
+        if data is None or data=={} or data==[]: return
+        (self.dir/f"{section}.json").write_text(json.dumps({"_cache":{"fetched_at":now(),"ttl_days":TTL_DAYS.get(section,1)},"data":data},ensure_ascii=False,indent=2),encoding="utf-8")
 
 class FactProvider:
     name="provider"; priority=99
@@ -74,9 +132,9 @@ class OfficialIRProvider(FactProvider):
         data={"fiscal_period":None,"earnings_release_date":None,"revenue":None,"operating_income":None,"ordinary_income":None,"net_income":None,"eps":None,"operating_margin":None,"guidance":None,"guidance_revision":None,"dividend_forecast":None,"html_fetch_status":"not_attempted","numeric_extraction_status":"not_attempted","pdf_status":None,"ir_url":base["official_ir_url"]}
         if network_allowed():
             try:
-                html=_fetch_url(base["official_ir_url"]); data["html_fetch_status"]="ok"
+                http=fetch_http(base["official_ir_url"],15,["text/html","text/plain"],1_000_000,0); html=http["text"]; data["html_fetch_status"]="ok"
                 y=re.search(r"20\d{2}",html); data["fiscal_period"]=y.group(0) if y else None; data["numeric_extraction_status"]="partial" if y else "no_numeric_values_found"
-            except Exception as e: return result(error_type="FUNDAMENTALS_UNAVAILABLE",error_message=str(e),url=base["official_ir_url"])
+            except Exception as e: return result(error_type="FUNDAMENTALS_UNAVAILABLE",error_message=str(e),url=base["official_ir_url"],attempted_network=True,retryable=isinstance(e,(TimeoutError,urllib.error.URLError,OSError)))
         return result("ok",data,"Official company IR",base["official_ir_url"],confidence="medium")
     def fetch_dividends(self,target):
         r=self.fetch_financials(target); d=(r.get("data") or {})
@@ -109,13 +167,13 @@ class YahooChartProvider(FactProvider):
     name="yahoo_finance"; priority=6
     def fetch_price(self,target):
         ticker=str(target.get("ticker") or target.get("securities_code") or ""); ticker=ticker if "." in ticker else ticker+".T"; url=f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1y&interval=1d"
-        if not network_allowed(): return result(error_type="PRICE_UNAVAILABLE",error_message="network facts disabled (cached_only)",url=url)
+        if not network_allowed(): return result(error_type="PRICE_UNAVAILABLE",error_message="network facts disabled (cached_only)",url=url,attempted_network=False)
         try:
-            raw=json.loads(_fetch_url(url)); chart=raw["chart"]["result"][0]; meta=chart["meta"]; q=chart["indicators"]["quote"][0]; closes=[x for x in q["close"] if x is not None]
+            http=fetch_http(url,15,["application/json","text/plain"],1_000_000,1); raw=json.loads(http["text"]); chart=raw["chart"]["result"][0]; meta=chart["meta"]; q=chart["indicators"]["quote"][0]; closes=[x for x in q["close"] if x is not None]
             def ma(n): return round(sum(closes[-n:])/n,2) if len(closes)>=n else None
             data={"current_price":meta.get("regularMarketPrice"),"previous_close":meta.get("chartPreviousClose"),"price_date":datetime.fromtimestamp(chart["timestamp"][-1],timezone.utc).date().isoformat(),"52w_high":max(closes) if closes else None,"52w_low":min(closes) if closes else None,"return_5d":(closes[-1]/closes[-6]-1) if len(closes)>5 else None,"return_20d":(closes[-1]/closes[-21]-1) if len(closes)>20 else None,"ma20":ma(20),"ma60":ma(60),"ma200":ma(200),"volume":q.get("volume",[None])[-1],"market_cap":meta.get("marketCap")}
-            return result("ok",data,"Yahoo Finance chart",url,confidence="medium")
-        except Exception as e: return result(error_type="PRICE_UNAVAILABLE",error_message=str(e),url=url)
+            return result("ok",data,"Yahoo Finance chart",url,confidence="medium",attempted_network=True,http_status=http.get("http_status"))
+        except Exception as e: return result(error_type="PRICE_UNAVAILABLE",error_message=str(e),url=url,attempted_network=True,retryable=isinstance(e,(TimeoutError,urllib.error.URLError,OSError)))
 class FinancialsProvider(OfficialIRProvider): name="financials"; priority=7
 class ValuationProvider(FactProvider):
     name="valuation"; priority=8
@@ -141,15 +199,28 @@ def build_fact_pack(task,root):
         cached,state=cache.get(name)
         if state=="hit": stats["cache_hit"].append(name); return cached
         if state=="expired": stats["expired_sections"].append(name)
+        expected_type=list if name=="news" else dict
+        caught=(TimeoutError, urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError, TypeError, ValueError, AttributeError, OSError, Exception)
         for p,method in fetchers:
-            stats["provider_calls"]+=1; before=network_allowed(); r=getattr(p,method)(target); stats["network_requests"]+=1 if before and r.get("source_url","").startswith("http") else 0
+            stats["provider_calls"]+=1
+            try:
+                raw_result=getattr(p,method)(target)
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except caught as e:
+                retryable=isinstance(e,(TimeoutError,urllib.error.HTTPError,urllib.error.URLError,OSError))
+                r=normalize_provider_result({"status":"error","data":None,"error_type":"PROVIDER_EXCEPTION","error_message":sanitize_error_message(str(e)),"fetched_at":now(),"retryable":retryable,"provider":p.name},p.name,expected_type)
+                errors.append({"provider":p.name,"method":method,"exception_class":e.__class__.__name__,**r})
+                continue
+            r=normalize_provider_result(raw_result,p.name,expected_type)
+            if r.get("attempted_network"): stats["network_requests"]+=1
             if r["status"]=="ok":
                 cache.set(name,r["data"]); stats["refreshed_sections"].append(name)
                 if isinstance(r["data"], list):
                     return [{**x, "_result": r} if isinstance(x, dict) else x for x in r["data"]]
                 return {**(r["data"] or {}),"source":r.get("source"),"source_url":r.get("source_url"),"fetched_at":r.get("fetched_at"),"_result":r}
-            if r.get("error_type"): errors.append({"provider":p.name,**r})
-        return cached or {}
+            errors.append({"provider":p.name,"method":method,**r})
+        return cached or ([] if name=="news" else {})
     profile=section("company_profile",[(providers[0],"fetch_company_profile"),(providers[1],"fetch_company_profile")])
     ir_profile=section("source_map",[(providers[2],"fetch_company_profile")])
     if ir_profile: profile={**profile,**{k:v for k,v in ir_profile.items() if v is not None and not k.startswith("_")}}
