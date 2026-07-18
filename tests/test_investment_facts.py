@@ -122,3 +122,25 @@ def test_285a_fixture_source_map_and_gate_semantics(tmp_path):
     assert gate["status"]=="DATA_INSUFFICIENT"
     fields={m["field"] for m in pack["data_quality"]["missing_information"]}
     assert {"valuation.per","valuation.per_or_pbr","risks","shareholder_returns.dividend_forecast"} <= fields
+
+
+def test_285a_candidate_keeps_url_and_fetch_is_attempted(tmp_path):
+    pack,_=build_fact_pack(TASK,tmp_path)
+    fin=pack["financials"]
+    assert fin["document_discovery_status"]=="candidate_found"
+    assert fin["source_document_url"]
+    assert fin["html_fetch_status"] in {"fetched","fetch_failed","network_disabled"}
+    assert fin["numeric_extraction_status"] in {"parsed","no_numeric_values_found","not_attempted"}
+
+
+def test_valuation_calculation_unavailable_when_inputs_missing(tmp_path):
+    pack,_=build_fact_pack(TASK,tmp_path)
+    assert pack["valuation"]["method"]=="calculation_unavailable"
+
+
+def test_shareholder_returns_records_official_ir_attempt(tmp_path):
+    pack,_=build_fact_pack(TASK,tmp_path)
+    sr=pack["shareholder_returns"]
+    assert sr["source_document_url"]==pack["company"]["official_ir_url"]
+    assert sr["fetch_status"] in {"fetched","fetch_failed","network_disabled"}
+    assert {"annual_dividend","dividend_forecast","buyback"} <= set(sr)

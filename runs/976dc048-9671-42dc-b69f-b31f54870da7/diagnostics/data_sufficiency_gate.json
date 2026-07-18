@@ -1,0 +1,136 @@
+{
+  "status": "DATA_INSUFFICIENT",
+  "buy_allowed": false,
+  "missing_information": [
+    {
+      "field": "price.current_price",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.previous_close",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.change",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.change_rate",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.price_date",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.revenue",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.operating_income",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.net_income",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.eps",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "shareholder_returns.dividend_forecast",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "valuation.per",
+      "reason": "missing",
+      "required_for": [
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "valuation.per_or_pbr",
+      "reason": "missing",
+      "required_for": [
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "risks",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    }
+  ],
+  "required_source_count": 3,
+  "final_decision": "DATA_INSUFFICIENT"
+}

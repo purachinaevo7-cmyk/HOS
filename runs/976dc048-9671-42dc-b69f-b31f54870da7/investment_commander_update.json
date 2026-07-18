@@ -1,0 +1,426 @@
+{
+  "final_decision": "DATA_INSUFFICIENT",
+  "confidence": "low",
+  "current_price": null,
+  "previous_close": null,
+  "change": null,
+  "change_rate": null,
+  "price_date": null,
+  "latest_fiscal_period": "2026年3月期",
+  "earnings_release_date": "2026-05-15",
+  "data_quality": {
+    "generated_at": "2026-07-18T02:53:23.776712+00:00",
+    "price_as_of": null,
+    "fundamentals_as_of": "2026年3月期",
+    "valuation_as_of": null,
+    "news_as_of": "2026-05-15",
+    "stale_fields": [],
+    "missing_fields": [
+      "price.current_price",
+      "price.previous_close",
+      "price.change",
+      "price.change_rate",
+      "price.price_date",
+      "financials.revenue",
+      "financials.operating_income",
+      "financials.net_income",
+      "financials.eps",
+      "shareholder_returns.dividend_forecast",
+      "valuation.per",
+      "valuation.per_or_pbr",
+      "risks"
+    ],
+    "missing_information": [
+      {
+        "field": "price.current_price",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.previous_close",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.change",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.change_rate",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.price_date",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.revenue",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.operating_income",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.net_income",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.eps",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "shareholder_returns.dividend_forecast",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "valuation.per",
+        "reason": "missing",
+        "required_for": [
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "valuation.per_or_pbr",
+        "reason": "missing",
+        "required_for": [
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "risks",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      }
+    ],
+    "conflicting_fields": [],
+    "source_conflicts": {},
+    "provider_errors": [
+      {
+        "provider": "stock_watch_v2",
+        "provider_class": "StockWatchProvider",
+        "method": "fetch_price",
+        "section": "price",
+        "attempt": 1,
+        "fallback_order": 1,
+        "status": "unavailable",
+        "data": null,
+        "source": null,
+        "source_url": null,
+        "published_at": null,
+        "fetched_at": "2026-07-18T02:53:23.748436+00:00",
+        "error_type": "PRICE_UNAVAILABLE",
+        "error_message": "no matching Stock Watch V2 record",
+        "confidence": "low",
+        "attempted_network": false,
+        "http_status": null,
+        "retryable": false
+      },
+      {
+        "provider": "yahoo_finance",
+        "provider_class": "YahooChartProvider",
+        "method": "fetch_price",
+        "section": "price",
+        "attempt": 2,
+        "fallback_order": 2,
+        "status": "unavailable",
+        "data": null,
+        "source": null,
+        "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/285A.T?range=1y&interval=1d",
+        "published_at": null,
+        "fetched_at": "2026-07-18T02:53:23.763055+00:00",
+        "error_type": "PRICE_UNAVAILABLE",
+        "error_message": "<urlopen error Tunnel connection failed: 403 Forbidden>",
+        "confidence": "low",
+        "attempted_network": true,
+        "http_status": null,
+        "retryable": true
+      },
+      {
+        "provider": "edinet",
+        "provider_class": "EDINETProvider",
+        "method": "fetch_financials",
+        "section": "financials",
+        "attempt": 2,
+        "fallback_order": 2,
+        "status": "unavailable",
+        "data": null,
+        "source": null,
+        "source_url": null,
+        "published_at": null,
+        "fetched_at": "2026-07-18T02:53:23.769269+00:00",
+        "error_type": "EDINET_API_KEY_MISSING",
+        "error_message": "EDINET_API_KEY not set; optional provider skipped",
+        "confidence": "low",
+        "attempted_network": false,
+        "http_status": null,
+        "retryable": false
+      }
+    ],
+    "data_quality": "partial",
+    "verified_sources_count": 1,
+    "total_source_records": 4,
+    "unique_source_urls": 3,
+    "independent_source_count": 1,
+    "evidence_eligible_source_count": 1,
+    "official_document_count": 2,
+    "market_data_source_count": 0,
+    "financial_source_count": 0,
+    "news_source_count": 0,
+    "index_page_count": 1,
+    "duplicate_source_count": 0,
+    "partial_source_count": 2,
+    "failed_source_count": 0
+  },
+  "independent_source_count": 1,
+  "evidence_eligible_source_count": 1,
+  "missing_information": [
+    {
+      "field": "price.current_price",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.previous_close",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.change",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.change_rate",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "price.price_date",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.revenue",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.operating_income",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.net_income",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "financials.eps",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "shareholder_returns.dividend_forecast",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "valuation.per",
+      "reason": "missing",
+      "required_for": [
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "valuation.per_or_pbr",
+      "reason": "missing",
+      "required_for": [
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    },
+    {
+      "field": "risks",
+      "reason": "missing",
+      "required_for": [
+        "WATCH",
+        "BUY_CANDIDATE"
+      ],
+      "provider_attempts": [],
+      "retryable": true
+    }
+  ],
+  "source_conflicts": {},
+  "corporate_action_review": null,
+  "latest_official_news": {
+    "title": "2026年3月期 決算発表",
+    "published_at": "2026-05-15",
+    "category": "earnings",
+    "source_url": "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+    "source_type": "official_news_article",
+    "official": true,
+    "metadata_verified": true,
+    "content_fetched": false,
+    "content_verified": false,
+    "evidence_eligible": false,
+    "metadata_evidence_eligible": true,
+    "content_hash": null,
+    "article_text_length": 0,
+    "summary": "公式IRニュース候補。本文未取得のため本文根拠には不適格。",
+    "company_identity_verified": true,
+    "extraction_errors": [
+      "ARTICLE_CONTENT_NOT_FETCHED"
+    ],
+    "_selection": {
+      "completeness_score": 0.7,
+      "validation_score": 0.5,
+      "source_quality_score": 0.5,
+      "freshness_score": 0.5,
+      "selected_provider": "official_news",
+      "attempted_providers": [
+        "official_news"
+      ],
+      "fallback_used": false,
+      "rejected_candidates": [
+        {
+          "provider": "official_news",
+          "status": "partial",
+          "completeness_score": 0.7,
+          "error_type": "CONTENT_NOT_FETCHED"
+        }
+      ],
+      "selection_reason": "best partial after exhausting providers"
+    }
+  },
+  "valuation_status": "unavailable",
+  "dividend_status": "partial",
+  "evidence": [],
+  "contradictions": [],
+  "risks": [],
+  "next_review": [],
+  "last_analyzed": "2026-07-18T02:53:23.778122+00:00",
+  "trigger": null,
+  "fact_pack_ref": "cache/investment_facts/285A",
+  "gemini_call_count": 0
+}

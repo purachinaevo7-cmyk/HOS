@@ -1,0 +1,109 @@
+{
+  "version": "1.1.0",
+  "index_key": "run_id",
+  "updated_at": "2026-07-18T02:53:35.295775+00:00",
+  "artifacts": [
+    {
+      "task_id": "timeout-free",
+      "run_id": "efc8a729-d1d4-4311-8e6a-589fc26c8569",
+      "workflow_id": "investment_analysis_free",
+      "workflow_version": "1.0.0",
+      "title": "HOS AI Company Report: timeout-free",
+      "project": "AI Company",
+      "brain": "HOS AI Company",
+      "skill": "investment_analysis_free",
+      "format": "Markdown",
+      "tags": [
+        "ai-company",
+        "investment_analysis_free"
+      ],
+      "keywords": [
+        "timeout-free",
+        "investment_analysis_free"
+      ],
+      "created_at": "2026-07-18T02:53:35.295447+00:00",
+      "target": {},
+      "artifact_paths": {
+        "run_bundle": "runs/efc8a729-d1d4-4311-8e6a-589fc26c8569",
+        "report": "outputs/reports/timeout-free.md",
+        "hos_update_json": "outputs/json/timeout-free.json",
+        "log": "outputs/logs/timeout-free.jsonl",
+        "reflection": "outputs/reflections/timeout-free.json",
+        "investment_commander": "runs/efc8a729-d1d4-4311-8e6a-589fc26c8569/outputs/investment_commander.json",
+        "fact_pack": "runs/efc8a729-d1d4-4311-8e6a-589fc26c8569/fact_pack.json",
+        "final_decision": "runs/efc8a729-d1d4-4311-8e6a-589fc26c8569/final_decision.json",
+        "contradictions": "runs/efc8a729-d1d4-4311-8e6a-589fc26c8569/contradictions.json"
+      },
+      "indexed_at": "2026-07-18T02:53:35.295775+00:00"
+    },
+    {
+      "task_id": "usage-free",
+      "run_id": "ca2751d7-a33a-4eae-beab-db9988b4796f",
+      "workflow_id": "investment_analysis_free",
+      "workflow_version": "1.0.0",
+      "title": "HOS AI Company Report: usage-free",
+      "project": "AI Company",
+      "brain": "HOS AI Company",
+      "skill": "investment_analysis_free",
+      "format": "Markdown",
+      "tags": [
+        "ai-company",
+        "investment_analysis_free"
+      ],
+      "keywords": [
+        "usage-free",
+        "investment_analysis_free"
+      ],
+      "created_at": "2026-07-18T02:53:35.247702+00:00",
+      "target": {},
+      "artifact_paths": {
+        "run_bundle": "runs/ca2751d7-a33a-4eae-beab-db9988b4796f",
+        "report": "outputs/reports/usage-free.md",
+        "hos_update_json": "outputs/json/usage-free.json",
+        "log": "outputs/logs/usage-free.jsonl",
+        "reflection": "outputs/reflections/usage-free.json",
+        "investment_commander": "runs/ca2751d7-a33a-4eae-beab-db9988b4796f/outputs/investment_commander.json",
+        "fact_pack": "runs/ca2751d7-a33a-4eae-beab-db9988b4796f/fact_pack.json",
+        "final_decision": "runs/ca2751d7-a33a-4eae-beab-db9988b4796f/final_decision.json",
+        "contradictions": "runs/ca2751d7-a33a-4eae-beab-db9988b4796f/contradictions.json"
+      },
+      "indexed_at": "2026-07-18T02:53:35.248067+00:00"
+    },
+    {
+      "task_id": "INV-DEMO-001",
+      "run_id": "976dc048-9671-42dc-b69f-b31f54870da7",
+      "workflow_id": "investment_analysis",
+      "workflow_version": "2.1.0",
+      "title": "HOS AI Company Report: INV-DEMO-001",
+      "project": "AI Company",
+      "brain": "HOS AI Company",
+      "skill": "investment_analysis",
+      "format": "Markdown",
+      "tags": [
+        "ai-company",
+        "investment_analysis"
+      ],
+      "keywords": [
+        "INV-DEMO-001",
+        "investment_analysis"
+      ],
+      "created_at": "2026-07-18T02:53:23.780695+00:00",
+      "target": {
+        "ticker": "285A",
+        "company_name": "キオクシアホールディングス"
+      },
+      "artifact_paths": {
+        "run_bundle": "runs/976dc048-9671-42dc-b69f-b31f54870da7",
+        "report": "outputs/reports/INV-DEMO-001.md",
+        "hos_update_json": "outputs/json/INV-DEMO-001.json",
+        "log": "outputs/logs/INV-DEMO-001.jsonl",
+        "reflection": "outputs/reflections/INV-DEMO-001.json",
+        "investment_commander": "runs/976dc048-9671-42dc-b69f-b31f54870da7/outputs/investment_commander.json",
+        "fact_pack": "runs/976dc048-9671-42dc-b69f-b31f54870da7/fact_pack.json",
+        "final_decision": "runs/976dc048-9671-42dc-b69f-b31f54870da7/final_decision.json",
+        "contradictions": "runs/976dc048-9671-42dc-b69f-b31f54870da7/contradictions.json"
+      },
+      "indexed_at": "2026-07-18T02:53:23.780970+00:00"
+    }
+  ]
+}
