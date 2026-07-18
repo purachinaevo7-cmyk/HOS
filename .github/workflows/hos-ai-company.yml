@@ -7,9 +7,9 @@ on:
         required: false
         type: string
       task_path:
-        description: 'Repository task path, e.g. tasks/inbox/investment_analysis.sample.json'
+        description: 'Repository task path under tasks/, e.g. tasks/inbox/FACT-285A-RETRY-001.json (do not enter only the filename)'
         required: false
-        default: 'tasks/inbox/investment_analysis.sample.json'
+        default: 'tasks/inbox/FACT-285A-RETRY-001.json'
         type: string
       workflow:
         description: 'Workflow id override for generated task_json only'
@@ -107,8 +107,16 @@ jobs:
               p=pathlib.Path('tasks/working/actions-task.json'); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
               print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
           else:
-              p=pathlib.Path('${{ inputs.task_path }}')
-              if not str(p).startswith('tasks/') or '..' in p.parts: raise SystemExit('task_path must stay under tasks/')
+              raw_path='''${{ inputs.task_path }}'''.strip()
+              p=pathlib.PurePosixPath(raw_path)
+              if not raw_path:
+                  raise SystemExit('task_path is required when task_json is empty')
+              if p.is_absolute() or '..' in p.parts or p.parts[:1] != ('tasks',):
+                  raise SystemExit('task_path must be a repository-relative path under tasks/, e.g. tasks/inbox/FACT-285A-RETRY-001.json')
+              if len(p.parts) < 3 or p.parts[1] != 'inbox':
+                  raise SystemExit('task_path must include the tasks/inbox/ prefix, e.g. tasks/inbox/FACT-285A-RETRY-001.json')
+              if not pathlib.Path(p).is_file():
+                  raise SystemExit(f'task_path does not exist: {p}')
               print(f'TASK_FILE={p}', file=open(os.environ['GITHUB_ENV'],'a'))
       - name: Validate Gemini secret
         if: ${{ inputs.executor == 'gemini' }}

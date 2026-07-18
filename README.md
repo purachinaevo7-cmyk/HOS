@@ -105,6 +105,8 @@ python -m orchestrator.cli run tasks/inbox/investment_analysis.sample.json --exe
 
 GitHub Actions workflow: `.github/workflows/hos-ai-company.yml`. It uploads a `hos-run-<run_id>` artifact containing run metadata, step outputs, final report, HOS update JSON, Investment Commander JSON, reflection, logs, and diagnostics.
 
+Manual GitHub Actions runs accept exactly one repository-relative `Repository task path` format when `Task JSON payload` is empty: include the full path under `tasks/inbox/`, for example `tasks/inbox/FACT-285A-RETRY-001.json`. Do not enter only the filename; the workflow does not prepend `tasks/inbox/` internally.
+
 Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it never reports success by silently falling back to mock. See `docs/QUICKSTART_AI_COMPANY.md`. Current audited status and known constraints are documented in `docs/HOS_AI_COMPANY_STATUS_2026-07-13.md`.
 
 
