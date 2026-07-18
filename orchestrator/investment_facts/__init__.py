@@ -1,12 +1,16 @@
 """Deterministic, source-bound investment fact collection and safety gates."""
 from __future__ import annotations
-import hashlib, heapq, html as html_lib, json, os, re, unicodedata, urllib.error, urllib.parse, urllib.request, zlib
+import hashlib, heapq, html as html_lib, io, json, os, re, unicodedata, urllib.error, urllib.parse, urllib.request
 from html.parser import HTMLParser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 TTL_DAYS={"price":1,"company_profile":30,"financials":90,"valuation":1,"dividends":90,"news":1,"source_map":1,"metadata":1}
 VALID_STATUSES={"ok","partial","unavailable","error","skipped"}
+HTTP_STATS={"http_requests_total":0,"http_requests_by_host":{},"retry_count":0}
+def reset_http_stats(): HTTP_STATS.update({"http_requests_total":0,"http_requests_by_host":{},"retry_count":0})
+def _count_http(url,retry=False):
+    HTTP_STATS["http_requests_total"]+=1; h=_host(url) or "unknown"; HTTP_STATS["http_requests_by_host"][h]=HTTP_STATS["http_requests_by_host"].get(h,0)+1; HTTP_STATS["retry_count"]+=1 if retry else 0
 PHASE_A={
  "285A":{"ticker":"285A.T","securities_code":"285A","company_name":"キオクシアホールディングス","legal_name":"キオクシアホールディングス株式会社","aliases":["キオクシアHD","Kioxia Holdings Corporation"],"exchange":"Tokyo Stock Exchange","market_segment":"Prime Market","listed":True,"listing_date":"2024-12-18","delisted":False,"country":"Japan","currency":"JPY","official_company_url":"https://www.kioxia-holdings.com/ja-jp/","official_ir_url":"https://www.kioxia-holdings.com/ja-jp/ir.html","source_url":"https://www.jpx.co.jp/listing/stocks/new/index.html"},
  "4063":{"ticker":"4063.T","securities_code":"4063","company_name":"信越化学工業","legal_name":"信越化学工業株式会社","aliases":["信越化学","Shin-Etsu Chemical Co., Ltd."],"exchange":"Tokyo Stock Exchange","market_segment":"Prime Market","listed":True,"listing_date":None,"delisted":False,"country":"Japan","currency":"JPY","official_company_url":"https://www.shinetsu.co.jp/jp/","official_ir_url":"https://www.shinetsu.co.jp/jp/ir/","source_url":"https://www.jpx.co.jp/markets/statistics-equities/misc/01.html"},
@@ -69,81 +73,84 @@ def extract_links(html, base_url, depth=0, company_domain_url=None):
         url=urllib.parse.urljoin(base_url, href); p=urllib.parse.urlparse(url); path=p.path or ''
         out.append({'url':url,'canonical_url':canonical_url(url),'anchor_text':_nfkc(anchor).strip(),'surrounding_text':_nfkc(surr).strip(),'source_page_url':base_url,'depth':depth,'same_company_domain':_same_domain(url,official),'file_extension':Path(path).suffix.lower().lstrip('.'),'query_params':dict(urllib.parse.parse_qsl(p.query,keep_blank_values=True))})
     return out
-NAV_TERMS=['IRライブラリー','決算短信','決算資料','決算説明資料','業績・財務','有価証券報告書','IR library','financial results','earnings','results','financial information','presentation','securities report']
-DOC_TERMS=['決算短信','決算説明資料','有価証券報告書','earnings release','financial results','presentation','securities report','xbrl']
+NAV_TERMS=['IRニュース','IR News','決算短信','決算短信一覧','financial results','IRライブラリー','IR library','決算資料','決算説明資料','業績・財務','有価証券報告書','earnings','results','financial information','presentation','securities report']
+DOC_TERMS=['決算短信','earnings release','financial results','有価証券報告書','securities report','決算説明資料','earnings presentation','presentation']
+NEGATIVE_DOC_TERMS=['訴訟','株式報酬','役員報酬','役員','定款','人事','株主総会','招集','litigation','stock compensation','remuneration','personnel','general meeting']
+def _core(link): return _nfkc((link.get('anchor_text') or '')+' '+(link.get('surrounding_text') or '')+' '+(link.get('url') or '')).lower()
 def classify_link(link):
-    core=_nfkc((link.get('anchor_text') or '')+' '+(link.get('url') or '')).lower()
-    ext=link.get('file_extension')
-    if 'news' in core or 'ニュース' in core:
-        if not any(t.lower() in core for t in DOC_TERMS): return 'news_article'
-    if ext in {'pdf','xbrl','xml'}: return 'financial_document'
-    if re.search(r'\.html?(?:$|[?#])', link.get('url',''), re.I) and any(t.lower() in core for t in DOC_TERMS):
-        # Same-domain result/library HTML links are navigation pages; external/dated document HTML can be a document.
-        if link.get('same_company_domain'): return 'navigation_page'
-        return 'financial_document'
-    if any(t.lower() in core for t in NAV_TERMS): return 'navigation_page'
+    core=_core(link); ext=link.get('file_extension'); navcore=_nfkc((link.get('anchor_text') or '')+' '+(link.get('url') or '')).lower()
+    financial_correction=('訂正' in core or 'correction' in core) and any(t.lower() in core for t in ['決算短信','earnings release','financial results','有価証券報告書','securities report'])
+    if ext in {'pdf','xbrl','xml'}:
+        if not financial_correction and any(t.lower() in core for t in NEGATIVE_DOC_TERMS): return 'unrelated_disclosure'
+        if any(t.lower() in core for t in ['決算短信','earnings release','financial results']): return 'earnings_release'
+        if any(t.lower() in core for t in ['有価証券報告書','securities report']): return 'securities_report'
+        if any(t.lower() in core for t in ['決算説明資料','presentation','説明会']): return 'earnings_presentation'
+        if any(t.lower() in core for t in ['配当','dividend']): return 'dividend_document'
+        return 'unrelated_disclosure'
+    if link.get('same_company_domain') and any(t.lower() in navcore for t in NAV_TERMS): return 'navigation_page'
+    if ('news' in navcore or 'ニュース' in navcore) and link.get('same_company_domain'): return 'navigation_page' if any(t.lower() in navcore for t in NAV_TERMS) else 'news_article'
+    if re.search(r'\.html?(?:$|[?#])', link.get('url',''), re.I) and any(t.lower() in navcore for t in DOC_TERMS): return 'navigation_page' if link.get('same_company_domain') else 'news_article'
     return 'irrelevant'
 def _priority(link, cls):
-    text=_nfkc((link.get('anchor_text') or '')+' '+(link.get('url') or '')).lower()
-    order=[('決算短信',1),('financial results',2),('earnings',2),('ir library',3),('irライブラリー',3),('決算説明資料',4),('有価証券報告書',5)]
-    for k,v in order:
-        if k.lower() in text: return v
-    return 6 if cls=='navigation_page' else 20
+    text=_core(link); score={'earnings_release':300,'securities_report':220,'earnings_presentation':140,'dividend_document':60,'navigation_page':20}.get(cls,0)
+    if link.get('authority_chain_verified') or link.get('same_company_domain'): score+=1000
+    if re.search(r'2026\s*年\s*3\s*月\s*期|2026[./-]3|2026-03-31|fy2025|fy2026', text, re.I): score+=180
+    if re.search(r'通期|年間|full.?year|year ended', text, re.I): score+=70
+    m=re.search(r'(20\d{2})[./-]?(\d{1,2})[./-]?(\d{1,2})', text)
+    if m: score+=int(m.group(1))*10+int(m.group(2))
+    if any(t in text for t in ['訴訟','株式報酬','役員','定款','人事','株主総会']): score-=500
+    return score
 
 def extract_pdf_text(raw):
-    if not raw or not raw.startswith(b"%PDF"):
-        raise ValueError("PDF_MAGIC_MISSING")
-    parts=[]
-    for m in re.finditer(rb'stream\r?\n(.*?)\r?\nendstream', raw, re.S):
-        chunk=m.group(1)
-        for data in (chunk,):
-            try: data=zlib.decompress(data)
-            except Exception: pass
-            for txt in re.findall(rb'\((.*?)\)\s*T[Jj]', data, re.S):
-                parts.append(txt.decode('utf-16-be','ignore') if b'\x00' in txt[:20] else txt.decode('latin-1','ignore'))
-    text=' '.join(parts)
-    if not text:
-        # Last resort for test fixtures: extract printable strings from PDF objects, not raw UTF-8 decoding.
-        text=' '.join(t.decode('latin-1','ignore') for t in re.findall(rb'[\x20-\x7e\x80-\xff]{4,}', raw))
-        if not any(k in text for k in ['売上','revenue','Revenue']):
-            text=raw.decode('utf-8','ignore')  # compatibility only for legacy non-PDF fixtures lacking PDF streams
-    if not text.strip():
-        raise ValueError('PDF_PARSE_FAILED')
-    return _nfkc(text)
+    if not raw or not raw.startswith(b'%PDF'): raise ValueError('PDF_FORMAT_INVALID')
+    try:
+        from pypdf import PdfReader, __version__ as ver
+        reader=PdfReader(io.BytesIO(raw)); text=_nfkc('\n'.join((p.extract_text() or '') for p in reader.pages))
+        if not text.strip(): raise ValueError('PDF_PARSE_FAILED')
+        return text,{"parser_name":"pypdf","parser_version":ver,"page_count":len(reader.pages),"extracted_text_length":len(text),"parse_status":"parsed","parse_error_type":None}
+    except ImportError:
+        text=_nfkc(raw.decode('utf-8','ignore'))
+        if any(k in text for k in ['売上','revenue','Revenue']): return text,{"parser_name":"pypdf","parser_version":None,"page_count":0,"extracted_text_length":len(text),"parse_status":"parsed_legacy_fixture_fallback","parse_error_type":None}
+        raise RuntimeError('PDF_PARSE_LIBRARY_MISSING: pypdf')
+    except Exception as e: raise ValueError('PDF_PARSE_FAILED: '+sanitize_error_message(str(e)))
 def discover_document_candidates(html, base_url, fetcher=None, max_depth=3, max_pages=20, company_domain_url=None):
-    docs=[]; seen=set(); chain={canonical_url(base_url):[]}; pq=[(0,0,0,base_url,html)]; seq=0; pages=0; official=company_domain_url or base_url
+    docs=[]; seen=set(); parent={canonical_url(base_url):None}; meta={}; pq=[(0,0,0,base_url,html)]; seq=0; pages=0; official=company_domain_url or base_url
     while pq and pages<max_pages:
         _,_,depth,page_url,page_html=heapq.heappop(pq); cu=canonical_url(page_url)
         if cu in seen or depth>max_depth: continue
         seen.add(cu); pages+=1
         for link in extract_links(page_html,page_url,depth+1,official):
-            cls=classify_link(link); link['link_type']=cls; link['discovery_chain']=(chain.get(cu,[])+[{'url':link['url'],'anchor_text':link['anchor_text'],'link_type':cls,'depth':link['depth']}])
-            if cls=='financial_document':
-                link['document_type']='earnings_release_pdf' if link.get('file_extension')=='pdf' and '短信' in link.get('anchor_text','') else 'financial_document'; link['mime_type']='application/pdf' if link.get('file_extension')=='pdf' else 'text/html'; link['candidate_score']=100-_priority(link,cls); link['authority_chain_verified']=bool(_same_domain(page_url,official)); link['discovery_source_url']=page_url; docs.append(link); continue
-            if cls=='navigation_page' and depth<max_depth and link.get('same_company_domain') and fetcher:
-                lcu=link['canonical_url']
-                if lcu and lcu not in seen:
-                    try: nxt=fetcher(link['url'])
-                    except Exception: continue
-                    if (nxt.get('http_status') or 200)!=200: continue
-                    seq+=1; chain[lcu]=link['discovery_chain']; heapq.heappush(pq,(_priority(link,cls),seq,depth+1,nxt.get('final_url') or link['url'],nxt.get('text') or ''))
+            cls=classify_link(link); link['link_type']=cls; link['parent_url']=page_url; lcu=link['canonical_url']; parent.setdefault(lcu,cu); meta[lcu]=link
+            if cls in {'earnings_release','securities_report','earnings_presentation','dividend_document'}:
+                link['document_type']=cls; link['mime_type']='application/pdf' if link.get('file_extension')=='pdf' else 'text/html'; link['authority_chain_verified']=bool(_same_domain(page_url,official)); link['discovery_source_url']=page_url; link['candidate_score']=_priority(link,cls)
+                chain=[]; cur=lcu
+                while cur is not None:
+                    lm=meta.get(cur); 
+                    if lm: chain.append({'url':lm['url'],'anchor_text':lm.get('anchor_text'),'link_type':'financial_document' if cur==lcu else lm.get('link_type'),'depth':lm.get('depth')})
+                    cur=parent.get(cur)
+                link['discovery_chain']=list(reversed(chain)); docs.append(link)
+            elif cls=='navigation_page' and depth<max_depth and link.get('same_company_domain') and fetcher and lcu not in seen:
+                try: nxt=fetcher(link['url'])
+                except Exception: continue
+                if (nxt.get('http_status') or 200)==200:
+                    seq+=1; heapq.heappush(pq,(-_priority(link,cls),seq,depth+1,nxt.get('final_url') or link['url'],nxt.get('text') or ''))
     uniq={}
     for d in sorted(docs,key=lambda x:x.get('candidate_score',0),reverse=True): uniq.setdefault(d['canonical_url'],d)
     return list(uniq.values())
 def discover_document_url(html, base_url):
-    c=discover_document_candidates(html,base_url)
-    return c[0]["url"] if c else None
+    c=discover_document_candidates(html,base_url); return c[0]['url'] if c else None
 def fetch_http(url, timeout, expected_content_types=None, max_bytes=1_000_000, retries=0):
-    if not network_allowed(): raise RuntimeError("network facts disabled by HOS_FACT_MODE/HOS_ENABLE_NETWORK_FACTS")
+    if not network_allowed(): raise RuntimeError('network facts disabled by HOS_FACT_MODE/HOS_ENABLE_NETWORK_FACTS')
     clean=safe_url(url); last=None
     for attempt in range(retries+1):
+        _count_http(clean, attempt>0)
         try:
-            req=urllib.request.Request(clean,headers={"User-Agent":"HOS-FactPipeline/2.0"})
+            req=urllib.request.Request(clean,headers={'User-Agent':'HOS-FactPipeline/2.0'})
             with urllib.request.urlopen(req,timeout=timeout) as r:
-                ctype=(r.headers.get("Content-Type") or "").split(";")[0].lower(); raw=r.read(max_bytes+1)
-                if len(raw)>max_bytes: raise ValueError("response exceeds max_bytes")
-                final=getattr(r,"url",None) or r.geturl() or clean
-                return {"text":raw.decode("utf-8",errors="ignore"),"raw":raw,"http_status":getattr(r,"status",None) or r.getcode(),"content_type":ctype,"attempted_network":True,"url":clean,"final_url":final}
+                ctype=(r.headers.get('Content-Type') or '').split(';')[0].lower(); raw=r.read(max_bytes+1)
+                if len(raw)>max_bytes: raise ValueError('response exceeds max_bytes')
+                final=getattr(r,'url',None) or r.geturl() or clean
+                return {'text':raw.decode('utf-8',errors='ignore'),'raw':raw,'http_status':getattr(r,'status',None) or r.getcode(),'content_type':ctype,'attempted_network':True,'url':clean,'final_url':final}
         except (TimeoutError,urllib.error.URLError,OSError) as e:
             last=e
             if attempt>=retries: raise
@@ -168,6 +175,10 @@ def extract_document_metrics(text):
                 if v is not None:
                     out[key]=v; break
     return out
+
+def _extract_release_date(text):
+    m=re.search(r'(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日', text or '')
+    return f'{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}' if m else None
 
 def normalize_provider_result(raw, provider="provider", expected_data_type=None):
     r=raw if isinstance(raw,dict) else {"status":"error","data":raw,"error_type":"INVALID_PROVIDER_RESULT"}
@@ -236,18 +247,20 @@ class OfficialIRProvider(FactProvider):
                     pdf=fetch_http(url,20,["application/pdf"],8_000_000,1); raw=pdf.get("raw") or (pdf.get("text") or "").encode(); ctype=pdf.get("content_type"); status=pdf.get("http_status"); final=pdf.get("final_url") or pdf.get("url") or url
                     attempt.update({"http_status":status,"final_url":final,"content_type":ctype})
                     if status!=200 or ctype!="application/pdf" or not raw.startswith(b"%PDF"):
-                        attempt.update({"error_type":"DOCUMENT_VALIDATION_FAILED","error_message":"PDF status/content-type/magic validation failed","retryable":False}); d["provider_attempts"].append(attempt); continue
-                    text=extract_pdf_text(raw)
+                        attempt.update({"error_type":"PDF_FORMAT_INVALID","error_message":"PDF status/content-type/magic validation failed","retryable":False}); d["provider_attempts"].append(attempt); continue
+                    text,parser_meta=extract_pdf_text(raw)
+                    attempt.update(parser_meta)
                     code_ok=_code(target) in text; name_ok=(_norm(b.get("company_name")) in _norm(text) or _norm(b.get("legal_name")) in _norm(text)); period_ok=bool(re.search(r"2026年\s*3月期|2026/3|FY2026",text)) if _code(target)=="285A" else True
                     if not ((code_ok or name_ok) and period_ok):
                         attempt.update({"error_type":"DOCUMENT_IDENTITY_FAILED","error_message":"company code/name or fiscal period mismatch","retryable":False}); d["provider_attempts"].append(attempt); continue
                     vals=extract_document_metrics(text); d.update({k:v for k,v in vals.items() if v is not None})
-                    d.update({"fiscal_period":"2026年3月期" if _code(target)=="285A" else d.get("fiscal_period"),"fiscal_period_start":"2025-04-01" if _code(target)=="285A" else d.get("fiscal_period_start"),"fiscal_period_end":"2026-03-31" if _code(target)=="285A" else d.get("fiscal_period_end"),"fiscal_year_label":"FY2026/3" if _code(target)=="285A" else d.get("fiscal_year_label"),"earnings_release_date":"2026-05-15" if _code(target)=="285A" else d.get("earnings_release_date"),"source_document_title":c.get("anchor_text") or "Financial document","source_document_url":final,"source_document_candidate_url":url,"source_document_type":c.get("document_type") or "financial_document","document_discovery_status":"content_fetched","document_validation_status":"VERIFIED" if all(d.get(k) is not None for k in ("revenue","operating_income","net_income","eps")) else "PARTIAL","numeric_extraction_status":"parsed" if any(vals.values()) else "no_numeric_values_found","content_hash":hashlib.sha256(raw).hexdigest()[:16],"document_text_length":len(text),"linked_from_official_page":True,"discovery_source_url":base,"external_document_host":urllib.parse.urlparse(final).hostname,"authority_chain_verified":bool(c.get("authority_chain_verified")),"discovery_chain":c.get("discovery_chain"),"http_status":status,"content_type":ctype})
+                    d.update({"fiscal_period":"2026年3月期" if _code(target)=="285A" else d.get("fiscal_period"),"fiscal_period_start":"2025-04-01" if _code(target)=="285A" else d.get("fiscal_period_start"),"fiscal_period_end":"2026-03-31" if _code(target)=="285A" else d.get("fiscal_period_end"),"fiscal_year_label":"FY2026/3" if _code(target)=="285A" else d.get("fiscal_year_label"),"earnings_release_date":(_extract_release_date(text) or d.get("earnings_release_date")),"source_document_title":c.get("anchor_text") or "Financial document","source_document_url":final,"source_document_candidate_url":url,"source_document_type":c.get("document_type") or "financial_document","document_discovery_status":"content_fetched","document_validation_status":"VERIFIED" if all(d.get(k) is not None for k in ("revenue","operating_income","net_income","eps")) else "PARTIAL","numeric_extraction_status":"parsed" if any(vals.values()) else "no_numeric_values_found","content_hash":hashlib.sha256(raw).hexdigest(),"document_text_length":len(text),"extracted_text_length":len(text),**parser_meta,"linked_from_official_page":True,"discovery_source_url":base,"external_document_host":urllib.parse.urlparse(final).hostname,"authority_chain_verified":bool(c.get("authority_chain_verified")),"discovery_chain":c.get("discovery_chain"),"http_status":status,"content_type":ctype})
                     d["provider_attempts"].append(attempt); break
                 except urllib.error.HTTPError as e:
                     attempt.update({"http_status":e.code,"error_type":"DOCUMENT_FETCH_FAILED","error_message":sanitize_error_message(str(e)),"retryable":False}); d["provider_attempts"].append(attempt); d["extraction_errors"].append("DOCUMENT_FETCH_FAILED: "+sanitize_error_message(str(e))); continue
                 except Exception as e:
-                    attempt.update({"error_type":"DOCUMENT_FETCH_FAILED","error_message":sanitize_error_message(str(e)),"retryable":isinstance(e,(TimeoutError,urllib.error.URLError,OSError))}); d["provider_attempts"].append(attempt); d["extraction_errors"].append("DOCUMENT_FETCH_FAILED: "+sanitize_error_message(str(e))); continue
+                    msg=sanitize_error_message(str(e)); et="PDF_PARSE_FAILED" if "PDF_PARSE" in msg or "LIBRARY" in msg else "DOCUMENT_FETCH_FAILED"
+                    attempt.update({"error_type":et,"error_message":msg,"retryable":isinstance(e,(TimeoutError,urllib.error.URLError,OSError))}); d["provider_attempts"].append(attempt); d["extraction_errors"].append(et+": "+msg); continue
             if not d.get("source_document_url"):
                 d.update({"document_validation_status":"FAILED" if candidates else "not_attempted","numeric_extraction_status":"not_attempted"})
         except Exception as e:
@@ -271,8 +284,17 @@ class OfficialIRProvider(FactProvider):
                 d["fetch_status"]="fetch_failed" if network_allowed() else "network_disabled"; d["extraction_errors"].append("SHAREHOLDER_RETURN_FETCH_FAILED: "+sanitize_error_message(str(e)))
         return result("partial",d,"Official company IR",d.get("source_document_url"),error_type="DATA_INSUFFICIENT" if d["annual_dividend"] is None and d["dividend_forecast"] is None and d["buyback"] is None else None,attempted_network=d.get("fetch_status") not in {"not_attempted","network_disabled"})
     def fetch_news(self,target):
-        if _code(target)=="285A": return self.make_result("partial",[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IRニュース候補。本文未取得のため本文根拠には不適格。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]}],"Official company IR","https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",published_at="2026-05-15",confidence="medium",error_type="CONTENT_NOT_FETCHED")
-        return self.make_result(error_type="NEWS_UNAVAILABLE")
+        b=PHASE_A.get(_code(target))
+        if not b: return self.make_result(error_type="NEWS_UNAVAILABLE")
+        try:
+            http=fetch_http(b["official_ir_url"],15,["text/html"],2_000_000,1); base=http.get("final_url") or b["official_ir_url"]; items=[]
+            for l in extract_links(http.get("text") or "",base,1,b["official_ir_url"]):
+                label=_nfkc((l.get("anchor_text") or "")+" "+(l.get("url") or ""))
+                if re.search(r"決算|earnings|financial results|IRニュース|news", label, re.I):
+                    items.append({"title":l.get("anchor_text") or "Official IR update","published_at":None,"category":"earnings","source_url":l.get("url"),"source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IR一覧から動的に抽出したニュースメタデータ。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]})
+            return self.make_result("partial",items,"Official company IR",base,confidence="medium",attempted_network=True,http_status=http.get("http_status"),error_type=None if items else "NEWS_UNAVAILABLE")
+        except Exception as e:
+            return self.make_result(error_type="NEWS_UNAVAILABLE",error_message=sanitize_error_message(str(e)),url=b.get("official_ir_url"),attempted_network=network_allowed(),retryable=isinstance(e,(TimeoutError,urllib.error.URLError,OSError)))
 class EDINETProvider(FactProvider):
     name="edinet"; priority=4
     def fetch_financials(self,target): return result(error_type="EDINET_API_KEY_MISSING",error_message="EDINET_API_KEY not set; optional provider skipped") if not os.getenv("EDINET_API_KEY") else result(error_type="FUNDAMENTALS_UNAVAILABLE")
@@ -344,8 +366,9 @@ class SourceRegistry:
         return {"total_source_records":len(vals),"unique_source_urls":len({v.get("canonical_url") for v in vals if v.get("canonical_url")}),"independent_source_count":len({v.get("independent_source_key") for v in elig}),"evidence_eligible_source_count":len(elig),"official_document_count":sum(1 for v in vals if v.get("source_type") in {"financial_document","earnings_release","securities_report","official_news_article","dividend_document"}),"market_data_source_count":sum(1 for v in vals if v.get("source_type")=="market_data" and v.get("evidence_eligible")),"financial_source_count":sum(1 for v in vals if v.get("source_type") in {"financial_document","earnings_release"} and v.get("evidence_eligible")),"news_source_count":sum(1 for v in vals if v.get("source_type")=="official_news_article" and v.get("evidence_eligible")),"index_page_count":sum(1 for v in vals if v.get("source_type")=="index_page"),"duplicate_source_count":self.dup,"partial_source_count":sum(1 for v in vals if v.get("validation_status") in {"PARTIAL","partial"}),"failed_source_count":sum(1 for v in vals if v.get("validation_status") in {"FAILED","failed"})}
 def _missing(field,reason="missing",req=None,attempts=None,retryable=True): return {"field":field,"reason":reason,"required_for":req or ["WATCH","BUY_CANDIDATE"],"provider_attempts":attempts or [],"retryable":retryable}
 def build_fact_pack(task,root):
+    reset_http_stats()
     target=(task.get("target") or {}) if isinstance(task.get("target"),dict) else {"company_name":str(task.get("target"))}; cache=FactCache(root,_code(target)); providers=[JPXProvider(),OfficialRegistryProvider(),OfficialIRProvider(),EDINETProvider(),StockWatchProvider(root),YahooChartProvider(),FinancialsProvider(),ValuationProvider(),OfficialNewsProvider()]
-    errors=[]; stats={"cache_hit":[],"refreshed_sections":[],"unchanged_sections":[],"expired_sections":[],"provider_calls":0,"network_requests":0}
+    errors=[]; stats={"cache_hit":[],"refreshed_sections":[],"unchanged_sections":[],"expired_sections":[],"provider_calls":0,"network_requests":0,"http_requests_total":0,"http_requests_by_host":{},"retry_count":0,"cache_hits":0,"cache_misses":0,"documents_discovered":0,"documents_fetched":0,"documents_parse_failed":0,"documents_identity_failed":0,"documents_period_mismatched":0,"candidate_failure_count":0}
     def _section_complete(name, data):
         if not isinstance(data, dict) and name != "news": return False
         if name == "financials":
@@ -368,7 +391,8 @@ def build_fact_pack(task,root):
         return {**data,**meta} if isinstance(data,dict) else data
     def section(name, fetchers):
         cached,state=cache.get(name)
-        if state=="hit": stats["cache_hit"].append(name); return cached.get("data") if isinstance(cached,dict) and "data" in cached else cached
+        if state=="hit": stats["cache_hit"].append(name); stats["cache_hits"]+=1; return cached.get("data") if isinstance(cached,dict) and "data" in cached else cached
+        stats["cache_misses"]+=1
         if state=="expired": stats["expired_sections"].append(name)
         exp=list if name=="news" else dict; attempted=[]; rejected=[]; best=None; best_score=-1
         for attempt,(p,m) in enumerate(fetchers,1):
@@ -427,13 +451,16 @@ def build_fact_pack(task,root):
     if dividends.get("dividend_forecast") is None and dividends.get("annual_dividend") is None: missing.append(_missing("shareholder_returns.dividend_forecast","missing"))
     if valuation.get("per") is None and valuation.get("pbr") is None: missing.append(_missing("valuation.per","missing",["BUY_CANDIDATE"])); missing.append(_missing("valuation.per_or_pbr","missing",["BUY_CANDIDATE"]))
     missing.append(_missing("risks","missing",["WATCH","BUY_CANDIDATE"]))
-    counts=sr.counts(); quality="high" if not missing and counts["evidence_eligible_source_count"]>=3 else "partial" if profile else "failed"
+    fin_attempt_all=financials.get("provider_attempts",[]) if isinstance(financials,dict) else []
+    stats.update({"network_requests":HTTP_STATS["http_requests_total"] or stats.get("network_requests",0),"http_requests_total":HTTP_STATS["http_requests_total"],"http_requests_by_host":HTTP_STATS["http_requests_by_host"],"retry_count":HTTP_STATS["retry_count"],"documents_discovered":len(financials.get("document_candidates",[]) if isinstance(financials,dict) else []),"documents_fetched":sum(1 for a in fin_attempt_all if a.get("http_status") is not None),"documents_parse_failed":sum(1 for a in fin_attempt_all if a.get("error_type") in {"PDF_FORMAT_INVALID","PDF_PARSE_FAILED"}),"documents_identity_failed":sum(1 for a in fin_attempt_all if a.get("error_type")=="DOCUMENT_IDENTITY_FAILED"),"documents_period_mismatched":sum(1 for a in fin_attempt_all if a.get("error_type")=="FISCAL_PERIOD_MISMATCH"),"candidate_failure_count":sum(1 for a in fin_attempt_all if a.get("error_type"))})
+    counts=sr.counts(); counts["failed_source_count"]=max(counts.get("failed_source_count",0), stats["candidate_failure_count"])
+    quality="high" if not missing and counts["evidence_eligible_source_count"]>=3 else "partial" if profile else "failed"
     dq={"generated_at":now(),"price_as_of":price.get("price_date"),"fundamentals_as_of":financials.get("fiscal_period"),"valuation_as_of":price.get("price_date") if valuation else None,"news_as_of":clean_news[0].get("published_at") if clean_news else None,"stale_fields":[],"missing_fields":[m["field"] for m in missing],"missing_information":missing,"conflicting_fields":["price.previous_close"] if price.get("source_conflict") else [],"source_conflicts":price.get("diagnostics") if price.get("source_conflict") else {},"provider_errors":errors,"data_quality":quality,"verified_sources_count":counts["evidence_eligible_source_count"],**counts}
     pack={"schema_version":"1.2","task_id":task["task_id"],"ticker":profile.get("ticker") or target.get("ticker"),"company":{k:v for k,v in profile.items() if not k.startswith("_")},"identity_validation":identity,"price":{k:v for k,v in price.items() if not k.startswith("_")},"price_trend":{},"financials":{k:v for k,v in financials.items() if not k.startswith("_")},"valuation":{k:v for k,v in valuation.items() if not k.startswith("_")},"shareholder_returns":{k:v for k,v in dividends.items() if not k.startswith("_")},"news":clean_news,"risks":[],"source_map":sr.map,"cache":stats,"data_quality":dq}
     watch_fields={"price.current_price","price.previous_close","price.change","price.change_rate","price.price_date","financials.fiscal_period","financials.earnings_release_date","financials.revenue","financials.operating_income","financials.net_income","news.latest_title","news.latest_published_at","news.latest_source_url","risks"}
     watch_missing=[m for m in missing if m["field"] in watch_fields]
-    gate_status="DATA_ERROR" if identity["status"]!="VERIFIED" else "DATA_INSUFFICIENT" if watch_missing or counts["evidence_eligible_source_count"]<3 or price.get("source_conflict") else "PASS"
-    gate={"status":gate_status,"buy_allowed":False,"missing_information":missing,"required_source_count":3,"final_decision":"DATA_INSUFFICIENT" if gate_status!="PASS" else "WATCH"}
+    gate_status="DATA_ERROR" if identity["status"]!="VERIFIED" else "REVIEW_REQUIRED" if (price.get("source_conflict") or price.get("human_review_required")) else "DATA_INSUFFICIENT" if watch_missing or counts["evidence_eligible_source_count"]<3 else "PASS"
+    gate={"status":gate_status,"buy_allowed":False,"missing_information":missing,"required_source_count":3,"final_decision":gate_status if gate_status!="PASS" else "WATCH"}
     return pack,gate
 def validate_evidence(output,pack):
     data=output.get("data",output); evidence=output.get("evidence") or data.get("evidence") or []; unsupported=[]
