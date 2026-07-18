@@ -15,7 +15,13 @@ class RunStore:
     def save_step(self, run_dir:Path, step_id:str, output:dict[str,Any])->Path:
         p=run_dir/'steps'/f'{safe_filename(step_id)}.json'; p.write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding='utf-8'); return p
     def save_run(self, run_dir:Path, data:dict[str,Any])->Path:
-        p=run_dir/'run.json'; p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8'); return p
+        p=run_dir/'run.json'; p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+        try:
+            from orchestrator.investment_facts.manifest import build_manifest
+            build_manifest(run_dir, data.get('run_id'), data.get('task_id'), data.get('workflow_id'))
+        except Exception:
+            pass
+        return p
     def write_manifest(self, run_dir:Path, manifest:dict[str,Any])->Path:
         p=run_dir/'manifest.json'; p.write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8'); return p
     def export_bundle(self, run_dir:Path, out:Path)->Path:
