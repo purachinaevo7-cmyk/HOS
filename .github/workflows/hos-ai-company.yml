@@ -14,8 +14,30 @@ on:
       workflow:
         description: 'Workflow id override for generated task_json only'
         required: false
-        default: 'investment_analysis'
+        default: 'investment_analysis_verified_lite'
         type: string
+      analysis_mode:
+        description: 'Analysis mode'
+        required: true
+        default: 'verified_lite'
+        type: choice
+        options: [smoke, verified_lite, full_5_agent]
+      fact_pack_only:
+        description: 'Generate Fact Pack artifacts without Gemini calls'
+        required: true
+        default: false
+        type: boolean
+      enable_network_facts:
+        description: 'Enable free network fact providers for verified investment data'
+        required: true
+        default: false
+        type: boolean
+      fact_mode:
+        description: 'Fact acquisition mode'
+        required: true
+        default: 'cached_only'
+        type: choice
+        options: [cached_only, network_verified]
       executor:
         description: 'Executor: mock, gemini, or openai'
         required: true
@@ -57,9 +79,14 @@ jobs:
       GEMINI_MAX_OUTPUT_TOKENS_CEO: '3000'
       GEMINI_TIMEOUT_SECONDS: ${{ inputs.gemini_timeout_seconds || '90' }}
       HOS_FREE_TIER_MODE: ${{ inputs.executor == 'gemini' && 'true' || '' }}
-      HOS_MAX_AGENT_CALLS: ${{ inputs.executor == 'gemini' && '5' || '' }}
+      HOS_MAX_AGENT_CALLS: ${{ inputs.executor == 'gemini' && inputs.analysis_mode == 'verified_lite' && '2' || inputs.executor == 'gemini' && '5' || '' }}
       HOS_MAX_RETRIES: ${{ inputs.executor == 'gemini' && '1' || '' }}
       HOS_MAX_PARALLEL_AGENTS: ${{ inputs.max_parallel_agents }}
+      HOS_FACT_MODE: ${{ inputs.fact_mode }}
+      HOS_ENABLE_NETWORK_FACTS: ${{ inputs.enable_network_facts == true && inputs.fact_mode == 'network_verified' && 'true' || 'false' }}
+      HOS_FACT_PACK_ONLY: ${{ inputs.fact_pack_only == true && 'true' || 'false' }}
+      HOS_VERIFIED_LITE_MAX_CALLS: '2'
+      HOS_MAX_VERIFIED_ANALYSES_PER_DAY: '3'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -74,7 +101,9 @@ jobs:
           raw = '''${{ inputs.task_json }}'''.strip()
           if raw:
               data=json.loads(raw)
-              if '${{ inputs.workflow }}': data.setdefault('workflow','${{ inputs.workflow }}')
+              mode='${{ inputs.analysis_mode }}'
+              wf={'smoke':'investment_analysis_free','verified_lite':'investment_analysis_verified_lite','full_5_agent':'investment_analysis'}.get(mode,'investment_analysis_verified_lite')
+              data['workflow']=wf
               p=pathlib.Path('tasks/working/actions-task.json'); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
               print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
           else:
@@ -96,7 +125,7 @@ jobs:
           python -m orchestrator.cli validate-workflows
           python -m orchestrator.cli validate-task "$TASK_FILE"
       - name: Run orchestrator
-        if: ${{ !inputs.gemini_smoke_test }}
+        if: ${{ !inputs.gemini_smoke_test && inputs.analysis_mode != 'smoke' }}
         id: run
         shell: bash
         run: |
@@ -118,6 +147,24 @@ jobs:
           echo "## HOS AI Company" >> "$GITHUB_STEP_SUMMARY"
           echo "Run ID: ${{ steps.run.outputs.run_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Executor: ${{ inputs.executor }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Fact mode: ${{ inputs.fact_mode }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Network facts enabled: $HOS_ENABLE_NETWORK_FACTS" >> "$GITHUB_STEP_SUMMARY"
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          run='${{ steps.run.outputs.run_id }}'
+          summary=pathlib.Path('runs')/run/'diagnostics'/'fact_pack_only_summary.json'
+          gate=pathlib.Path('runs')/run/'diagnostics'/'data_sufficiency_gate.json'
+          fp=pathlib.Path('runs')/run/'fact_pack.json'
+          data={}
+          if summary.exists():
+              data=json.loads(summary.read_text())
+          elif fp.exists():
+              pack=json.loads(fp.read_text())
+              g=json.loads(gate.read_text()) if gate.exists() else {}
+              data={'fact_pack_status':g.get('status'),'verified_source_count':pack.get('data_quality',{}).get('verified_sources_count'),'missing_fields':pack.get('data_quality',{}).get('missing_fields'),'final_decision':g.get('final_decision') or g.get('status')}
+          for k,label in [('fact_pack_status','Fact Pack status'),('verified_source_count','Verified source count'),('missing_fields','Missing fields'),('final_decision','Final decision')]:
+              print(f"{label}: {data.get(k)}")
+          PY
       - name: Upload run bundle
         if: ${{ always() && !inputs.gemini_smoke_test && steps.run.outputs.run_id != '' }}
         uses: actions/upload-artifact@v4
@@ -126,6 +173,10 @@ jobs:
           path: |
             runs/${{ steps.run.outputs.run_id }}/
             runs/${{ steps.run.outputs.run_id }}/usage.json
+            runs/${{ steps.run.outputs.run_id }}/fact_pack.json
+            runs/${{ steps.run.outputs.run_id }}/source_map.json
+            runs/${{ steps.run.outputs.run_id }}/discord_message.txt
+            runs/${{ steps.run.outputs.run_id }}/investment_commander_update.json
             outputs/index.json
             hos-run-result.json
           if-no-files-found: warn

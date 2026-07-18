@@ -132,3 +132,8 @@ Gemini executor uses official Structured Output (`responseSchema`) for agent-spe
 
 ## Verified Investment Fact Pipeline
 Investment workflows now build a deterministic Fact Pack before any Gemini agent runs. Agents may only use its `fact_refs` and `source_map`; missing data produces `DATA_INSUFFICIENT`, contradictions produce `REVIEW_REQUIRED`, and automatic BUY/orders are prohibited. See [design](docs/INVESTMENT_FACT_PIPELINE_DESIGN.md), [operations](docs/INVESTMENT_FACT_PIPELINE_OPERATIONS.md), [source policy](docs/INVESTMENT_SOURCE_POLICY.md), and [evidence policy](docs/INVESTMENT_EVIDENCE_POLICY.md).
+
+
+## Verified Investment Analysis Lite
+
+The recommended investment workflow is `investment_analysis_verified_lite`: Python builds a source-bound Fact Pack first, then Gemini is limited to two calls (analysis + review/integration). Use `fact_pack_only=true` to generate Fact Pack artifacts without Gemini. Network providers require both `HOS_FACT_MODE=network_verified` and `HOS_ENABLE_NETWORK_FACTS=true`; paid APIs and OpenAI fallback are not automatic.

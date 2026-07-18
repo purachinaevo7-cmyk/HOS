@@ -29,3 +29,29 @@ def test_stock_watch_v2_reuse(tmp_path):
     assert pack["price"]["source"]=="Stock Watch V2"
 def test_provider_contract():
     assert set(FactProvider().fetch_price({})) >= {"status","data","source","source_url","fetched_at","error_type","error_message","confidence"}
+
+def test_phase_a_identity_targets(tmp_path):
+    for code,name in [("285A","キオクシアホールディングス"),("4063","信越化学工業"),("9432","日本電信電話")]:
+        pack,gate=build_fact_pack({"task_id":code,"target":{"ticker":code,"company_name":name}},tmp_path)
+        assert pack["identity_validation"]["status"]=="VERIFIED"
+        assert pack["company"]["listed"] is True
+        assert pack["company"].get("official_ir_url")
+
+def test_cache_hit_and_refresh(tmp_path):
+    build_fact_pack(TASK,tmp_path)
+    pack,_=build_fact_pack(TASK,tmp_path)
+    assert "company_profile" in pack["cache"]["cache_hit"]
+
+def test_valuation_missing_blocks_buy_candidate(tmp_path):
+    pack,gate=build_fact_pack(TASK,tmp_path)
+    assert "valuation.per" in pack["data_quality"]["missing_fields"]
+    assert gate["buy_allowed"] is False
+
+def test_discord_message_length_and_trigger_dedupe(tmp_path):
+    from orchestrator.investment_facts import discord_message, should_trigger_verified_analysis
+    pack,gate=build_fact_pack(TASK,tmp_path)
+    assert len(discord_message({},pack,gate)) <= 900
+    ok,key=should_trigger_verified_analysis("WATCH","WATCH","2026-07-18","2026Q1",None,set())
+    assert ok and key["ticker_key"]
+    ok2,_=should_trigger_verified_analysis("NO_ALERT","NO_ALERT","2026-07-18",seen=set())
+    assert not ok2

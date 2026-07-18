@@ -1,0 +1,24 @@
+id: investment_analysis_verified_lite
+name: Verified Fact Investment Analysis Lite
+version: "1.0.0"
+max_rework_cycles: 0
+outputs:
+  final_report: outputs/reports/{task_id}.md
+  hos_update_json: outputs/json/{task_id}.json
+steps:
+  - id: verified_analysis
+    name: Gemini Analysis Agent (Fact Pack only)
+    agent: base_analyst
+    action: analyze_verified_fact_pack
+    depends_on: []
+    output_key: verified_analysis
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 60
+  - id: review_integration
+    name: Gemini Review and Integration Agent
+    agent: ceo_integrator
+    action: review_and_integrate_verified_lite
+    depends_on: [verified_analysis]
+    output_key: ceo_integration
+    retry_policy: {max_attempts: 1}
+    timeout_seconds: 60
