@@ -7,6 +7,13 @@ import pytest
 from scripts.extract_hos_run_id import extract_run_id
 
 
+def test_hos_ai_company_workflow_is_manually_dispatchable_on_pr_branch():
+    text=Path('.github/workflows/hos-ai-company.yml').read_text()
+    assert 'name: HOS AI Company' in text
+    assert 'workflow_dispatch:' in text
+    assert 'task_json:' in text
+
+
 def test_github_actions_gemini_timeout_input_reflected():
     text=Path('.github/workflows/hos-ai-company.yml').read_text()
     assert 'gemini_timeout_seconds:' in text
