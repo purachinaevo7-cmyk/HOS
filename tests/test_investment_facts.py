@@ -87,3 +87,38 @@ def test_network_requests_use_attempted_network_not_source_url(tmp_path, monkeyp
     monkeypatch.setattr(f, "ValuationProvider", NetValuation)
     pack,_=f.build_fact_pack(TASK,tmp_path)
     assert pack["cache"]["network_requests"]==1
+
+def test_yahoo_chart_provider_uses_series_previous_close_not_meta():
+    from orchestrator.investment_facts import YahooChartProvider
+    chart={"timestamp":[1784073600,1784160000,1784246400],"meta":{"regularMarketPrice":52110,"chartPreviousClose":2414},"indicators":{"quote":[{"open":[60000,62000,52000],"high":[61000,63000,53000],"low":[59000,61000,51000],"close":[60000,62110,52110],"volume":[1,2,3]}]}}
+    data,err=YahooChartProvider()._parse_chart(chart)
+    assert err is None
+    assert data["current_price"]==52110
+    assert data["previous_close"]==62110
+    assert data["change"]==-10000
+    assert round(data["change_rate"],4)==-0.1610
+    assert data["source_conflict"] is True
+    assert data["diagnostics"]["meta_chartPreviousClose"]==2414
+
+
+def test_yahoo_chart_provider_rejects_array_length_mismatch():
+    from orchestrator.investment_facts import YahooChartProvider
+    chart={"timestamp":[1,2],"meta":{},"indicators":{"quote":[{"open":[1],"high":[1],"low":[1],"close":[1],"volume":[1]}]}}
+    data,err=YahooChartProvider()._parse_chart(chart)
+    assert data is None
+    assert err["error_type"]=="INVALID_MARKET_DATA"
+    assert err["array_lengths"]["timestamp"]==2
+
+
+def test_285a_fixture_source_map_and_gate_semantics(tmp_path):
+    pack,gate=build_fact_pack(TASK,tmp_path)
+    assert pack["financials"]["fiscal_period"]=="2026年3月期"
+    assert pack["financials"]["earnings_release_date"]=="2026-05-15"
+    assert pack["financials"]["source_document_url"] != pack["company"]["official_ir_url"]
+    assert all(n["title"]!="Official IR updates page" and n["published_at"] for n in pack["news"])
+    assert len([s for s in pack["source_map"].values() if s["source_type"]=="index_page" and s["evidence_eligible"] is False])>=1
+    assert len(pack["source_map"])==pack["data_quality"]["total_source_records"]
+    assert pack["data_quality"]["duplicate_source_count"]==0
+    assert gate["status"]=="DATA_INSUFFICIENT"
+    fields={m["field"] for m in pack["data_quality"]["missing_information"]}
+    assert {"valuation.per","valuation.per_or_pbr","risks","shareholder_returns.dividend_forecast"} <= fields
