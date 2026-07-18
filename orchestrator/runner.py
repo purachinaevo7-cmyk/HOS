@@ -39,6 +39,9 @@ class Orchestrator:
         if os.getenv('HOS_FACT_PACK_ONLY','').lower()=='true':
             final={'final_decision': ctx['data_sufficiency_gate'].get('final_decision') or ctx['data_sufficiency_gate']['status'], 'confidence':'low', 'evidence':[]}
             (run_dir/'source_map.json').write_text(json.dumps(ctx['source_map'],ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'provider_errors.json').write_text(json.dumps(ctx['data_quality'].get('provider_errors',[]),ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'diagnostics.json').write_text(json.dumps(ctx['data_quality'],ensure_ascii=False,indent=2),encoding='utf-8')
+            (run_dir/'diagnostics'/'data_sufficiency_gate.json').write_text(json.dumps(ctx['data_sufficiency_gate'],ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'diagnostics'/'fact_pack_only_summary.json').write_text(json.dumps({'fact_pack_status':ctx['data_sufficiency_gate']['status'],'verified_source_count':ctx['data_quality']['verified_sources_count'],'missing_fields':ctx['data_quality']['missing_fields'],'provider_errors':ctx['data_quality']['provider_errors'],'final_decision':final['final_decision']},ensure_ascii=False,indent=2),encoding='utf-8')
             (run_dir/'discord_message.txt').write_text(discord_message(final,ctx['fact_pack'],ctx['data_sufficiency_gate']),encoding='utf-8')
             (run_dir/'investment_commander_update.json').write_text(json.dumps(investment_commander_update(final,ctx['fact_pack'],ctx['data_sufficiency_gate'],trigger=task.get('trigger'),gemini_calls=0),ensure_ascii=False,indent=2),encoding='utf-8')

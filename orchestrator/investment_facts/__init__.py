@@ -64,7 +64,7 @@ def normalize_provider_result(raw, provider="provider", expected_data_type=None)
     if expected_data_type and data is not None and not isinstance(data,expected_data_type): status="error"; data=None; et="INVALID_PROVIDER_RESULT"
     else: et=safe_str(r.get("error_type"))
     if status=="ok" and (data is None or data=={} or data==[]): status="partial"; et=et or "DATA_INSUFFICIENT"
-    return {"status":status,"data":data,"source":safe_str(r.get("source")),"source_url":safe_url(r.get("source_url") if "source_url" in r else r.get("url")),"published_at":safe_str(r.get("published_at")),"fetched_at":safe_str(r.get("fetched_at")) or now(),"error_type":et,"error_message":sanitize_error_message(r.get("error_message")) if r.get("error_message") is not None else None,"confidence":safe_str(r.get("confidence")) or "low","attempted_network":bool(r.get("attempted_network",False)),"http_status":r.get("http_status") if isinstance(r.get("http_status"),int) else None,"retryable":bool(r.get("retryable",False)),"provider":safe_str(r.get("provider")) or provider}
+    return {"status":status,"data":data,"source":safe_str(r.get("source")),"source_url":safe_url(r.get("source_url") if "source_url" in r else r.get("url")),"published_at":safe_str(r.get("published_at")),"fetched_at":safe_str(r.get("fetched_at")) or now(),"error_type":et,"error_message":sanitize_error_message(r.get("error_message")) if r.get("error_message") is not None else None,"confidence":safe_str(r.get("confidence")) or "low","attempted_network":bool(r.get("attempted_network",False)),"http_status":r.get("http_status") if isinstance(r.get("http_status"),int) else None,"retryable":bool(r.get("retryable",False)),"provider": (provider if safe_str(r.get("provider")) in {None,"provider"} and provider!="provider" else (safe_str(r.get("provider")) or provider))}
 def result(status="unavailable",data=None,source=None,url=None,error_type=None,error_message=None,confidence="low",published_at=None,attempted_network=False,http_status=None,retryable=False,provider=None): return normalize_provider_result({"status":status,"data":data,"source":source,"source_url":url,"published_at":published_at,"fetched_at":now(),"error_type":error_type,"error_message":error_message,"confidence":confidence,"attempted_network":attempted_network,"http_status":http_status,"retryable":retryable,"provider":provider})
 class FactCache:
     def __init__(self,root,ticker): self.dir=Path(root)/"cache"/"investment_facts"/_code({"ticker":ticker}); self.dir.mkdir(parents=True,exist_ok=True)
@@ -82,33 +82,36 @@ class FactCache:
         (self.dir/f"{section}.json").write_text(json.dumps({"_cache":{"fetched_at":now(),"ttl_days":TTL_DAYS.get(section,1)},"data":data},ensure_ascii=False,indent=2),encoding="utf-8")
 class FactProvider:
     name="provider"; priority=99
-    def fetch_company_profile(self,target): return result(error_type="OFFICIAL_SOURCE_UNAVAILABLE")
-    def fetch_price(self,target): return result(error_type="PRICE_UNAVAILABLE")
-    def fetch_financials(self,target): return result(error_type="FUNDAMENTALS_UNAVAILABLE")
-    def fetch_valuation(self,target): return result(error_type="VALUATION_UNAVAILABLE")
-    def fetch_dividends(self,target): return result(error_type="FUNDAMENTALS_UNAVAILABLE")
-    def fetch_news(self,target): return result(error_type="NEWS_UNAVAILABLE")
+    def make_result(self,*args,**kwargs):
+        kwargs["provider"]=self.name
+        return result(*args,**kwargs)
+    def fetch_company_profile(self,target): return self.make_result(error_type="OFFICIAL_SOURCE_UNAVAILABLE")
+    def fetch_price(self,target): return self.make_result(error_type="PRICE_UNAVAILABLE")
+    def fetch_financials(self,target): return self.make_result(error_type="FUNDAMENTALS_UNAVAILABLE")
+    def fetch_valuation(self,target): return self.make_result(error_type="VALUATION_UNAVAILABLE")
+    def fetch_dividends(self,target): return self.make_result(error_type="FUNDAMENTALS_UNAVAILABLE")
+    def fetch_news(self,target): return self.make_result(error_type="NEWS_UNAVAILABLE")
     def validate_identity(self,target,data): return validate_identity(target,data)
 class JPXProvider(FactProvider):
     name="jpx"; priority=1
     def fetch_company_profile(self,target):
-        d=PHASE_A.get(_code(target)); return result("ok",dict(d),"JPX listed-company data",d.get("source_url"),confidence="high",published_at=d.get("listing_date")) if d else result(error_type="OFFICIAL_SOURCE_UNAVAILABLE")
+        d=PHASE_A.get(_code(target)); return self.make_result("ok",dict(d),"JPX listed-company data",d.get("source_url"),confidence="high",published_at=d.get("listing_date")) if d else self.make_result(error_type="OFFICIAL_SOURCE_UNAVAILABLE")
 class OfficialRegistryProvider(JPXProvider): name="official_registry"; priority=2; RECORDS=PHASE_A
 class OfficialIRProvider(FactProvider):
     name="official_ir"; priority=3
     def fetch_company_profile(self,target):
-        b=PHASE_A.get(_code(target)); return result("ok",{k:b.get(k) for k in ["official_company_url","official_ir_url","company_name","legal_name"]},"Official company IR",b["official_ir_url"],confidence="high") if b else result(error_type="OFFICIAL_SOURCE_UNAVAILABLE")
+        b=PHASE_A.get(_code(target)); return self.make_result("ok",{k:b.get(k) for k in ["official_company_url","official_ir_url","company_name","legal_name"]},"Official company IR",b["official_ir_url"],confidence="high") if b else self.make_result(error_type="OFFICIAL_SOURCE_UNAVAILABLE")
     def fetch_financials(self,target):
         b=PHASE_A.get(_code(target));
         if not b: return result(error_type="FUNDAMENTALS_UNAVAILABLE")
         d={"fiscal_period":None,"fiscal_period_start":None,"fiscal_period_end":None,"fiscal_year_label":None,"earnings_release_date":None,"source_document_title":None,"source_document_url":None,"source_document_type":None,"revenue":None,"operating_income":None,"profit_before_tax":None,"ordinary_income":None,"net_income":None,"eps":None,"operating_margin":None,"guidance":None,"guidance_revision":None,"dividend_forecast":None,"html_fetch_status":"not_attempted","ir_page_validation_status":"navigation_only","document_discovery_status":"not_attempted","document_validation_status":"not_attempted","numeric_extraction_status":"not_attempted","fiscal_period_confidence":"low","extraction_errors":[],"ir_url":b["official_ir_url"]}
         if _code(target)=="285A":
-            d.update({"fiscal_period":"2026年3月期","fiscal_period_start":"2025-04-01","fiscal_period_end":"2026-03-31","fiscal_year_label":"FY2026/3","earnings_release_date":"2026-05-15","source_document_title":"2026年3月期 決算短信","source_document_url":"https://www.kioxia-holdings.com/ja-jp/ir/library/results.html","source_document_type":"earnings_release","html_fetch_status":"ok","document_discovery_status":"candidate_found","document_validation_status":"VERIFIED","numeric_extraction_status":"no_numeric_values_found","fiscal_period_confidence":"high","extraction_errors":["major financial numbers unavailable in free HTML fixture"]})
+            d.update({"fiscal_period":"2026年3月期","fiscal_period_start":"2025-04-01","fiscal_period_end":"2026-03-31","fiscal_year_label":"FY2026/3","earnings_release_date":"2026-05-15","source_document_title":"2026年3月期 決算短信","source_document_url":None,"source_document_type":"earnings_release","html_fetch_status":"not_fetched","document_discovery_status":"candidate_found","document_validation_status":"PARTIAL","numeric_extraction_status":"no_numeric_values_found","fiscal_period_confidence":"high","extraction_errors":["major financial numbers unavailable in free HTML fixture"]})
         return result("partial",d,"Official company IR",d.get("source_document_url") or b["official_ir_url"],confidence="medium",published_at=d.get("earnings_release_date"),error_type="DATA_INSUFFICIENT" if not any(d.get(k) for k in ("revenue","operating_income","net_income","eps")) else None)
     def fetch_dividends(self,target): return result("partial",{"annual_dividend":None,"dividend_forecast":None,"dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"unavailable"},"Official company IR",PHASE_A.get(_code(target),{}).get("official_ir_url"),error_type="FUNDAMENTALS_UNAVAILABLE")
     def fetch_news(self,target):
-        if _code(target)=="285A": return result("ok",[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"verified":True,"summary":"公式IRニュース候補。本文取得は未実装のため検証済みメタデータのみ。","company_identity_verified":True}],"Official company IR","https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",published_at="2026-05-15",confidence="medium")
-        return result(error_type="NEWS_UNAVAILABLE")
+        if _code(target)=="285A": return self.make_result("partial",[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IRニュース候補。本文未取得のため本文根拠には不適格。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]}],"Official company IR","https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",published_at="2026-05-15",confidence="medium",error_type="CONTENT_NOT_FETCHED")
+        return self.make_result(error_type="NEWS_UNAVAILABLE")
 class EDINETProvider(FactProvider):
     name="edinet"; priority=4
     def fetch_financials(self,target): return result(error_type="EDINET_API_KEY_MISSING",error_message="EDINET_API_KEY not set; optional provider skipped") if not os.getenv("EDINET_API_KEY") else result(error_type="FUNDAMENTALS_UNAVAILABLE")
@@ -167,7 +170,11 @@ class SourceRegistry:
         if key in self.by_key:
             sid=self.by_key[key]; self.dup+=1; secs=set(self.map[sid].get("section",[])); secs.add(section); self.map[sid]["section"]=sorted(secs); return sid
         sid=f"{prefix}-{len([k for k in self.map if k.startswith(prefix)])+1:03d}"; h=hashlib.sha256((cu or title or sid).encode()).hexdigest()[:16]
-        rec={"title":title,"publisher":publisher,"url":url,"source_type":source_type,"canonical_url":cu,"evidence_eligible":bool(evidence_eligible),"section":[section],"document_title":document_title or title,"document_id":document_id,"fiscal_period":fiscal_period,"page_range":None,"validation_status":validation_status,"validation_errors":[],"content_hash":h,"independent_source_key":cu or h,"official_domain_verified":official,"fetched_content":False,"published_at":published_at,"fetched_at":now(),"official":official}
+        rec={"title":title,"publisher":publisher,"url":url,"source_type":source_type,"canonical_url":cu,"evidence_eligible":bool(evidence_eligible),"section":[section],"document_title":document_title or title,"document_id":document_id,"fiscal_period":fiscal_period,"page_range":None,"validation_status":validation_status,"validation_errors":[],"content_hash":h,"independent_source_key":cu or h,"official_domain_verified":official,"fetched_content":False,"published_at":published_at,"fetched_at":now(),"official":official,"content_fetched":False,"content_verified":False,"metadata_verified":validation_status=="VERIFIED","authority_domain_verified":official,"company_official":official,"source_authority_type":None,"source_trust_level":None,"input_fact_refs":[],"supports_fact_refs":[]}
+        from .source_registry import classify
+        auth,trust,co=classify(publisher if publisher in {"jpx","edinet","yahoo_finance","stock_watch_v2","valuation"} else None, source_type, official)
+        if publisher=="JPX": auth,trust,co=("exchange_authority","authoritative",False)
+        rec.update({"source_authority_type":auth,"source_trust_level":trust,"company_official":co,"authority_domain_verified": auth in {"exchange_authority","regulatory_authority"} or official})
         if source_type=="index_page": rec.update({"verified_for_navigation":True,"verified_for_analysis":False,"evidence_eligible":False})
         if extra: rec.update(extra)
         self.map[sid]=rec; self.by_key[key]=sid; return sid
@@ -178,34 +185,65 @@ def _missing(field,reason="missing",req=None,attempts=None,retryable=True): retu
 def build_fact_pack(task,root):
     target=(task.get("target") or {}) if isinstance(task.get("target"),dict) else {"company_name":str(task.get("target"))}; cache=FactCache(root,_code(target)); providers=[JPXProvider(),OfficialRegistryProvider(),OfficialIRProvider(),EDINETProvider(),StockWatchProvider(root),YahooChartProvider(),FinancialsProvider(),ValuationProvider(),OfficialNewsProvider()]
     errors=[]; stats={"cache_hit":[],"refreshed_sections":[],"unchanged_sections":[],"expired_sections":[],"provider_calls":0,"network_requests":0}
+    def _section_complete(name, data):
+        if not isinstance(data, dict) and name != "news": return False
+        if name == "financials":
+            return all(data.get(k) is not None for k in ("fiscal_period","earnings_release_date","source_document_url","revenue","operating_income","net_income","eps"))
+        if name == "news":
+            return bool(data) and any(isinstance(n,dict) and n.get("title") and n.get("published_at") and n.get("source_url") and n.get("metadata_verified") is True and n.get("content_verified") is True for n in data)
+        if name == "valuation":
+            return (data.get("per") is not None or data.get("pbr") is not None) and data.get("as_of") and (data.get("source_refs") or data.get("input_fact_refs"))
+        return bool(data)
+    def _score(name, data, r):
+        keys={"financials":["fiscal_period","earnings_release_date","source_document_url","revenue","operating_income","net_income","eps"],"valuation":["per","pbr","as_of"],"price":["current_price","previous_close","price_date"],"company_profile":["ticker","company_name","listed"],"source_map":["official_ir_url"]}.get(name,[])
+        if name=="news": return max((0.4+0.3*bool(n.get("metadata_verified"))+0.3*bool(n.get("content_verified")) for n in data if isinstance(n,dict)), default=0)
+        return (sum(1 for k in keys if isinstance(data,dict) and data.get(k) is not None)/len(keys)) if keys else (1 if data else 0)
+    def _attach_selection(data, sel):
+        if isinstance(data, list):
+            return [{**x,"_selection":sel} if isinstance(x,dict) else x for x in data]
+        return {**data,"_selection":sel} if isinstance(data,dict) else data
     def section(name, fetchers):
         cached,state=cache.get(name)
         if state=="hit": stats["cache_hit"].append(name); return cached
         if state=="expired": stats["expired_sections"].append(name)
-        exp=list if name=="news" else dict
-        for p,m in fetchers:
-            stats["provider_calls"]+=1
+        exp=list if name=="news" else dict; attempted=[]; rejected=[]; best=None; best_score=-1
+        for attempt,(p,m) in enumerate(fetchers,1):
+            attempted.append(p.name); stats["provider_calls"]+=1
             try: rr=getattr(p,m)(target)
             except Exception as e:
-                r=normalize_provider_result({"status":"error","error_type":"PROVIDER_EXCEPTION","error_message":sanitize_error_message(str(e)),"provider":p.name},p.name,exp); errors.append({"provider":p.name,"method":m,"exception_class":e.__class__.__name__,**r}); continue
+                r=normalize_provider_result({"status":"error","error_type":"PROVIDER_EXCEPTION","error_message":sanitize_error_message(str(e)),"provider":p.name},p.name,exp)
+                errors.append({"provider":p.name,"provider_class":p.__class__.__name__,"method":m,"section":name,"attempt":attempt,"fallback_order":attempt,"exception_class":e.__class__.__name__,**r}); continue
             r=normalize_provider_result(rr,p.name,exp)
             if r.get("attempted_network"): stats["network_requests"]+=1
-            if r["status"] in {"ok","partial"} and r.get("data") not in (None,{},[]):
-                cache.set(name,r["data"]); stats["refreshed_sections"].append(name)
-                return [{**x,"_result":r} if isinstance(x,dict) else x for x in r["data"]] if isinstance(r["data"],list) else {**r["data"],"source":r.get("source"),"source_url":r.get("source_url"),"fetched_at":r.get("fetched_at"),"_result":r}
-            errors.append({"provider":p.name,"method":m,**r})
+            data=r.get("data"); sc=_score(name,data,r) if data not in (None,{},[]) else 0
+            rejected.append({"provider":p.name,"status":r["status"],"completeness_score":sc,"error_type":r.get("error_type")})
+            if r["status"]=="ok" and data not in (None,{},[]) and _section_complete(name,data):
+                sel={"completeness_score":sc,"validation_score":1.0,"source_quality_score":1.0,"freshness_score":1.0,"selected_provider":p.name,"attempted_providers":attempted,"fallback_used":attempt>1,"rejected_candidates":rejected[:-1],"selection_reason":"complete provider result"}
+                cache.set(name,data); stats["refreshed_sections"].append(name); return _attach_selection(data,sel)
+            if r["status"] in {"ok","partial"} and data not in (None,{},[]) and sc>best_score:
+                best=(data,r,p.name); best_score=sc
+            else:
+                errors.append({"provider":p.name,"provider_class":p.__class__.__name__,"method":m,"section":name,"attempt":attempt,"fallback_order":attempt,**r})
+        if best:
+            data,r,pname=best; sel={"completeness_score":best_score,"validation_score":0.5,"source_quality_score":0.5,"freshness_score":0.5,"selected_provider":pname,"attempted_providers":attempted,"fallback_used":len(attempted)>1,"rejected_candidates":rejected,"selection_reason":"best partial after exhausting providers"}
+            cache.set(name,data); stats["refreshed_sections"].append(name); return _attach_selection(data,sel)
         return cached or ([] if name=="news" else {})
     profile=section("company_profile",[(providers[0],"fetch_company_profile"),(providers[1],"fetch_company_profile")]); ir_profile=section("source_map",[(providers[2],"fetch_company_profile")])
     if ir_profile: profile={**profile,**{k:v for k,v in ir_profile.items() if v is not None and not k.startswith("_") and k not in {"source","source_url","fetched_at"}}}
     identity=validate_identity(target,profile) if profile else {"status":"IDENTITY_MISMATCH","checks":{},"human_review_required":True}
-    price=section("price",[(providers[4],"fetch_price"),(providers[5],"fetch_price")]); financials=section("financials",[(providers[6],"fetch_financials"),(providers[3],"fetch_financials")]); valuation=section("valuation",[(providers[7],"fetch_valuation")]); dividends=section("dividends",[(providers[2],"fetch_dividends")]); news=section("news",[(providers[8],"fetch_news")]) or []
-    sr=SourceRegistry(); sr.add("SRC-ID","JPX listing and identity",profile.get("source_url"),"listing_record","identity","JPX",profile.get("listing_date"),official=False)
+    price=section("price",[(providers[4],"fetch_price"),(providers[5],"fetch_price")]); financials=section("financials",[(providers[6],"fetch_financials"),(providers[3],"fetch_financials")]); valuation=section("valuation",[(providers[7],"fetch_valuation")]); dividends=section("dividends",[(providers[2],"fetch_dividends")]);
+    from .valuation_calculator import calculate as _calc_val
+    calc=_calc_val(price if isinstance(price,dict) else {}, financials if isinstance(financials,dict) else {}, dividends if isinstance(dividends,dict) else {})
+    if isinstance(valuation,dict) and not any(valuation.get(k) is not None for k in ("per","pbr","dividend_yield","market_cap")):
+        valuation={**valuation, **{k:v for k,v in calc.items() if v is not None}, "method":"calculated", "formula":"market_cap=current_price*(shares_outstanding-treasury_shares); per=market_cap/net_income_attributable; pbr=market_cap/equity", "as_of":price.get("price_date"), "input_fact_refs":["price.current_price","financials.shares_outstanding","financials.treasury_shares","financials.net_income_attributable","financials.equity"], "source_refs":[]}
+    news=section("news",[(providers[8],"fetch_news")]) or []
+    sr=SourceRegistry(); sr.add("SRC-ID","JPX listing and identity",profile.get("source_url"),"listing_record","identity","JPX",profile.get("listing_date"),official=False,extra={"source_authority_type":"exchange_authority","source_trust_level":"authoritative","authority_domain_verified":True,"company_official":False,"content_fetched":True,"content_verified":True,"metadata_verified":True})
     if profile.get("official_ir_url"): sr.add("SRC-IR","Official IR entrance",profile.get("official_ir_url"),"index_page","ir_navigation","Official company IR",None,official=True)
     if price.get("current_price") and price.get("price_date"): sr.add("SRC-PRICE","Market price",price.get("source_url"),"market_data","price",price.get("source"),price.get("price_date"),official=False)
     major_fin=any(financials.get(k) is not None for k in ("revenue","operating_income","net_income","eps")); fin_doc=financials.get("source_document_url") and canonical_url(financials.get("source_document_url"))!=canonical_url(profile.get("official_ir_url"))
     if fin_doc: sr.add("SRC-FIN","Financial document",financials.get("source_document_url"),financials.get("source_document_type") or "financial_document","financials","Official company IR",financials.get("earnings_release_date"),financials.get("source_document_title"),fiscal_period=financials.get("fiscal_period"),validation_status="VERIFIED" if major_fin else "PARTIAL",evidence_eligible=major_fin,official=True)
     clean_news=[n for n in news if isinstance(n,dict) and n.get("title")!="Official IR updates page" and n.get("published_at") and n.get("source_url") and n.get("source_type")=="official_news_article"]
-    for n in clean_news[:5]: sr.add("SRC-NEWS","Official news",n.get("source_url"),"official_news_article","news","Official company IR",n.get("published_at"),n.get("title"),validation_status="VERIFIED",evidence_eligible=True,official=bool(n.get("official")))
+    for n in clean_news[:5]: sr.add("SRC-NEWS","Official news",n.get("source_url"),"official_news_article","news","Official company IR",n.get("published_at"),n.get("title"),validation_status="VERIFIED" if n.get("content_verified") else "PARTIAL",evidence_eligible=bool(n.get("content_verified")),official=bool(n.get("official")),extra={"content_fetched":bool(n.get("content_fetched")),"content_verified":bool(n.get("content_verified")),"metadata_verified":bool(n.get("metadata_verified")),"content_hash":n.get("content_hash")})
     if any(valuation.get(k) is not None for k in ("per","pbr","dividend_yield","market_cap")): sr.add("SRC-VAL","Valuation data",valuation.get("source_url"),"valuation_data","valuation",valuation.get("source"),price.get("price_date"),evidence_eligible=True)
     missing=[]
     for f in ["price.current_price","price.previous_close","price.change","price.change_rate","price.price_date"]:
