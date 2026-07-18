@@ -206,3 +206,67 @@ def test_price_source_url_cache_source_map_and_evidence(tmp_path):
     from orchestrator.investment_facts import SourceRegistry
     sr=SourceRegistry(); sr.add('SRC-PRICE','Market price',None,'market_data','price','Yahoo Finance chart')
     assert list(sr.map.values())[0]['evidence_eligible'] is False
+
+
+def test_typed_discovery_ir_top_to_navigation_to_external_pdf_with_edge_cases():
+    from orchestrator.investment_facts import discover_document_candidates, canonical_url
+    top='''<a href="/ir/results.html?utm_source=x&amp;year=2026">決算短信</a>
+           <a href="/ir/other.html">不要</a>'''
+    nav='''<a href="https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf?utm_campaign=y&amp;download=1">２０２６年３月期&nbsp;決算短信 PDF</a>
+           <a href="/ir/results.html?year=2026&utm_source=dup">重複canonical</a>
+           <a href="/news/2026/a.html">ニュース記事</a>'''
+    fetched=[]
+    def fetcher(url):
+        fetched.append(url)
+        if canonical_url(url)==canonical_url('https://www.kioxia-holdings.com/ir/results.html?year=2026'):
+            return {'text':nav,'http_status':200,'content_type':'text/html','final_url':url}
+        raise AssertionError('不要なページを巡回: '+url)
+    docs=discover_document_candidates(top,'https://www.kioxia-holdings.com/ir.html',fetcher=fetcher,company_domain_url='https://www.kioxia-holdings.com/ir.html')
+    assert len(docs)==1
+    doc=docs[0]
+    assert doc['depth']==2
+    assert doc['canonical_url']=='https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf?download=1'
+    assert doc['authority_chain_verified'] is True
+    assert [x['link_type'] for x in doc['discovery_chain']]==['navigation_page','financial_document']
+    assert len(fetched)==1
+
+
+def test_discovery_404_navigation_and_pdf_fallback(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    top='<a href="/ir/missing.html">決算短信</a><a href="/ir/results.html">IR library financial results</a>'
+    nav='<a href="https://ssl4.eir-parts.net/doc/285A/bad.pdf">決算短信 PDF</a><a href="https://ssl4.eir-parts.net/doc/285A/good.pdf">決算短信 PDF</a>'
+    pdf=b'%PDF Kioxia Holdings Corporation 285A FY2026 2026/3 earnings release revenue 1 operating income 2 net income 3 EPS 4'
+    def fake_fetch(url,*args,**kwargs):
+        if url.endswith('/ir.html'): return {'text':top,'raw':top.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url}
+        if url.endswith('/missing.html'): raise RuntimeError('404 nav')
+        if url.endswith('/results.html'): return {'text':nav,'raw':nav.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url}
+        if url.endswith('/bad.pdf'): raise urllib.error.HTTPError(url,404,'Not Found',{},None)
+        if url.endswith('/good.pdf'): return {'raw':pdf,'text':'','http_status':200,'content_type':'application/pdf','url':url,'final_url':url}
+        raise RuntimeError(url)
+    import urllib.error
+    monkeypatch.setattr(f,'network_allowed',lambda: True)
+    monkeypatch.setattr(f,'fetch_http',fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    assert pack['financials']['source_document_url']=='https://ssl4.eir-parts.net/doc/285A/good.pdf'
+    assert any(a.get('http_status')==404 for a in pack['financials']['provider_attempts'])
+
+
+def test_yahoo_provider_provenance_survives_selection_cache_fact_pack_and_source_map(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    source_url='https://query1.finance.yahoo.com/v8/finance/chart/285A.T?range=1y&interval=1d'
+    class NoStock(f.StockWatchProvider):
+        def fetch_price(self,target): return f.result(error_type='PRICE_UNAVAILABLE')
+    class FakeYahoo(f.YahooChartProvider):
+        def fetch_price(self,target):
+            return f.result('ok',{'current_price':100,'previous_close':90,'change':10,'change_rate':0.1111,'price_date':'2026-07-18'},'Yahoo Finance chart',source_url,provider=self.name)
+    monkeypatch.setattr(f,'StockWatchProvider',NoStock)
+    monkeypatch.setattr(f,'YahooChartProvider',FakeYahoo)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    cache=json.loads((tmp_path/'cache/investment_facts/285A/price.json').read_text())
+    pack2,_=f.build_fact_pack(TASK,tmp_path)
+    assert pack['price']['source_url']==source_url
+    assert cache['provenance']['source_url']==source_url
+    assert cache['data']['source_url']==source_url
+    assert pack2['price']['source_url']==source_url
+    market=[s for s in pack2['source_map'].values() if s['source_type']=='market_data'][0]
+    assert market['url']==source_url
