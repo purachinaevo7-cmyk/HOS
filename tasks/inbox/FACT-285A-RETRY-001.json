@@ -1,0 +1,37 @@
+{
+  "task_id": "FACT-285A-RETRY-001",
+  "workflow": "investment_analysis_verified_lite",
+  "type": "investment_analysis",
+  "target": {
+    "ticker": "285A",
+    "company_name": "キオクシアホールディングス"
+  },
+  "request": "285A（キオクシアホールディングス）の投資再分析をVerified Liteで実施する。Pythonの検証済みFact Packを先に作成し、Geminiは分析とレビュー/統合の2コールに限定する。最新株価・決算・ニュースなどFact Packで検証できない情報は捏造せずmissing_informationへ明示し、根拠付きで最終判断を出す。",
+  "priority": "high",
+  "analysis_mode": "verified_lite",
+  "fact_mode": "network_verified",
+  "enable_network_facts": true,
+  "fact_pack_only": false,
+  "max_gemini_calls": 2,
+  "required_outputs": [
+    "verified_fact_pack",
+    "company_evaluation",
+    "valuation_view",
+    "portfolio_fit",
+    "final_decision",
+    "risks",
+    "missing_information",
+    "next_review_items",
+    "hos_update_json",
+    "investment_commander_json"
+  ],
+  "constraints": [
+    "HOS_FACT_MODE=network_verified と HOS_ENABLE_NETWORK_FACTS=true を前提に、無料かつ検証可能なネットワークFactのみ使用する",
+    "Fact Packのfact_refs/source_mapに紐づかない主張をしない",
+    "最新株価・決算・ニュース・バリュエーションを捏造しない",
+    "データ不足時はDATA_INSUFFICIENT、矛盾検出時はREVIEW_REQUIREDを優先する",
+    "バリュエーション根拠が不足している場合、BUY_CANDIDATEは禁止する",
+    "自動発注・売買実行は行わず、投資判断はレビュー用メモとして出力する",
+    "Gemini呼び出しはVerified Liteの2ステップ（analysis、review/integration）に限定する"
+  ]
+}
