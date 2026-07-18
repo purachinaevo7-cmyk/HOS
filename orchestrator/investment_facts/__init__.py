@@ -58,6 +58,38 @@ def fetch_http(url, timeout, expected_content_types=None, max_bytes=1_000_000, r
             last=e
             if attempt>=retries: raise
     raise last
+
+def extract_document_metrics(text):
+    """Best-effort parser for official IR HTML/PDF text snippets."""
+    labels={
+        "revenue":["売上収益","売上高","revenue","net sales"],
+        "operating_income":["営業利益","営業損益","operating income","operating profit"],
+        "net_income":["親会社の所有者に帰属する当期利益","当期利益","純利益","net income","profit attributable"],
+        "eps":["基本的1株当たり当期利益","1株当たり当期利益","EPS","earnings per share"],
+    }
+    clean=re.sub(r"<[^>]+>"," ", text or "")
+    clean=re.sub(r"\s+"," ", clean)
+    out={k:None for k in labels}
+    for key,names in labels.items():
+        for name in names:
+            m=re.search(re.escape(name)+r".{0,80}?([-+−]?\d[\d,]*(?:\.\d+)?)", clean, re.I)
+            if m:
+                v=_num(m.group(1).replace("−","-"))
+                if v is not None:
+                    out[key]=v; break
+    return out
+
+def discover_document_url(html, base_url):
+    links=re.findall(r'href=["\']([^"\']+)["\']', html or "", re.I)
+    scored=[]
+    for href in links:
+        u=urllib.parse.urljoin(base_url, href)
+        low=u.lower()
+        score=(3 if low.endswith('.pdf') else 0)+(2 if any(x in low for x in ['earnings','financial','result','settanshin','tanshin','20260515']) else 0)
+        if score: scored.append((score,u))
+    scored.sort(reverse=True)
+    return scored[0][1] if scored else None
+
 def normalize_provider_result(raw, provider="provider", expected_data_type=None):
     r=raw if isinstance(raw,dict) else {"status":"error","data":raw,"error_type":"INVALID_PROVIDER_RESULT"}
     status=r.get("status") if r.get("status") in VALID_STATUSES else "error"; data=r.get("data")
@@ -106,9 +138,38 @@ class OfficialIRProvider(FactProvider):
         if not b: return result(error_type="FUNDAMENTALS_UNAVAILABLE")
         d={"fiscal_period":None,"fiscal_period_start":None,"fiscal_period_end":None,"fiscal_year_label":None,"earnings_release_date":None,"source_document_title":None,"source_document_url":None,"source_document_type":None,"revenue":None,"operating_income":None,"profit_before_tax":None,"ordinary_income":None,"net_income":None,"eps":None,"operating_margin":None,"guidance":None,"guidance_revision":None,"dividend_forecast":None,"html_fetch_status":"not_attempted","ir_page_validation_status":"navigation_only","document_discovery_status":"not_attempted","document_validation_status":"not_attempted","numeric_extraction_status":"not_attempted","fiscal_period_confidence":"low","extraction_errors":[],"ir_url":b["official_ir_url"]}
         if _code(target)=="285A":
-            d.update({"fiscal_period":"2026年3月期","fiscal_period_start":"2025-04-01","fiscal_period_end":"2026-03-31","fiscal_year_label":"FY2026/3","earnings_release_date":"2026-05-15","source_document_title":"2026年3月期 決算短信","source_document_url":None,"source_document_type":"earnings_release","html_fetch_status":"not_fetched","document_discovery_status":"candidate_found","document_validation_status":"PARTIAL","numeric_extraction_status":"no_numeric_values_found","fiscal_period_confidence":"high","extraction_errors":["major financial numbers unavailable in free HTML fixture"]})
-        return result("partial",d,"Official company IR",d.get("source_document_url") or b["official_ir_url"],confidence="medium",published_at=d.get("earnings_release_date"),error_type="DATA_INSUFFICIENT" if not any(d.get(k) for k in ("revenue","operating_income","net_income","eps")) else None)
-    def fetch_dividends(self,target): return result("partial",{"annual_dividend":None,"dividend_forecast":None,"dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"unavailable"},"Official company IR",PHASE_A.get(_code(target),{}).get("official_ir_url"),error_type="FUNDAMENTALS_UNAVAILABLE")
+            candidate="https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html"
+            d.update({"fiscal_period":"2026年3月期","fiscal_period_start":"2025-04-01","fiscal_period_end":"2026-03-31","fiscal_year_label":"FY2026/3","earnings_release_date":"2026-05-15","source_document_title":"2026年3月期 決算短信","source_document_url":candidate,"source_document_candidate_url":candidate,"source_document_type":"earnings_release","html_fetch_status":"not_attempted","document_discovery_status":"candidate_found","document_validation_status":"PARTIAL","numeric_extraction_status":"not_attempted","fiscal_period_confidence":"high","extraction_errors":[]})
+            try:
+                http=fetch_http(candidate,15,["text/html","application/pdf"],2_000_000,1)
+                fetched_url=http.get("url") or candidate; text=http.get("text") or ""
+                pdf_url=discover_document_url(text, fetched_url)
+                if pdf_url and canonical_url(pdf_url)!=canonical_url(fetched_url):
+                    try:
+                        pdf=fetch_http(pdf_url,20,["application/pdf","text/html"],4_000_000,1); fetched_url=pdf.get("url") or pdf_url; text=pdf.get("text") or text; d["source_document_url"]=fetched_url; d["source_document_type"]="earnings_release_pdf" if fetched_url.lower().endswith(".pdf") else "earnings_release"
+                    except Exception as e:
+                        d["extraction_errors"].append("PDF_FETCH_FAILED: "+sanitize_error_message(str(e)))
+                vals=extract_document_metrics(text); d.update({k:v for k,v in vals.items() if v is not None})
+                d.update({"html_fetch_status":"fetched","ir_page_validation_status":"official_document_fetched","numeric_extraction_status":"parsed" if any(v is not None for v in vals.values()) else "no_numeric_values_found","document_validation_status":"VERIFIED" if all(d.get(k) is not None for k in ("revenue","operating_income","net_income","eps")) else "PARTIAL","content_hash":hashlib.sha256(text.encode()).hexdigest()[:16],"document_text_length":len(text)})
+                if not any(v is not None for v in vals.values()): d["extraction_errors"].append("major financial numbers not found by document parser")
+            except Exception as e:
+                d.update({"html_fetch_status":"fetch_failed" if network_allowed() else "network_disabled","numeric_extraction_status":"not_attempted"})
+                d["extraction_errors"].append("DOCUMENT_FETCH_FAILED: "+sanitize_error_message(str(e)))
+        return result("partial",d,"Official company IR",d.get("source_document_url") or b["official_ir_url"],confidence="medium",published_at=d.get("earnings_release_date"),attempted_network=d.get("html_fetch_status") not in {"not_attempted","network_disabled"},error_type="DATA_INSUFFICIENT" if not any(d.get(k) for k in ("revenue","operating_income","net_income","eps")) else None)
+    def fetch_dividends(self,target):
+        b=PHASE_A.get(_code(target),{})
+        d={"annual_dividend":None,"dividend_forecast":None,"dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"partial","source_document_url":b.get("official_ir_url"),"fetch_status":"not_attempted","extraction_errors":[]}
+        if b.get("official_ir_url"):
+            try:
+                http=fetch_http(b["official_ir_url"],15,["text/html"],1_500_000,1); text=http.get("text") or ""; d["fetch_status"]="fetched"; d["content_hash"]=hashlib.sha256(text.encode()).hexdigest()[:16]
+                div=extract_document_metrics(text)  # parser hook; dividend-specific formats vary by issuer
+                m=re.search(r"(?:年間配当|配当予想|dividend).{0,80}?([-+]?\d[\d,]*(?:\.\d+)?)", re.sub(r"<[^>]+>"," ",text), re.I)
+                if m: d["dividend_forecast"]=_num(m.group(1)); d["annual_dividend"]=d["dividend_forecast"]
+                if re.search(r"自己株式|自社株買|buyback|share repurchase", text, re.I): d["buyback"]={"mentioned":True,"details":None}
+                if d["annual_dividend"] is None and d["buyback"] is None: d["extraction_errors"].append("shareholder return values not found on official IR page")
+            except Exception as e:
+                d["fetch_status"]="fetch_failed" if network_allowed() else "network_disabled"; d["extraction_errors"].append("SHAREHOLDER_RETURN_FETCH_FAILED: "+sanitize_error_message(str(e)))
+        return result("partial",d,"Official company IR",d.get("source_document_url"),error_type="DATA_INSUFFICIENT" if d["annual_dividend"] is None and d["dividend_forecast"] is None and d["buyback"] is None else None,attempted_network=d.get("fetch_status") not in {"not_attempted","network_disabled"})
     def fetch_news(self,target):
         if _code(target)=="285A": return self.make_result("partial",[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IRニュース候補。本文未取得のため本文根拠には不適格。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]}],"Official company IR","https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",published_at="2026-05-15",confidence="medium",error_type="CONTENT_NOT_FETCHED")
         return self.make_result(error_type="NEWS_UNAVAILABLE")
@@ -235,7 +296,8 @@ def build_fact_pack(task,root):
     from .valuation_calculator import calculate as _calc_val
     calc=_calc_val(price if isinstance(price,dict) else {}, financials if isinstance(financials,dict) else {}, dividends if isinstance(dividends,dict) else {})
     if isinstance(valuation,dict) and not any(valuation.get(k) is not None for k in ("per","pbr","dividend_yield","market_cap")):
-        valuation={**valuation, **{k:v for k,v in calc.items() if v is not None}, "method":"calculated", "formula":"market_cap=current_price*(shares_outstanding-treasury_shares); per=market_cap/net_income_attributable; pbr=market_cap/equity", "as_of":price.get("price_date"), "input_fact_refs":["price.current_price","financials.shares_outstanding","financials.treasury_shares","financials.net_income_attributable","financials.equity"], "source_refs":[]}
+        calc_values={k:v for k,v in calc.items() if k in {"per","pbr","dividend_yield","payout_ratio","market_cap"} and v is not None}
+        valuation={**valuation, **calc_values, "method":"calculated" if calc_values else "calculation_unavailable", "formula":"market_cap=current_price*(shares_outstanding-treasury_shares); per=market_cap/net_income_attributable; pbr=market_cap/equity", "as_of":price.get("price_date") if calc_values else None, "input_fact_refs":["price.current_price","financials.shares_outstanding","financials.treasury_shares","financials.net_income_attributable","financials.equity"], "source_refs":[]}
     news=section("news",[(providers[8],"fetch_news")]) or []
     sr=SourceRegistry(); sr.add("SRC-ID","JPX listing and identity",profile.get("source_url"),"listing_record","identity","JPX",profile.get("listing_date"),official=False,extra={"source_authority_type":"exchange_authority","source_trust_level":"authoritative","authority_domain_verified":True,"company_official":False,"content_fetched":True,"content_verified":True,"metadata_verified":True})
     if profile.get("official_ir_url"): sr.add("SRC-IR","Official IR entrance",profile.get("official_ir_url"),"index_page","ir_navigation","Official company IR",None,official=True)

@@ -1,0 +1,14 @@
+{
+  "planned_calls": 15,
+  "estimated_calls": 15,
+  "actual_calls": 0,
+  "successful_calls": 0,
+  "failed_calls": 0,
+  "retry_calls": 0,
+  "limit": 0,
+  "events": [],
+  "calls_by_agent": {},
+  "token_usage_by_agent": {},
+  "finish_reasons": {},
+  "provider_errors": []
+}

@@ -1,0 +1,529 @@
+{
+  "schema_version": "1.2",
+  "task_id": "INV-DEMO-001",
+  "ticker": "285A.T",
+  "company": {
+    "ticker": "285A.T",
+    "securities_code": "285A",
+    "company_name": "キオクシアホールディングス",
+    "legal_name": "キオクシアホールディングス株式会社",
+    "aliases": [
+      "キオクシアHD",
+      "Kioxia Holdings Corporation"
+    ],
+    "exchange": "Tokyo Stock Exchange",
+    "market_segment": "Prime Market",
+    "listed": true,
+    "listing_date": "2024-12-18",
+    "delisted": false,
+    "country": "Japan",
+    "currency": "JPY",
+    "official_company_url": "https://www.kioxia-holdings.com/ja-jp/",
+    "official_ir_url": "https://www.kioxia-holdings.com/ja-jp/ir.html",
+    "source_url": "https://www.jpx.co.jp/listing/stocks/new/index.html"
+  },
+  "identity_validation": {
+    "status": "VERIFIED",
+    "checks": {
+      "ticker": true,
+      "company_name": true,
+      "securities_code": true,
+      "exchange": true,
+      "official_ir_domain": true
+    },
+    "human_review_required": false
+  },
+  "price": {},
+  "price_trend": {},
+  "financials": {
+    "fiscal_period": "2026年3月期",
+    "fiscal_period_start": "2025-04-01",
+    "fiscal_period_end": "2026-03-31",
+    "fiscal_year_label": "FY2026/3",
+    "earnings_release_date": "2026-05-15",
+    "source_document_title": "2026年3月期 決算短信",
+    "source_document_url": "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+    "source_document_type": "earnings_release",
+    "revenue": null,
+    "operating_income": null,
+    "profit_before_tax": null,
+    "ordinary_income": null,
+    "net_income": null,
+    "eps": null,
+    "operating_margin": null,
+    "guidance": null,
+    "guidance_revision": null,
+    "dividend_forecast": null,
+    "html_fetch_status": "fetch_failed",
+    "ir_page_validation_status": "navigation_only",
+    "document_discovery_status": "candidate_found",
+    "document_validation_status": "PARTIAL",
+    "numeric_extraction_status": "not_attempted",
+    "fiscal_period_confidence": "high",
+    "extraction_errors": [
+      "DOCUMENT_FETCH_FAILED: <urlopen error Tunnel connection failed: 403 Forbidden>"
+    ],
+    "ir_url": "https://www.kioxia-holdings.com/ja-jp/ir.html",
+    "source_document_candidate_url": "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html"
+  },
+  "valuation": {
+    "per": null,
+    "forward_per": null,
+    "pbr": null,
+    "dividend_yield": null,
+    "payout_ratio": null,
+    "market_cap": null,
+    "status": "unavailable",
+    "method": "calculation_unavailable",
+    "formula": "market_cap=current_price*(shares_outstanding-treasury_shares); per=market_cap/net_income_attributable; pbr=market_cap/equity",
+    "as_of": null,
+    "input_fact_refs": [
+      "price.current_price",
+      "financials.shares_outstanding",
+      "financials.treasury_shares",
+      "financials.net_income_attributable",
+      "financials.equity"
+    ],
+    "source_refs": []
+  },
+  "shareholder_returns": {
+    "annual_dividend": null,
+    "dividend_forecast": null,
+    "dividend_yield": null,
+    "dividend_history": null,
+    "payout_ratio": null,
+    "buyback": null,
+    "shareholder_benefits": null,
+    "status": "partial",
+    "source_document_url": "https://www.kioxia-holdings.com/ja-jp/ir.html",
+    "fetch_status": "fetch_failed",
+    "extraction_errors": [
+      "SHAREHOLDER_RETURN_FETCH_FAILED: <urlopen error Tunnel connection failed: 403 Forbidden>"
+    ]
+  },
+  "news": [
+    {
+      "title": "2026年3月期 決算発表",
+      "published_at": "2026-05-15",
+      "category": "earnings",
+      "source_url": "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "source_type": "official_news_article",
+      "official": true,
+      "metadata_verified": true,
+      "content_fetched": false,
+      "content_verified": false,
+      "evidence_eligible": false,
+      "metadata_evidence_eligible": true,
+      "content_hash": null,
+      "article_text_length": 0,
+      "summary": "公式IRニュース候補。本文未取得のため本文根拠には不適格。",
+      "company_identity_verified": true,
+      "extraction_errors": [
+        "ARTICLE_CONTENT_NOT_FETCHED"
+      ],
+      "_selection": {
+        "completeness_score": 0.7,
+        "validation_score": 0.5,
+        "source_quality_score": 0.5,
+        "freshness_score": 0.5,
+        "selected_provider": "official_news",
+        "attempted_providers": [
+          "official_news"
+        ],
+        "fallback_used": false,
+        "rejected_candidates": [
+          {
+            "provider": "official_news",
+            "status": "partial",
+            "completeness_score": 0.7,
+            "error_type": "CONTENT_NOT_FETCHED"
+          }
+        ],
+        "selection_reason": "best partial after exhausting providers"
+      }
+    }
+  ],
+  "risks": [],
+  "source_map": {
+    "SRC-ID-001": {
+      "title": "JPX listing and identity",
+      "publisher": "JPX",
+      "url": "https://www.jpx.co.jp/listing/stocks/new/index.html",
+      "source_type": "listing_record",
+      "canonical_url": "https://jpx.co.jp/listing/stocks/new/index.html",
+      "evidence_eligible": true,
+      "section": [
+        "identity"
+      ],
+      "document_title": "JPX listing and identity",
+      "document_id": null,
+      "fiscal_period": null,
+      "page_range": null,
+      "validation_status": "VERIFIED",
+      "validation_errors": [],
+      "content_hash": "9def4a6f72f2aa80",
+      "independent_source_key": "https://jpx.co.jp/listing/stocks/new/index.html",
+      "official_domain_verified": false,
+      "fetched_content": false,
+      "published_at": "2024-12-18",
+      "fetched_at": "2026-07-18T02:53:23.776105+00:00",
+      "official": false,
+      "content_fetched": true,
+      "content_verified": true,
+      "metadata_verified": true,
+      "authority_domain_verified": true,
+      "company_official": false,
+      "source_authority_type": "exchange_authority",
+      "source_trust_level": "authoritative",
+      "input_fact_refs": [],
+      "supports_fact_refs": []
+    },
+    "SRC-IR-001": {
+      "title": "Official IR entrance",
+      "publisher": "Official company IR",
+      "url": "https://www.kioxia-holdings.com/ja-jp/ir.html",
+      "source_type": "index_page",
+      "canonical_url": "https://kioxia-holdings.com/ja-jp/ir.html",
+      "evidence_eligible": false,
+      "section": [
+        "ir_navigation"
+      ],
+      "document_title": "Official IR entrance",
+      "document_id": null,
+      "fiscal_period": null,
+      "page_range": null,
+      "validation_status": "VERIFIED",
+      "validation_errors": [],
+      "content_hash": "6da315aa3abb29e0",
+      "independent_source_key": "https://kioxia-holdings.com/ja-jp/ir.html",
+      "official_domain_verified": true,
+      "fetched_content": false,
+      "published_at": null,
+      "fetched_at": "2026-07-18T02:53:23.776433+00:00",
+      "official": true,
+      "content_fetched": false,
+      "content_verified": false,
+      "metadata_verified": true,
+      "authority_domain_verified": true,
+      "company_official": true,
+      "source_authority_type": "company_official",
+      "source_trust_level": "primary",
+      "input_fact_refs": [],
+      "supports_fact_refs": [],
+      "verified_for_navigation": true,
+      "verified_for_analysis": false
+    },
+    "SRC-FIN-001": {
+      "title": "Financial document",
+      "publisher": "Official company IR",
+      "url": "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "source_type": "earnings_release",
+      "canonical_url": "https://kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "evidence_eligible": false,
+      "section": [
+        "financials"
+      ],
+      "document_title": "2026年3月期 決算短信",
+      "document_id": null,
+      "fiscal_period": "2026年3月期",
+      "page_range": null,
+      "validation_status": "PARTIAL",
+      "validation_errors": [],
+      "content_hash": "b856d27ddb71e314",
+      "independent_source_key": "https://kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "official_domain_verified": true,
+      "fetched_content": false,
+      "published_at": "2026-05-15",
+      "fetched_at": "2026-07-18T02:53:23.776578+00:00",
+      "official": true,
+      "content_fetched": false,
+      "content_verified": false,
+      "metadata_verified": false,
+      "authority_domain_verified": true,
+      "company_official": true,
+      "source_authority_type": "company_official",
+      "source_trust_level": "primary",
+      "input_fact_refs": [],
+      "supports_fact_refs": []
+    },
+    "SRC-NEWS-001": {
+      "title": "Official news",
+      "publisher": "Official company IR",
+      "url": "https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "source_type": "official_news_article",
+      "canonical_url": "https://kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "evidence_eligible": false,
+      "section": [
+        "news"
+      ],
+      "document_title": "2026年3月期 決算発表",
+      "document_id": null,
+      "fiscal_period": null,
+      "page_range": null,
+      "validation_status": "PARTIAL",
+      "validation_errors": [],
+      "content_hash": null,
+      "independent_source_key": "https://kioxia-holdings.com/ja-jp/ir/news/20260515.html",
+      "official_domain_verified": true,
+      "fetched_content": false,
+      "published_at": "2026-05-15",
+      "fetched_at": "2026-07-18T02:53:23.776650+00:00",
+      "official": true,
+      "content_fetched": false,
+      "content_verified": false,
+      "metadata_verified": true,
+      "authority_domain_verified": true,
+      "company_official": true,
+      "source_authority_type": "company_official",
+      "source_trust_level": "primary",
+      "input_fact_refs": [],
+      "supports_fact_refs": []
+    }
+  },
+  "cache": {
+    "cache_hit": [],
+    "refreshed_sections": [
+      "company_profile",
+      "source_map",
+      "financials",
+      "valuation",
+      "dividends",
+      "news"
+    ],
+    "unchanged_sections": [],
+    "expired_sections": [],
+    "provider_calls": 9,
+    "network_requests": 3
+  },
+  "data_quality": {
+    "generated_at": "2026-07-18T02:53:23.776712+00:00",
+    "price_as_of": null,
+    "fundamentals_as_of": "2026年3月期",
+    "valuation_as_of": null,
+    "news_as_of": "2026-05-15",
+    "stale_fields": [],
+    "missing_fields": [
+      "price.current_price",
+      "price.previous_close",
+      "price.change",
+      "price.change_rate",
+      "price.price_date",
+      "financials.revenue",
+      "financials.operating_income",
+      "financials.net_income",
+      "financials.eps",
+      "shareholder_returns.dividend_forecast",
+      "valuation.per",
+      "valuation.per_or_pbr",
+      "risks"
+    ],
+    "missing_information": [
+      {
+        "field": "price.current_price",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.previous_close",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.change",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.change_rate",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "price.price_date",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.revenue",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.operating_income",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.net_income",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "financials.eps",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "shareholder_returns.dividend_forecast",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "valuation.per",
+        "reason": "missing",
+        "required_for": [
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "valuation.per_or_pbr",
+        "reason": "missing",
+        "required_for": [
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      },
+      {
+        "field": "risks",
+        "reason": "missing",
+        "required_for": [
+          "WATCH",
+          "BUY_CANDIDATE"
+        ],
+        "provider_attempts": [],
+        "retryable": true
+      }
+    ],
+    "conflicting_fields": [],
+    "source_conflicts": {},
+    "provider_errors": [
+      {
+        "provider": "stock_watch_v2",
+        "provider_class": "StockWatchProvider",
+        "method": "fetch_price",
+        "section": "price",
+        "attempt": 1,
+        "fallback_order": 1,
+        "status": "unavailable",
+        "data": null,
+        "source": null,
+        "source_url": null,
+        "published_at": null,
+        "fetched_at": "2026-07-18T02:53:23.748436+00:00",
+        "error_type": "PRICE_UNAVAILABLE",
+        "error_message": "no matching Stock Watch V2 record",
+        "confidence": "low",
+        "attempted_network": false,
+        "http_status": null,
+        "retryable": false
+      },
+      {
+        "provider": "yahoo_finance",
+        "provider_class": "YahooChartProvider",
+        "method": "fetch_price",
+        "section": "price",
+        "attempt": 2,
+        "fallback_order": 2,
+        "status": "unavailable",
+        "data": null,
+        "source": null,
+        "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/285A.T?range=1y&interval=1d",
+        "published_at": null,
+        "fetched_at": "2026-07-18T02:53:23.763055+00:00",
+        "error_type": "PRICE_UNAVAILABLE",
+        "error_message": "<urlopen error Tunnel connection failed: 403 Forbidden>",
+        "confidence": "low",
+        "attempted_network": true,
+        "http_status": null,
+        "retryable": true
+      },
+      {
+        "provider": "edinet",
+        "provider_class": "EDINETProvider",
+        "method": "fetch_financials",
+        "section": "financials",
+        "attempt": 2,
+        "fallback_order": 2,
+        "status": "unavailable",
+        "data": null,
+        "source": null,
+        "source_url": null,
+        "published_at": null,
+        "fetched_at": "2026-07-18T02:53:23.769269+00:00",
+        "error_type": "EDINET_API_KEY_MISSING",
+        "error_message": "EDINET_API_KEY not set; optional provider skipped",
+        "confidence": "low",
+        "attempted_network": false,
+        "http_status": null,
+        "retryable": false
+      }
+    ],
+    "data_quality": "partial",
+    "verified_sources_count": 1,
+    "total_source_records": 4,
+    "unique_source_urls": 3,
+    "independent_source_count": 1,
+    "evidence_eligible_source_count": 1,
+    "official_document_count": 2,
+    "market_data_source_count": 0,
+    "financial_source_count": 0,
+    "news_source_count": 0,
+    "index_page_count": 1,
+    "duplicate_source_count": 0,
+    "partial_source_count": 2,
+    "failed_source_count": 0
+  }
+}

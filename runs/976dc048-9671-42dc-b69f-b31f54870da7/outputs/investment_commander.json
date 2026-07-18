@@ -1,0 +1,59 @@
+{
+  "app": "Investment Commander",
+  "responseType": "stockAnalysisUpdate",
+  "version": 1,
+  "generatedAt": "2026-07-18T02:53:23.779242+00:00",
+  "stocks": [
+    {
+      "code": "285A",
+      "name": "キオクシアホールディングス",
+      "marketData": {
+        "price": null,
+        "priceDate": ""
+      },
+      "companyEvaluation": {
+        "score": 0,
+        "rank": "D",
+        "comment": "未評価"
+      },
+      "priceEvaluation": {
+        "score": 0,
+        "rank": "評価不能",
+        "comment": "未評価"
+      },
+      "overallEvaluation": {
+        "score": 0,
+        "decision": "評価未完了",
+        "action": "情報確認",
+        "investmentReasons": [],
+        "reasonsToWait": [],
+        "mainRisk": "情報不足",
+        "nextCheckPoints": [],
+        "nextReviewAt": "2026-07-18"
+      },
+      "decision": {
+        "status": "分析済み",
+        "priority": "",
+        "targetPrice": null,
+        "investmentReasons": [],
+        "mainRisk": "情報不足",
+        "watchPoints": []
+      },
+      "analysisHistoryEntry": {
+        "analysisDate": "2026-07-18",
+        "changeReason": "HOS AI Company generated update",
+        "summary": ""
+      },
+      "lastAnalyzedAt": "2026-07-18",
+      "nextReviewAt": "2026-07-18",
+      "sources": [],
+      "freshnessStatus": "情報不足",
+      "riskFlags": [
+        "情報不足"
+      ],
+      "scores": {},
+      "themes": [],
+      "investmentPurposes": []
+    }
+  ]
+}

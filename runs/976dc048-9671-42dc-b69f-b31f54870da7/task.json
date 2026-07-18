@@ -1,0 +1,18 @@
+{
+  "task_id": "INV-DEMO-001",
+  "workflow": "investment_analysis",
+  "type": "investment_analysis",
+  "target": {
+    "ticker": "285A",
+    "company_name": "キオクシアホールディングス"
+  },
+  "request": "最新情報を取得できないdry-run環境を前提に、必要な分析構造と不足情報を明示する",
+  "required_outputs": [
+    "company_evaluation",
+    "price_evaluation",
+    "overall_judgment",
+    "risks",
+    "next_review_items",
+    "hos_update_json"
+  ]
+}

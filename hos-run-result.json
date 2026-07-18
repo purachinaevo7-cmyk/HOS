@@ -1,0 +1,9 @@
+{
+  "run_id": "976dc048-9671-42dc-b69f-b31f54870da7",
+  "task_id": "INV-DEMO-001",
+  "status": "completed",
+  "report_path": "/workspace/HOS/outputs/reports/INV-DEMO-001.md",
+  "hos_json_path": "/workspace/HOS/outputs/json/INV-DEMO-001.json",
+  "usage_path": "/workspace/HOS/runs/976dc048-9671-42dc-b69f-b31f54870da7/usage.json",
+  "dry_run": false
+}
