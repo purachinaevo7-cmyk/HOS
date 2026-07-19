@@ -36,11 +36,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
+      - name: Install PDF export dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-impress fonts-noto-cjk
+      - name: Install Python dependencies
         run: python -m pip install -r requirements.txt
       - name: Unit tests
         run: python -m unittest discover -s skills/growth-menu/tests -p 'test_*.py'
-      - name: Offline lesson smoke test
+      - name: Offline PDF lesson smoke test
         run: |
           rm -rf /tmp/growth-menu-smoke
           python skills/growth-menu/generate_growth_menu.py \
@@ -69,7 +73,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
+      - name: Install PDF export dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-impress fonts-noto-cjk
+      - name: Install Python dependencies
         run: python -m pip install -r requirements.txt
       - name: Resolve target date
         id: date
@@ -88,7 +96,7 @@ jobs:
       - name: Validate Gemini free-tier secret
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.offline) }}
         run: test -n "$GEMINI_API_KEY" || (echo 'GEMINI_API_KEY secret is required' >&2; exit 1)
-      - name: Generate teaching PowerPoint
+      - name: Generate teaching PDF and preview
         shell: bash
         run: |
           set -euo pipefail
@@ -124,7 +132,8 @@ jobs:
         with:
           name: growth-lesson-${{ steps.date.outputs.value }}
           path: |
-            outputs/growth-menu/latest.pptx
+            outputs/growth-menu/latest.pdf
+            outputs/growth-menu/latest-preview.png
             outputs/growth-menu/latest.json
             outputs/growth-menu/latest_notification.md
             outputs/growth-menu/audit/latest.json
@@ -135,6 +144,7 @@ jobs:
         run: |
           echo '## Morning Growth Lesson' >> "$GITHUB_STEP_SUMMARY"
           echo 'Date: ${{ steps.date.outputs.value }}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Delivery: 5-page PDF + first-page PNG preview' >> "$GITHUB_STEP_SUMMARY"
           echo 'Provider: Gemini free tier (one call; no OpenAI fallback)' >> "$GITHUB_STEP_SUMMARY"
           if [ -f outputs/growth-menu/audit/latest.json ]; then
             python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
