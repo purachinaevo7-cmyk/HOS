@@ -1,13 +1,15 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "timezone": "Asia/Tokyo",
   "schedule": {
     "generate_at_jst": "05:30",
     "notify_at_jst": "06:30"
   },
   "output": {
-    "slide_count": 4,
-    "layout": "LAYOUT_WIDE",
+    "page_count": 5,
+    "primary_format": "pdf",
+    "preview_image": true,
+    "layout": "WIDE_16_9",
     "font_family": "Yu Gothic UI",
     "title_pt": 20,
     "body_pt": 16,
@@ -26,6 +28,7 @@
   "curriculum": {
     "daily_sections": [
       "learning_map",
+      "company_or_industry_snapshot",
       "business_theory",
       "case_application",
       "english_grammar"
