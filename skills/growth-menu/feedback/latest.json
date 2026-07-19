@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "submission_date": null,
+  "status": "no_submission_yet",
+  "redacted_summary": "初回生成。過去の学習傾向のみを使う。",
+  "business": {
+    "strengths": [],
+    "next_focus": [
+      "問いを先に明確にする",
+      "根拠と結論をつなぐ",
+      "業界要因と個社要因を分ける"
+    ],
+    "difficulty": 2
+  },
+  "english": {
+    "strengths": [],
+    "mistake_patterns": [
+      "主語と動詞の骨格",
+      "冠詞と単数・複数",
+      "前置詞と動詞の型"
+    ],
+    "next_grammar": "主語と動詞の骨格",
+    "difficulty": 2
+  },
+  "privacy_check": {
+    "raw_output_stored": false,
+    "confidential_details_removed": true
+  }
+}
