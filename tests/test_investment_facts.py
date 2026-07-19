@@ -314,3 +314,28 @@ def test_yahoo_metadata_conflict_is_warning_not_hard_source_conflict():
     assert err is None
     assert data['source_conflict'] is True
     assert data['metadata_status']=='stale_or_inconsistent'
+
+def test_285a_securities_report_selects_fy2026_consolidated_current_column(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    html='<a href="https://ssl4.eir-parts.net/doc/285A/yuho_pdf/S100YJ18/00.pdf">2026年3月期 有価証券報告書 PDF</a>'
+    raw=Path('tests/fixtures/285A_2026_securities_report_text.pdf').read_bytes()
+    def fake_fetch(url,*args,**kwargs):
+        if url.endswith('/ir.html'):
+            return {'text':html,'raw':html.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url}
+        if url.endswith('/00.pdf'):
+            return {'text':'','raw':raw,'http_status':200,'content_type':'application/pdf','url':url,'final_url':url}
+        raise RuntimeError(url)
+    monkeypatch.setattr(f,'network_allowed',lambda: True)
+    monkeypatch.setattr(f,'fetch_http',fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    fin=pack['financials']
+    assert fin['document_validation_status']=='VERIFIED'
+    assert fin['revenue']==2337628
+    assert fin['operating_income']==870369
+    assert fin['net_income_attributable']==554490
+    assert fin['eps']==1024.07
+    assert fin['shares_outstanding']==546086290
+    assert fin['equity_attributable_to_owners']==1398929
+    assert fin['current_year_column_verified'] is True
+    assert fin['consolidated_context_verified'] is True
+    assert 'metric_source_contexts' in fin and fin['metric_source_contexts']['revenue']['excerpt']
