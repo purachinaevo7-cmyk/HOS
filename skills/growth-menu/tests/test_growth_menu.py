@@ -28,23 +28,43 @@ class GrowthMenuTests(unittest.TestCase):
         self.config = generator.load_json(SKILL_DIR / "config.json")
         self.feedback = generator.load_json(SKILL_DIR / "feedback" / "latest.json")
         self.target_date = date(2026, 7, 20)
+        self.seed = generator.select_seed(self.target_date, self.feedback, [])
 
-    def test_offline_fixture_validates(self):
-        data = generator.offline_fixture(self.target_date, self.feedback)
+    def test_deterministic_lesson_validates(self):
+        data = generator.deterministic_lesson(self.target_date, self.feedback, self.seed)
         generator.validate_content(data, self.config, self.target_date)
+        self.assertEqual(data["generation"]["provider"], "offline")
 
     def test_generate_and_audit(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp)
-            data = generator.offline_fixture(self.target_date, self.feedback)
+            data = generator.deterministic_lesson(self.target_date, self.feedback, self.seed)
             generator.validate_content(data, self.config, self.target_date)
             generator.write_outputs(data, self.config, output_dir)
             report = auditor.audit(output_dir, self.target_date.isoformat())
             self.assertEqual(report["status"], "pass", json.dumps(report, ensure_ascii=False, indent=2))
 
+    def test_powerpoint_is_lesson_not_submission_form(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            data = generator.deterministic_lesson(self.target_date, self.feedback, self.seed)
+            generator.write_outputs(data, self.config, output_dir)
+            ppt_text, _ = auditor.pptx_text_and_fonts(output_dir / "latest.pptx")
+            self.assertIn("基本概念", ppt_text)
+            self.assertIn("ケースの状況", ppt_text)
+            self.assertIn("英文法の授業", ppt_text)
+            for forbidden in self.config["output"]["forbidden_deck_phrases"]:
+                self.assertNotIn(forbidden, ppt_text)
+
     def test_excluded_learning_apps_are_rejected(self):
-        data = generator.offline_fixture(self.target_date, self.feedback)
+        data = generator.deterministic_lesson(self.target_date, self.feedback, self.seed)
         data["focus_summary"] += " Duolingo"
+        with self.assertRaises(ValueError):
+            generator.validate_content(data, self.config, self.target_date)
+
+    def test_openai_provider_is_rejected(self):
+        data = generator.deterministic_lesson(self.target_date, self.feedback, self.seed)
+        data["generation"]["provider"] = "openai"
         with self.assertRaises(ValueError):
             generator.validate_content(data, self.config, self.target_date)
 
