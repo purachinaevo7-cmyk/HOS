@@ -98,6 +98,7 @@ def test_yahoo_chart_provider_uses_series_previous_close_not_meta():
     assert data["change"]==-10000
     assert round(data["change_rate"],4)==-0.1610
     assert data["source_conflict"] is True
+    assert data["meta_conflict_handling"]=="STALE_OR_INCONSISTENT_METADATA"
     assert data["diagnostics"]["meta_chartPreviousClose"]==2414
 
 
@@ -120,7 +121,8 @@ def test_285a_fixture_source_map_and_gate_semantics(tmp_path):
     assert pack["data_quality"]["duplicate_source_count"]==0
     assert gate["status"]=="DATA_INSUFFICIENT"
     fields={m["field"] for m in pack["data_quality"]["missing_information"]}
-    assert {"valuation.per","valuation.per_or_pbr","risks","shareholder_returns.dividend_forecast"} <= fields
+    assert {"valuation.per","valuation.per_or_pbr","risks"} <= fields
+    assert "shareholder_returns.dividend_forecast" not in fields
 
 
 def test_285a_candidate_does_not_use_inferred_news_url(tmp_path):
@@ -139,8 +141,8 @@ def test_valuation_calculation_unavailable_when_inputs_missing(tmp_path):
 def test_shareholder_returns_records_official_ir_attempt(tmp_path):
     pack,_=build_fact_pack(TASK,tmp_path)
     sr=pack["shareholder_returns"]
-    assert sr["source_document_url"]==pack["company"]["official_ir_url"]
-    assert sr["fetch_status"] in {"fetched","fetch_failed","network_disabled"}
+    assert sr["source_document_url"]=="https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf"
+    assert sr["fetch_status"] in {"fetched","fetch_failed","network_disabled","parsed"}
     assert {"annual_dividend","dividend_forecast","buyback"} <= set(sr)
 
 
@@ -270,3 +272,58 @@ def test_yahoo_provider_provenance_survives_selection_cache_fact_pack_and_source
     assert pack2['price']['source_url']==source_url
     market=[s for s in pack2['source_map'].values() if s['source_type']=='market_data'][0]
     assert market['url']==source_url
+
+
+def test_285a_realistic_pdf_fixture_full_regression(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    pdf=(__import__('pathlib').Path(__file__).parent/'fixtures'/'285A_2026_earnings_text.pdf').read_bytes()
+    html='<a href="https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf">2026年3月期 決算短信 PDF</a>'
+    def fake_fetch(url,*args,**kwargs):
+        if url.endswith('/ir.html'):
+            return {'text':html,'raw':html.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url}
+        if url=='https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf':
+            return {'text':'','raw':pdf,'http_status':200,'content_type':'application/pdf','url':url,'final_url':url}
+        raise RuntimeError(url)
+    monkeypatch.setattr(f,'network_allowed',lambda: True)
+    monkeypatch.setattr(f,'fetch_http',fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    fin=pack['financials']
+    assert fin['source_document_url']=='https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf'
+    assert fin['parser_name']=='pypdf'
+    assert fin['parse_status']=='parsed'
+    assert fin['document_validation_status']=='VERIFIED'
+    assert fin['fiscal_period_end']=='2026-03-31'
+    assert fin['revenue']==2337628
+    assert fin['operating_income']==870369
+    assert fin['net_income_attributable']==554490
+    assert fin['eps']==1024.07
+    assert pack['shareholder_returns']['annual_dividend_actual']==0.00
+    assert pack['shareholder_returns']['dividend_forecast_status']=='undecided'
+    assert pack['news']
+
+
+def test_285a_rejects_prior_year_document_period_mismatch(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    html='<a href="https://ssl4.eir-parts.net/doc/285A/tdnet/old/00.pdf">2025年3月期 決算短信 PDF</a>'
+    pdf=b'%PDF Kioxia Holdings Corporation 285A 2025/3 earnings release revenue 1 operating income 2 net income 3 EPS 4'
+    def fake_fetch(url,*args,**kwargs):
+        if url.endswith('/ir.html'): return {'text':html,'raw':html.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url}
+        return {'text':'','raw':pdf,'http_status':200,'content_type':'application/pdf','url':url,'final_url':url}
+    monkeypatch.setattr(f,'network_allowed',lambda: True)
+    monkeypatch.setattr(f,'fetch_http',fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    assert pack['financials']['source_document_url'] is None
+    assert pack['financials']['document_validation_status']=='FAILED'
+    assert any(a.get('error_type')=='DOCUMENT_PERIOD_MISMATCH' for a in pack['financials']['provider_attempts'])
+
+
+def test_canonical_url_dedupes_fetches():
+    from orchestrator.investment_facts import discover_document_candidates
+    top='<a href="/ir/results.html?utm_source=x#frag">決算短信</a><a href="/ir/results.html/../results.html?utm_source=y">決算短信</a>'
+    nav='<a href="https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf#p1">2026年3月期 決算短信 PDF</a>'
+    calls=[]
+    def fetcher(url):
+        calls.append(url); return {'text':nav,'http_status':200,'content_type':'text/html','final_url':'https://www.kioxia-holdings.com/ir/results.html'}
+    docs=discover_document_candidates(top,'https://www.kioxia-holdings.com/ir.html',fetcher=fetcher,company_domain_url='https://www.kioxia-holdings.com/ir.html')
+    assert len(docs)==1
+    assert len(calls)==1

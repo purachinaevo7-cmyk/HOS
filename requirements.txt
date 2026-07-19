@@ -7,3 +7,5 @@ pytest
 
 exchange_calendars
 PyYAML
+pypdf
+cryptography>=3.1
