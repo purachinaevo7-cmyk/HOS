@@ -173,6 +173,10 @@ def extract_document_metrics(text):
         "operating_income":["営業利益","営業損益","operating income","operating profit"],
         "net_income":["親会社の所有者に帰属する当期利益","当期利益","純利益","net income","profit attributable"],
         "eps":["基本的1株当たり当期利益","1株当たり当期利益","EPS","earnings per share"],
+        "profit_before_tax":["税引前利益","profit before tax"],
+        "shares_outstanding":["発行済株式数","shares outstanding"],
+        "treasury_shares":["自己株式数","treasury shares"],
+        "equity":["親会社の所有者に帰属する持分","純資産","資本合計","equity"],
     }
     clean=re.sub(r"<[^>]+>"," ", text or "")
     clean=re.sub(r"\s+"," ", clean)
@@ -185,6 +189,15 @@ def extract_document_metrics(text):
                 if v is not None:
                     out[key]=v; break
     return out
+
+def detect_document_period(text, target):
+    norm=_nfkc(text or "")
+    if _code(target)=="285A":
+        if re.search(r"2026年\s*3月期|2026/3|FY2026|FY 2026", norm, re.I):
+            return True, "FY2026/3"
+        if re.search(r"2025年\s*3月期|2025/3|FY2025|FY 2025", norm, re.I):
+            return False, "FY2025/3"
+    return True, None
 
 def normalize_provider_result(raw, provider="provider", expected_data_type=None):
     r=raw if isinstance(raw,dict) else {"status":"error","data":raw,"error_type":"INVALID_PROVIDER_RESULT"}
@@ -240,7 +253,7 @@ class OfficialIRProvider(FactProvider):
     def fetch_financials(self,target):
         b=PHASE_A.get(_code(target))
         if not b: return result(error_type="FUNDAMENTALS_UNAVAILABLE")
-        d={"fiscal_period":None,"fiscal_period_start":None,"fiscal_period_end":None,"fiscal_year_label":None,"earnings_release_date":None,"source_document_title":None,"source_document_url":None,"source_document_candidate_url":None,"source_document_type":None,"revenue":None,"operating_income":None,"profit_before_tax":None,"ordinary_income":None,"net_income":None,"eps":None,"operating_margin":None,"guidance":None,"guidance_revision":None,"dividend_forecast":None,"html_fetch_status":"not_attempted","ir_page_validation_status":"navigation_only","document_discovery_status":"discovery_not_attempted","document_validation_status":"not_attempted","numeric_extraction_status":"not_attempted","fiscal_period_confidence":"low","extraction_errors":[],"provider_attempts":[],"document_candidates":[],"ir_url":b["official_ir_url"]}
+        d={"fiscal_period":None,"fiscal_period_start":None,"fiscal_period_end":None,"fiscal_year_label":None,"earnings_release_date":None,"source_document_title":None,"source_document_url":None,"source_document_candidate_url":None,"source_document_type":None,"revenue":None,"operating_income":None,"profit_before_tax":None,"ordinary_income":None,"net_income":None,"eps":None,"operating_margin":None,"guidance":None,"guidance_revision":None,"dividend_forecast":None,"html_fetch_status":"not_attempted","ir_page_validation_status":"navigation_only","document_discovery_status":"discovery_not_attempted","document_validation_status":"not_attempted","numeric_extraction_status":"not_attempted","fiscal_period_confidence":"low","extraction_errors":[],"provider_attempts":[],"document_candidates":[],"ir_url":b["official_ir_url"],"parser_name":None,"parse_status":"not_attempted","document_period_mismatch":False,"rejected_document_period":None}
         try:
             ir=fetch_http(b["official_ir_url"],15,["text/html"],2_000_000,1)
             html=ir.get("text") or ""; base=ir.get("final_url") or ir.get("url") or b["official_ir_url"]
@@ -255,11 +268,14 @@ class OfficialIRProvider(FactProvider):
                     if status!=200 or ctype!="application/pdf" or not raw.startswith(b"%PDF"):
                         attempt.update({"error_type":"DOCUMENT_VALIDATION_FAILED","error_message":"PDF status/content-type/magic validation failed","retryable":False}); d["provider_attempts"].append(attempt); continue
                     text=extract_pdf_text(raw)
-                    code_ok=_code(target) in text; name_ok=(_norm(b.get("company_name")) in _norm(text) or _norm(b.get("legal_name")) in _norm(text)); period_ok=bool(re.search(r"2026年\s*3月期|2026/3|FY2026",text)) if _code(target)=="285A" else True
-                    if not ((code_ok or name_ok) and period_ok):
-                        attempt.update({"error_type":"DOCUMENT_IDENTITY_FAILED","error_message":"company code/name or fiscal period mismatch","retryable":False}); d["provider_attempts"].append(attempt); continue
-                    vals=extract_document_metrics(text); d.update({k:v for k,v in vals.items() if v is not None})
-                    d.update({"fiscal_period":"2026年3月期" if _code(target)=="285A" else d.get("fiscal_period"),"fiscal_period_start":"2025-04-01" if _code(target)=="285A" else d.get("fiscal_period_start"),"fiscal_period_end":"2026-03-31" if _code(target)=="285A" else d.get("fiscal_period_end"),"fiscal_year_label":"FY2026/3" if _code(target)=="285A" else d.get("fiscal_year_label"),"earnings_release_date":"2026-05-15" if _code(target)=="285A" else d.get("earnings_release_date"),"source_document_title":c.get("anchor_text") or "Financial document","source_document_url":final,"source_document_candidate_url":url,"source_document_type":c.get("document_type") or "financial_document","document_discovery_status":"content_fetched","document_validation_status":"VERIFIED" if all(d.get(k) is not None for k in ("revenue","operating_income","net_income","eps")) else "PARTIAL","numeric_extraction_status":"parsed" if any(vals.values()) else "no_numeric_values_found","content_hash":hashlib.sha256(raw).hexdigest()[:16],"document_text_length":len(text),"linked_from_official_page":True,"discovery_source_url":base,"external_document_host":urllib.parse.urlparse(final).hostname,"authority_chain_verified":bool(c.get("authority_chain_verified")),"discovery_chain":c.get("discovery_chain"),"http_status":status,"content_type":ctype})
+                    code_ok=_code(target) in text; name_ok=(_norm(b.get("company_name")) in _norm(text) or _norm(b.get("legal_name")) in _norm(text)); period_ok, detected_period=detect_document_period(text,target)
+                    if not period_ok:
+                        d.update({"document_period_mismatch":True,"rejected_document_period":detected_period,"document_validation_status":"FAILED","parse_status":"rejected"})
+                        attempt.update({"error_type":"DOCUMENT_PERIOD_MISMATCH","error_message":"financial document fiscal period does not match requested/latest period","detected_period":detected_period,"retryable":False}); d["provider_attempts"].append(attempt); continue
+                    if not (code_ok or name_ok):
+                        attempt.update({"error_type":"DOCUMENT_IDENTITY_FAILED","error_message":"company code/name mismatch","retryable":False}); d["provider_attempts"].append(attempt); continue
+                    vals=extract_document_metrics(text); d.update({k:v for k,v in vals.items() if v is not None}); d.update({"net_income_attributable": d.get("net_income"), "parser_name":"hos_document_metrics_v2", "parse_status":"parsed" if any(v is not None for v in vals.values()) else "no_numeric_values_found"})
+                    d.update({"fiscal_period":"2026年3月期" if _code(target)=="285A" else d.get("fiscal_period"),"fiscal_period_start":"2025-04-01" if _code(target)=="285A" else d.get("fiscal_period_start"),"fiscal_period_end":"2026-03-31" if _code(target)=="285A" else d.get("fiscal_period_end"),"fiscal_year_label":"FY2026/3" if _code(target)=="285A" else d.get("fiscal_year_label"),"earnings_release_date":"2026-05-15" if _code(target)=="285A" else d.get("earnings_release_date"),"source_document_title":c.get("anchor_text") or "Financial document","source_document_url":final,"source_document_candidate_url":url,"source_document_type":c.get("document_type") or "financial_document","document_discovery_status":"content_fetched","document_validation_status":"VERIFIED" if all(d.get(k) is not None for k in ("revenue","operating_income","net_income","eps")) else "PARTIAL","numeric_extraction_status":d.get("parse_status"),"content_hash":hashlib.sha256(raw).hexdigest()[:16],"document_text_length":len(text),"linked_from_official_page":True,"discovery_source_url":base,"external_document_host":urllib.parse.urlparse(final).hostname,"authority_chain_verified":bool(c.get("authority_chain_verified")),"discovery_chain":c.get("discovery_chain"),"http_status":status,"content_type":ctype})
                     d["provider_attempts"].append(attempt); break
                 except urllib.error.HTTPError as e:
                     attempt.update({"http_status":e.code,"error_type":"DOCUMENT_FETCH_FAILED","error_message":sanitize_error_message(str(e)),"retryable":False}); d["provider_attempts"].append(attempt); d["extraction_errors"].append("DOCUMENT_FETCH_FAILED: "+sanitize_error_message(str(e))); continue
@@ -275,21 +291,44 @@ class OfficialIRProvider(FactProvider):
         return result(status,d,"Official company IR",d.get("source_document_url") or b["official_ir_url"],confidence="medium",published_at=d.get("earnings_release_date"),attempted_network=d.get("html_fetch_status") not in {"not_attempted","network_disabled"},http_status=d.get("http_status"),error_type=None if status=="ok" else "DATA_INSUFFICIENT")
     def fetch_dividends(self,target):
         b=PHASE_A.get(_code(target),{})
-        d={"annual_dividend":None,"dividend_forecast":None,"dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"partial","source_document_url":b.get("official_ir_url"),"fetch_status":"not_attempted","extraction_errors":[]}
+        d={"annual_dividend":None,"annual_dividend_status":"unknown","dividend_forecast":None,"dividend_forecast_status":"unknown","dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"partial","source_document_url":b.get("official_ir_url"),"fetch_status":"not_attempted","extraction_errors":[]}
         if b.get("official_ir_url"):
             try:
                 http=fetch_http(b["official_ir_url"],15,["text/html"],1_500_000,1); text=http.get("text") or ""; d["fetch_status"]="fetched"; d["content_hash"]=hashlib.sha256(text.encode()).hexdigest()[:16]
                 div=extract_document_metrics(text)  # parser hook; dividend-specific formats vary by issuer
                 m=re.search(r"(?:年間配当|配当予想|dividend).{0,80}?([-+]?\d[\d,]*(?:\.\d+)?)", re.sub(r"<[^>]+>"," ",text), re.I)
-                if m: d["dividend_forecast"]=_num(m.group(1)); d["annual_dividend"]=d["dividend_forecast"]
+                if m:
+                    value=_num(m.group(1))
+                    label=m.group(0)
+                    if re.search(r"予想|forecast", label, re.I): d["dividend_forecast"]=value; d["dividend_forecast_status"]="forecast"
+                    else: d["annual_dividend"]=value; d["annual_dividend_status"]="actual"
                 if re.search(r"自己株式|自社株買|buyback|share repurchase", text, re.I): d["buyback"]={"mentioned":True,"details":None}
                 if d["annual_dividend"] is None and d["buyback"] is None: d["extraction_errors"].append("shareholder return values not found on official IR page")
             except Exception as e:
                 d["fetch_status"]="fetch_failed" if network_allowed() else "network_disabled"; d["extraction_errors"].append("SHAREHOLDER_RETURN_FETCH_FAILED: "+sanitize_error_message(str(e)))
         return result("partial",d,"Official company IR",d.get("source_document_url"),error_type="DATA_INSUFFICIENT" if d["annual_dividend"] is None and d["dividend_forecast"] is None and d["buyback"] is None else None,attempted_network=d.get("fetch_status") not in {"not_attempted","network_disabled"})
     def fetch_news(self,target):
-        if _code(target)=="285A": return self.make_result("partial",[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IRニュース候補。本文未取得のため本文根拠には不適格。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]}],"Official company IR","https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html",published_at="2026-05-15",confidence="medium",error_type="CONTENT_NOT_FETCHED")
-        return self.make_result(error_type="NEWS_UNAVAILABLE")
+        b=PHASE_A.get(_code(target))
+        if not b: return self.make_result(error_type="NEWS_UNAVAILABLE")
+        articles=[]; attempted=False
+        if b.get("official_ir_url"):
+            try:
+                http=fetch_http(b["official_ir_url"],15,["text/html"],1_500_000,1); attempted=True
+                for link in extract_links(http.get("text") or "", http.get("final_url") or b["official_ir_url"], 1, b["official_ir_url"]):
+                    txt=_nfkc((link.get("anchor_text") or "")+" "+(link.get("surrounding_text") or ""))
+                    if not re.search(r"決算|適時開示|ニュース|IR|earnings|release|news", txt, re.I): continue
+                    date_match=re.search(r"(20\d{2})[年./-]\s*(\d{1,2})[月./-]\s*(\d{1,2})", txt+" "+link.get("url", ""))
+                    published_at=f"{int(date_match.group(1)):04d}-{int(date_match.group(2)):02d}-{int(date_match.group(3)):02d}" if date_match else None
+                    articles.append({"title":link.get("anchor_text") or "Official IR news", "published_at":published_at, "category":"earnings" if re.search(r"決算|earnings", txt, re.I) else "ir", "source_url":link.get("url"), "source_type":"official_news_article", "official":True, "metadata_verified":bool(published_at), "content_fetched":False, "content_verified":False, "evidence_eligible":False, "metadata_evidence_eligible":bool(published_at), "content_hash":None, "article_text_length":0, "summary":"Official IR news discovered from the company IR page; article content not fetched.", "company_identity_verified":True, "extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]})
+            except Exception:
+                attempted=network_allowed()
+        if not articles and _code(target)=="285A":
+            articles=[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IRニュース候補。本文未取得のため本文根拠には不適格。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]}]
+        uniq={}
+        for a in articles:
+            if a.get("source_url"): uniq.setdefault(canonical_url(a["source_url"]), a)
+        articles=sorted(uniq.values(), key=lambda a:a.get("published_at") or "", reverse=True)
+        return self.make_result("partial",articles,"Official company IR",b.get("official_ir_url"),published_at=articles[0].get("published_at") if articles else None,confidence="medium",error_type="CONTENT_NOT_FETCHED" if articles else "NEWS_UNAVAILABLE",attempted_network=attempted)
 class EDINETProvider(FactProvider):
     name="edinet"; priority=4
     def fetch_financials(self,target): return result(error_type="EDINET_API_KEY_MISSING",error_message="EDINET_API_KEY not set; optional provider skipped") if not os.getenv("EDINET_API_KEY") else result(error_type="FUNDAMENTALS_UNAVAILABLE")
@@ -321,7 +360,8 @@ class YahooChartProvider(FactProvider):
         meta=chart.get("meta",{}); conflict=abs((_num(meta.get("chartPreviousClose")) or prev["close"])/prev["close"]-1)>0.2 if prev["close"] else False
         extreme=any(closes[i] and abs(closes[i+1]/closes[i]-1)>0.5 for i in range(len(closes)-1))
         d={"current_price":cur["close"],"previous_close":prev["close"],"change":cur["close"]-prev["close"],"change_rate":cur["close"]/prev["close"]-1,"price_date":cur["price_date"],"open":cur["open"],"high":cur["high"],"low":cur["low"],"close":cur["close"],"volume":cur["volume"],"52w_high":max(closes),"52w_low":min(closes),"return_5d":cur["close"]/closes[-6]-1 if len(closes)>5 else None,"return_20d":cur["close"]/closes[-21]-1 if len(closes)>20 else None,"ma20":ma(20),"ma60":ma(60),"ma200":ma(200),"market_cap":meta.get("marketCap"),"price_series_type":"yahoo_chart_1d","adjusted":False,"corporate_action_detected":extreme,"source_conflict":conflict,"calculation_window_start":rows[0]["price_date"],"calculation_window_end":cur["price_date"],"diagnostics":{"meta_regularMarketPrice":meta.get("regularMarketPrice"),"meta_chartPreviousClose":meta.get("chartPreviousClose"),"series_previous_close":prev["close"],"series_current_close":cur["close"]}}
-        if conflict: d["human_review_required"]=True
+        if conflict:
+            d["human_review_required"]=True; d["metadata_status"]="stale_or_inconsistent"; d["metadata_warning"]="Yahoo metadata differs materially from chart series; using chart series previous close"
         if extreme: d["validation_errors"]=["CORPORATE_ACTION_REVIEW_REQUIRED"]
         return d,None
     def fetch_price(self,target):
@@ -329,7 +369,7 @@ class YahooChartProvider(FactProvider):
         if not network_allowed(): return result(error_type="PRICE_UNAVAILABLE",error_message="network facts disabled (cached_only)",url=url)
         try:
             http=fetch_http(url,15,["application/json","text/plain"],1_000_000,1); chart=json.loads(http["text"])["chart"]["result"][0]; data,err=self._parse_chart(chart)
-            return result("ok",data,"Yahoo Finance chart",url,confidence="medium",attempted_network=True,http_status=http.get("http_status"),error_type="SOURCE_CONFLICT" if data and data.get("source_conflict") else None) if data else result(error_type=err.get("error_type"),error_message=json.dumps(err),url=url,attempted_network=True)
+            return result("ok",data,"Yahoo Finance chart",url,confidence="medium",attempted_network=True,http_status=http.get("http_status"),error_type=None) if data else result(error_type=err.get("error_type"),error_message=json.dumps(err),url=url,attempted_network=True)
         except Exception as e: return result(error_type="PRICE_UNAVAILABLE",error_message=str(e),url=url,attempted_network=True,retryable=isinstance(e,(TimeoutError,urllib.error.URLError,OSError)))
 class FinancialsProvider(OfficialIRProvider): name="financials"; priority=7
 class ValuationProvider(FactProvider):

@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 NUM=r'[-+]?\d[\d,]*(?:\.\d+)?'
 def parse_financial_text(text, fiscal_period=None, source_ref=None):
-    labels={'revenue':r'(売上高|営業収益|Revenue)','operating_income':r'(営業利益|Operating income)','ordinary_income':r'(経常利益)','net_income':r'(親会社株主に帰属する当期純利益|当期純利益|Net income)','eps':r'(EPS|1株当たり当期純利益)','equity':r'(純資産|Equity)','total_assets':r'(総資産|Total assets)','annual_dividend':r'(年間配当|Annual dividend)'}
+    labels={'revenue':r'(売上高|営業収益|Revenue)','operating_income':r'(営業利益|Operating income)','ordinary_income':r'(経常利益)','net_income':r'(親会社株主に帰属する当期純利益|当期純利益|Net income)','eps':r'(EPS|1株当たり当期純利益)','total_assets':r'(総資産|Total assets)','annual_dividend':r'(年間配当|Annual dividend)','shares_outstanding':r'(発行済株式数|Shares outstanding)','treasury_shares':r'(自己株式数|Treasury shares)','equity':r'(純資産|Equity)'}
     unit='JPY_million' if re.search(r'百万円|millions of yen', text or '', re.I) else 'JPY'
     facts={}
     for k,pat in labels.items():

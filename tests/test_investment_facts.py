@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from orchestrator.investment_facts import build_fact_pack, validate_identity, validate_evidence, detect_contradictions, FactProvider
 
 TASK={"task_id":"KIOXIA","target":{"ticker":"285A","company_name":"キオクシアホールディングス"}}
@@ -270,3 +271,46 @@ def test_yahoo_provider_provenance_survives_selection_cache_fact_pack_and_source
     assert pack2['price']['source_url']==source_url
     market=[s for s in pack2['source_map'].values() if s['source_type']=='market_data'][0]
     assert market['url']==source_url
+
+
+def test_remaining_pr60_financial_metadata_period_rejection_and_metrics(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    html='<a href="https://ssl4.eir-parts.net/doc/285A/old.pdf">2025年3月期 決算短信 PDF</a><a href="https://ssl4.eir-parts.net/doc/285A/new.pdf">2026年3月期 決算短信 PDF</a>'
+    old=b'%PDF 285A Kioxia Holdings Corporation FY2025 revenue 9 operating income 8 net income 7 EPS 6'
+    new=(Path('tests/fixtures/285A_2026_earnings_text.pdf').read_bytes())
+    def fake_fetch(url,*args,**kwargs):
+        if url.endswith('/ir.html'): return {'text':html,'raw':html.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url}
+        if url.endswith('/old.pdf'): return {'text':'','raw':old,'http_status':200,'content_type':'application/pdf','url':url,'final_url':url}
+        if url.endswith('/new.pdf'): return {'text':'','raw':new,'http_status':200,'content_type':'application/pdf','url':url,'final_url':url}
+        raise RuntimeError(url)
+    monkeypatch.setattr(f,'network_allowed',lambda: True)
+    monkeypatch.setattr(f,'fetch_http',fake_fetch)
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    fin=pack['financials']
+    assert fin['source_document_url']=='https://ssl4.eir-parts.net/doc/285A/new.pdf'
+    assert fin['parser_name']=='hos_document_metrics_v2'
+    assert fin['parse_status']=='parsed'
+    assert fin['revenue']==2337628
+    assert fin['shares_outstanding']==540000
+    assert fin['treasury_shares']==1000
+    assert fin['equity']==1234567
+    assert any(a.get('error_type')=='DOCUMENT_PERIOD_MISMATCH' for a in fin['provider_attempts'])
+
+
+def test_official_news_dynamic_discovery_deduplicates(tmp_path, monkeypatch):
+    from orchestrator import investment_facts as f
+    html='<a href="/ja-jp/ir/news/20260515.html?utm_source=x">2026年5月15日 決算発表</a><a href="/ja-jp/ir/news/20260515.html?utm_campaign=y">2026年5月15日 決算発表 duplicate</a>'
+    monkeypatch.setattr(f,'network_allowed',lambda: True)
+    monkeypatch.setattr(f,'fetch_http',lambda url,*a,**k:{'text':html,'raw':html.encode(),'http_status':200,'content_type':'text/html','url':url,'final_url':url})
+    pack,_=f.build_fact_pack(TASK,tmp_path)
+    assert len(pack['news'])==1
+    assert pack['news'][0]['published_at']=='2026-05-15'
+
+
+def test_yahoo_metadata_conflict_is_warning_not_hard_source_conflict():
+    from orchestrator.investment_facts import YahooChartProvider
+    chart={"timestamp":[1784073600,1784160000],"meta":{"chartPreviousClose":1},"indicators":{"quote":[{"open":[100,110],"high":[101,111],"low":[99,109],"close":[100,110],"volume":[1,1]}]}}
+    data,err=YahooChartProvider()._parse_chart(chart)
+    assert err is None
+    assert data['source_conflict'] is True
+    assert data['metadata_status']=='stale_or_inconsistent'
