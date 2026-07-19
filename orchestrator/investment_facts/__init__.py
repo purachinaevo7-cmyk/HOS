@@ -1,6 +1,6 @@
 """Deterministic, source-bound investment fact collection and safety gates."""
 from __future__ import annotations
-import hashlib, heapq, html as html_lib, json, os, re, unicodedata, urllib.error, urllib.parse, urllib.request, zlib
+import hashlib, heapq, html as html_lib, json, os, posixpath, re, unicodedata, urllib.error, urllib.parse, urllib.request, zlib
 from html.parser import HTMLParser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -42,7 +42,9 @@ def canonical_url(url):
     p=urllib.parse.urlparse(url.strip()); scheme=(p.scheme or "https").lower(); host=p.hostname.lower() if p.hostname else ""
     if host.startswith("www."): host=host[4:]
     port=f":{p.port}" if p.port and not ((scheme=="https" and p.port==443) or (scheme=="http" and p.port==80)) else ""
-    path=urllib.parse.quote(urllib.parse.unquote(p.path or "/"),safe="/%-._~")
+    path=posixpath.normpath(urllib.parse.unquote(p.path or "/"))
+    if not path.startswith("/"): path="/"+path
+    path=urllib.parse.quote(path,safe="/%-._~")
     if path!="/": path=path.rstrip("/")
     pairs=[(k,v) for k,v in urllib.parse.parse_qsl(p.query,keep_blank_values=False) if k.lower() not in TRACKING_PARAMS and not k.lower().startswith("utm_")]
     q=urllib.parse.urlencode(sorted(pairs))
@@ -93,6 +95,20 @@ def _priority(link, cls):
 def extract_pdf_text(raw):
     if not raw or not raw.startswith(b"%PDF"):
         raise ValueError("PDF_MAGIC_MISSING")
+    # Prefer pypdf for real PDFs, including AES-encrypted PDFs when the
+    # optional cryptography dependency is installed.
+    try:
+        from pypdf import PdfReader
+        import io
+        reader=PdfReader(io.BytesIO(raw))
+        if getattr(reader, "is_encrypted", False):
+            try: reader.decrypt("")
+            except Exception: pass
+        text="\n".join((page.extract_text() or "") for page in reader.pages)
+        if text.strip(): return _nfkc(text)
+    except Exception as e:
+        if "cryptography" in str(e).lower() or "aes" in str(e).lower():
+            raise ValueError("PDF_PARSE_FAILED: "+sanitize_error_message(str(e)))
     parts=[]
     for m in re.finditer(rb'stream\r?\n(.*?)\r?\nendstream', raw, re.S):
         chunk=m.group(1)
@@ -111,7 +127,7 @@ def extract_pdf_text(raw):
         raise ValueError('PDF_PARSE_FAILED')
     return _nfkc(text)
 def discover_document_candidates(html, base_url, fetcher=None, max_depth=3, max_pages=20, company_domain_url=None):
-    docs=[]; seen=set(); chain={canonical_url(base_url):[]}; pq=[(0,0,0,base_url,html)]; seq=0; pages=0; official=company_domain_url or base_url
+    docs=[]; seen=set(); queued={canonical_url(base_url)}; chain={canonical_url(base_url):[]}; pq=[(0,0,0,base_url,html)]; seq=0; pages=0; official=company_domain_url or base_url
     while pq and pages<max_pages:
         _,_,depth,page_url,page_html=heapq.heappop(pq); cu=canonical_url(page_url)
         if cu in seen or depth>max_depth: continue
@@ -122,7 +138,8 @@ def discover_document_candidates(html, base_url, fetcher=None, max_depth=3, max_
                 link['document_type']='earnings_release_pdf' if link.get('file_extension')=='pdf' and '短信' in link.get('anchor_text','') else 'financial_document'; link['mime_type']='application/pdf' if link.get('file_extension')=='pdf' else 'text/html'; link['candidate_score']=100-_priority(link,cls); link['authority_chain_verified']=bool(_same_domain(page_url,official)); link['discovery_source_url']=page_url; docs.append(link); continue
             if cls=='navigation_page' and depth<max_depth and link.get('same_company_domain') and fetcher:
                 lcu=link['canonical_url']
-                if lcu and lcu not in seen:
+                if lcu and lcu not in seen and lcu not in queued:
+                    queued.add(lcu)
                     try: nxt=fetcher(link['url'])
                     except Exception: continue
                     if (nxt.get('http_status') or 200)!=200: continue

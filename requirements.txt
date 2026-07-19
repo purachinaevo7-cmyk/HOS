@@ -7,3 +7,5 @@ pytest
 exchange_calendars
 PyYAML
 python-pptx>=1.0.0
+pypdf
+cryptography>=3.1
