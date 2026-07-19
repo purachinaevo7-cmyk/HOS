@@ -1,12 +1,12 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "timezone": "Asia/Tokyo",
   "schedule": {
     "generate_at_jst": "05:30",
     "notify_at_jst": "06:30"
   },
   "output": {
-    "slide_count": 3,
+    "slide_count": 4,
     "layout": "LAYOUT_WIDE",
     "font_family": "Yu Gothic UI",
     "title_pt": 20,
@@ -14,12 +14,21 @@
     "note_pt": 14,
     "closing_pt": 18,
     "estimated_minutes_min": 20,
-    "estimated_minutes_max": 35
+    "estimated_minutes_max": 35,
+    "forbidden_deck_phrases": [
+      "提出先",
+      "完了条件",
+      "回答欄",
+      "提出用紙",
+      "アウトプット課題"
+    ]
   },
   "curriculum": {
     "daily_sections": [
-      "business_and_hr",
-      "english_grammar_and_writing"
+      "learning_map",
+      "business_theory",
+      "case_application",
+      "english_grammar"
     ],
     "business_rotation": [
       "経営戦略",
@@ -45,6 +54,14 @@
       "Udemy Business"
     ]
   },
+  "provider": {
+    "production": "gemini_free_tier",
+    "model_default": "gemini-2.5-flash",
+    "calls_per_day": 1,
+    "allow_openai": false,
+    "allow_paid_fallback": false,
+    "allow_search_grounding": false
+  },
   "privacy": {
     "repository_is_public": true,
     "store_raw_user_output": false,
@@ -57,10 +74,5 @@
       "メールアドレス",
       "電話番号"
     ]
-  },
-  "source_policy": {
-    "prefer_official_ir": true,
-    "require_https": true,
-    "max_sources": 3
   }
 }
