@@ -1,0 +1,121 @@
+{
+  "version": "1.0",
+  "modules": {
+    "主語と動詞の骨格": {
+      "title": "主語と動詞で英文の骨格を作る",
+      "pattern": "The most important point is that S + V.",
+      "rule_points": [
+        "英語は最初に主語と動詞を置く",
+        "抽象的な内容は that節で具体化する",
+        "日本語の名詞だけを並べず、文として完成させる"
+      ],
+      "bad_example": "Most important point efficient talent allocation.",
+      "correct_example": "The most important point is that the company allocates talent efficiently.",
+      "breakdown": [
+        "The most important point＝主語",
+        "is＝動詞",
+        "that節＝具体的な内容"
+      ]
+    },
+    "冠詞と単数・複数": {
+      "title": "冠詞と単数・複数をそろえる",
+      "pattern": "A challenge / The challenge / challenges",
+      "rule_points": [
+        "数えられる単数名詞には原則 a/an/the が必要",
+        "初出は a/an、特定済みなら the を使う",
+        "一般論では複数形を使うことが多い"
+      ],
+      "bad_example": "Company faces difficult challenge in market.",
+      "correct_example": "The company faces a difficult challenge in the market.",
+      "breakdown": [
+        "The company＝特定の会社",
+        "a difficult challenge＝初出の課題",
+        "the market＝話題の市場"
+      ]
+    },
+    "所有格": {
+      "title": "所有格で関係を短く表す",
+      "pattern": "Company's + noun / the noun of the company",
+      "rule_points": [
+        "会社名や人の所有・関係は 's で表せる",
+        "名詞を連結しすぎず、関係を明示する",
+        "固有名詞の後ろにも 's を付けられる"
+      ],
+      "bad_example": "OMRON sustainable growth depends on innovation.",
+      "correct_example": "OMRON's sustainable growth depends on innovation.",
+      "breakdown": [
+        "OMRON's＝OMRONの",
+        "sustainable growth＝持続的成長",
+        "depends on＝〜に依存する"
+      ]
+    },
+    "because節の接続": {
+      "title": "becauseで理由を主文につなぐ",
+      "pattern": "S + V, because S + V.",
+      "rule_points": [
+        "because節だけで文を終えない",
+        "先に結論となる主文を書く",
+        "理由は主文の後ろへ短く置く"
+      ],
+      "bad_example": "Because fixed costs are high.",
+      "correct_example": "Scale matters, because fixed costs are high.",
+      "breakdown": [
+        "Scale matters＝結論",
+        "because＝理由の接続",
+        "fixed costs are high＝理由"
+      ]
+    },
+    "前置詞と動詞の型": {
+      "title": "動詞と前置詞をセットで覚える",
+      "pattern": "depend on / benefit from / invest in / enable A to do",
+      "rule_points": [
+        "動詞だけでなく後ろの前置詞まで一組で覚える",
+        "前置詞が変わると意味や自然さが崩れる",
+        "enableは enable A to do の語順を使う"
+      ],
+      "bad_example": "Growth depends innovation and enable company improve.",
+      "correct_example": "Growth depends on innovation and enables the company to improve productivity.",
+      "breakdown": [
+        "depends on＝〜に依存する",
+        "enables the company＝会社を可能にする",
+        "to improve＝改善することを"
+      ]
+    },
+    "自然なビジネス語彙": {
+      "title": "自然なビジネス語彙を選ぶ",
+      "pattern": "demand / capability / allocation / productivity",
+      "rule_points": [
+        "需要は文脈に応じて demand を使う",
+        "能力は個人の skill と組織の capability を分ける",
+        "曖昧な thing を具体的な名詞へ置き換える"
+      ],
+      "bad_example": "AI needs make many good things for business.",
+      "correct_example": "AI-related demand requires stronger digital capabilities.",
+      "breakdown": [
+        "AI-related demand＝AI関連需要",
+        "requires＝必要とする",
+        "digital capabilities＝デジタル組織能力"
+      ]
+    }
+  },
+  "business_vocabulary": {
+    "KSF": ["success factor", "成功要因"],
+    "競争優位": ["competitive advantage", "競争優位"],
+    "固定費": ["fixed cost", "固定費"],
+    "営業レバレッジ": ["operating leverage", "営業レバレッジ"],
+    "ROIC": ["return on invested capital", "投下資本利益率"],
+    "FCF": ["free cash flow", "フリーキャッシュフロー"],
+    "収益性": ["profitability", "収益性"],
+    "外部環境": ["external environment", "外部環境"],
+    "バリューチェーン": ["value chain", "バリューチェーン"],
+    "リスク管理": ["risk management", "リスク管理"],
+    "制約": ["constraint", "制約条件"]
+  },
+  "default_vocabulary": [
+    {"word": "allocate", "meaning": "配分する", "example": "The company allocates resources carefully."},
+    {"word": "capability", "meaning": "組織能力", "example": "This capability supports sustainable growth."},
+    {"word": "trade-off", "meaning": "両立しにくい関係", "example": "Managers must understand the trade-off."},
+    {"word": "driver", "meaning": "推進要因", "example": "Productivity is a key profit driver."},
+    {"word": "evidence", "meaning": "根拠", "example": "The conclusion needs clear evidence."}
+  ]
+}
