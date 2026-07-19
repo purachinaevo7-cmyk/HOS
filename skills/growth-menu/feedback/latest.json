@@ -1,16 +1,21 @@
 {
   "schema_version": "1.0",
-  "submission_date": null,
-  "status": "no_submission_yet",
-  "redacted_summary": "初回生成。過去の学習傾向のみを使う。",
+  "submission_date": "2026-07-20",
+  "status": "partial_submission_english_pending",
+  "redacted_summary": "KSFを必要条件として捉えつつ、分析範囲によってKSFが変わる点に自発的に気づいた。個社の競争優位を顧客価値、コスト構造、人材育成、成長上の留保まで接続できている。次は業界境界・戦略グループ・地域・時間軸を明示して分析する。",
   "business": {
-    "strengths": [],
-    "next_focus": [
-      "問いを先に明確にする",
-      "根拠と結論をつなぐ",
-      "業界要因と個社要因を分ける"
+    "strengths": [
+      "KSFと競争優位の違いを概ね理解している",
+      "顧客価値とコスト構造を両面から説明できる",
+      "人材育成と事業モデルを接続できる",
+      "競合・インフレ・高価格帯展開まで留保を置ける"
     ],
-    "difficulty": 2
+    "next_focus": [
+      "分析単位を業界・戦略グループ・企業の3層で分ける",
+      "地理的範囲と顧客セグメントを先に固定する",
+      "規模の経済を業界共通KSFではなく特定モデルの勝ち筋として検証する"
+    ],
+    "difficulty": 3
   },
   "english": {
     "strengths": [],
@@ -20,7 +25,8 @@
       "前置詞と動詞の型"
     ],
     "next_grammar": "主語と動詞の骨格",
-    "difficulty": 2
+    "difficulty": 2,
+    "status": "pending"
   },
   "privacy_check": {
     "raw_output_stored": false,
