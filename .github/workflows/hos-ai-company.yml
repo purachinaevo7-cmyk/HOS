@@ -104,6 +104,9 @@ jobs:
               mode='${{ inputs.analysis_mode }}'
               wf={'smoke':'investment_analysis_free','verified_lite':'investment_analysis_verified_lite','full_5_agent':'investment_analysis'}.get(mode,'investment_analysis_verified_lite')
               data['workflow']=wf
+              data['requested_fact_pack_only']=json.loads('''${{ toJson(inputs.fact_pack_only) }}''')
+              data['effective_fact_pack_only']=json.loads('''${{ toJson(inputs.fact_pack_only) }}''')
+              data['fact_pack_only']=json.loads('''${{ toJson(inputs.fact_pack_only) }}''')
               p=pathlib.Path('tasks/working/actions-task.json'); p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
               print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
           else:
@@ -117,7 +120,16 @@ jobs:
                   raise SystemExit('task_path must include the tasks/inbox/ prefix, e.g. tasks/inbox/FACT-285A-RETRY-001.json')
               if not pathlib.Path(p).is_file():
                   raise SystemExit(f'task_path does not exist: {p}')
-              print(f'TASK_FILE={p}', file=open(os.environ['GITHUB_ENV'],'a'))
+              
+              data=json.loads(pathlib.Path(p).read_text(encoding='utf-8'))
+              data['requested_fact_pack_only']=json.loads('''${{ toJson(inputs.fact_pack_only) }}''')
+              data['effective_fact_pack_only']=json.loads('''${{ toJson(inputs.fact_pack_only) }}''')
+              data['fact_pack_only']=json.loads('''${{ toJson(inputs.fact_pack_only) }}''')
+              mode='${{ inputs.analysis_mode }}'
+              wf={'smoke':'investment_analysis_free','verified_lite':'investment_analysis_verified_lite','full_5_agent':'investment_analysis'}.get(mode, data.get('workflow') or 'investment_analysis_verified_lite')
+              data['workflow']=wf
+              out=pathlib.Path('tasks/working/actions-task.json'); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+              print('TASK_FILE=tasks/working/actions-task.json', file=open(os.environ['GITHUB_ENV'],'a'))
       - name: Validate Gemini secret
         if: ${{ inputs.executor == 'gemini' }}
         run: |
