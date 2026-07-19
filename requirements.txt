@@ -4,6 +4,6 @@ requests
 python-dotenv
 pytz
 pytest
-
 exchange_calendars
 PyYAML
+python-pptx>=1.0.0
