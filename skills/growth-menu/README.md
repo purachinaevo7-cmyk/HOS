@@ -1,14 +1,26 @@
 # Growth Menu Loop
 
-毎朝、経営・人事・英語の3枚PowerPoint教材を生成し、ChatGPT通知から開き、ユーザーのアウトプット評価を翌日に反映するためのHOSワークフローです。
+毎朝、経営・人事・英文法を学ぶ4枚のPowerPoint授業を生成し、ChatGPT通知から開き、ユーザーのアウトプット評価を翌日に反映するHOSワークフローです。
 
-## 役割分担
+## PowerPointの役割
 
-- GitHub Actions: 毎朝05:30 JSTに生成・監査・保存。
-- OpenAI Responses API: 公開情報を調べ、当日の教材JSONを生成。
-- PowerPoint generator: 編集可能な3枚のPPTXを作成。
-- ChatGPT scheduled task: 06:30 JSTに監査済み教材を通知。
-- ひーちゃん: ユーザーの回答を評価し、匿名化した学習診断だけを `feedback/latest.json` に反映。
+PowerPointは提出用紙ではなく、次の4枚からなる授業資料です。
+
+1. 学習マップ
+2. 経営・人事の理論授業
+3. ケースへの当てはめ
+4. 英文法の授業
+
+提出案内はPowerPointに入れず、朝のChatGPT通知だけに表示します。
+
+## 生成方式
+
+- 本番は `GEMINI_API_KEY` を使い、Gemini無料枠を1日1回呼び出します。
+- OpenAI APIは使用しません。
+- OpenAIや有料モデルへのフォールバックはありません。
+- Google検索グラウンディングも使用しません。
+- Geminiは教材シードの説明を整えるだけで、ケースの観察事実はリポジトリ内の `curriculum_seeds.json` から固定します。
+- API未設定・無料枠上限・モデルエラーの場合は、古い教材や別プロバイダーへ黙って切り替えず、生成を失敗させます。
 
 ## 除外済み
 
@@ -16,7 +28,7 @@
 - Globis / グロービス
 - Udemy / Udemy Business
 
-これらは生成・監査の両方で禁止語として検査します。
+生成と監査の両方で混入を拒否します。
 
 ## ローカル確認
 
@@ -28,19 +40,19 @@ python -m unittest discover -s skills/growth-menu/tests -p 'test_*.py'
 
 ## 本番生成
 
-GitHub Secret `OPENAI_API_KEY` が必要です。Repository variable `OPENAI_MODEL` は省略時 `gpt-5-mini` です。
-
 ```bash
+export GEMINI_API_KEY="..."
+export GEMINI_MODEL="gemini-2.5-flash"
 python skills/growth-menu/generate_growth_menu.py
 python skills/growth-menu/audit_growth_menu.py --write-report
 ```
 
-## フィードバック保存
+## フィードバック
 
-公開リポジトリのため、生の回答は保存しません。評価後に、一般化・匿名化した診断JSONだけを保存します。
+学習後、ユーザーはChatGPTへ次の3点を返します。
 
-```bash
-python skills/growth-menu/record_feedback.py /tmp/redacted_feedback.json
-```
+1. 今日理解したこと
+2. ケースに対する自分の見解
+3. スライド4の英作文
 
-翌日の生成は `feedback/latest.json` と直近7日分の教材テーマを読み込みます。
+ひーちゃんは回答を評価し、生の回答ではなく匿名化した診断だけを `feedback/latest.json` に保存します。翌日のテーマ選択と英文法の重点はこの診断を参照します。
