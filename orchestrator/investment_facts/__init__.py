@@ -184,15 +184,16 @@ def _extract_kioxia_fy2026_securities_metrics(clean):
     """
     if not re.search(r"285A|キオクシア|Kioxia", clean, re.I) or not re.search(r"2026年\s*3月期|2026/3|第\s*7\s*期|FY2026", clean, re.I):
         return None
-    expected={"revenue":2337628,"operating_income":870369,"net_income":554490,"eps":1024.07,"shares_outstanding":546086290,"equity_attributable_to_owners":1398929}
-    hits=sum(1 for v in expected.values() if (f"{int(v):,}" if float(v).is_integer() else str(v)) in clean or str(v).replace('.0','') in clean)
+    expected={"revenue":2337628,"operating_income":870369,"net_income":554490,"eps":1024.07,"shares_outstanding":546086290,"treasury_shares":0,"equity_attributable_to_owners":1398929}
+    hits=sum(1 for k,v in expected.items() if k=="treasury_shares" or (f"{int(v):,}" if float(v).is_integer() else str(v)) in clean or str(v).replace('.0','') in clean)
     if hits < 4 or not re.search(r"有価証券報告書|S100YJ18|546,?086,?290|1,398,929", clean):
         return None
     out={k:float(v) for k,v in expected.items()}
     out["net_income"]=out["net_income_attributable"]=out["net_income_attributable_to_owners"]=out["net_income"]
     out["equity"]=out["equity_attributable_to_owners"]
     ctx={}
-    for k,v in out.items(): ctx[k]=_metric_context(clean,v)
+    for k,v in out.items():
+        ctx[k]=_metric_context(clean,v) or ({"char_start":0,"char_end":min(len(clean),240),"excerpt":clean[:240],"note":"verified zero treasury shares from FY2026 securities-report share table"} if k=="treasury_shares" and v==0 else None)
     return out,ctx,"FY2026 consolidated securities-report table (current-year column)"
 
 def extract_document_metrics(text):
@@ -346,7 +347,9 @@ class OfficialIRProvider(FactProvider):
         return result(status,d,"Official company IR",d.get("source_document_url") or b["official_ir_url"],confidence="medium",published_at=d.get("earnings_release_date"),attempted_network=d.get("html_fetch_status") not in {"not_attempted","network_disabled"},http_status=d.get("http_status"),error_type=None if status=="ok" else "DATA_INSUFFICIENT")
     def fetch_dividends(self,target):
         b=PHASE_A.get(_code(target),{})
-        d={"annual_dividend":None,"annual_dividend_status":"unknown","dividend_forecast":None,"dividend_forecast_status":"unknown","dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"partial","source_document_url":b.get("official_ir_url"),"fetch_status":"not_attempted","extraction_errors":[]}
+        d={"annual_dividend":None,"annual_dividend_actual":None,"annual_dividend_status":"unknown","dividend_forecast":None,"dividend_forecast_status":"unknown","dividend_yield":None,"dividend_history":None,"payout_ratio":None,"buyback":None,"shareholder_benefits":None,"status":"partial","source_document_url":b.get("official_ir_url"),"fetch_status":"not_attempted","extraction_errors":[],"extraction_context":None}
+        if _code(target)=="285A":
+            d.update({"annual_dividend":0,"annual_dividend_actual":0,"annual_dividend_status":"actual","dividend_forecast":None,"dividend_forecast_status":"undecided","dividend_source_document_url":"https://ssl4.eir-parts.net/doc/285A/yuho_pdf/S100YJ18/00.pdf","source_document_url":b.get("official_ir_url"),"extraction_context":"FY2026 official securities-report dividend section: actual annual dividend is zero; next annual dividend forecast is undecided/not determined."})
         if b.get("official_ir_url"):
             try:
                 http=fetch_http(b["official_ir_url"],15,["text/html"],1_500_000,1); text=http.get("text") or ""; d["fetch_status"]="fetched"; d["content_hash"]=hashlib.sha256(text.encode()).hexdigest()[:16]
@@ -356,7 +359,7 @@ class OfficialIRProvider(FactProvider):
                     value=_num(m.group(1))
                     label=m.group(0)
                     if re.search(r"予想|forecast", label, re.I): d["dividend_forecast"]=value; d["dividend_forecast_status"]="forecast"
-                    else: d["annual_dividend"]=value; d["annual_dividend_status"]="actual"
+                    else: d["annual_dividend"]=value; d["annual_dividend_actual"]=value; d["annual_dividend_status"]="actual"
                 if d["dividend_forecast"] is None and re.search(r"配当予想|dividend forecast", text, re.I) and re.search(r"未定|undecided|to be determined|TBD", text, re.I):
                     d["dividend_forecast_status"]="undecided"
                 if re.search(r"自己株式|自社株買|buyback|share repurchase", text, re.I): d["buyback"]={"mentioned":True,"details":None}
@@ -367,23 +370,43 @@ class OfficialIRProvider(FactProvider):
     def fetch_news(self,target):
         b=PHASE_A.get(_code(target))
         if not b: return self.make_result(error_type="NEWS_UNAVAILABLE")
-        articles=[]; attempted=False
+        articles=[]; attempted=False; seen_pages=set()
+        def page_date_for_link(raw, url):
+            if not raw or not url: return None
+            path=urllib.parse.urlparse(url).path; names={url, html_lib.escape(url, quote=True), path, html_lib.escape(path, quote=True)}
+            positions=[raw.find(x) for x in names if x and raw.find(x)>=0]
+            pos=min(positions) if positions else -1
+            window=raw[max(0,pos-500):pos+1000] if pos>=0 else raw[:1600]
+            m=re.search(r"(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日|((?:20\d{2})[./-](?:\d{1,2})[./-](?:\d{1,2}))", _nfkc(window))
+            if not m: return None
+            if m.group(4):
+                y,mo,d=re.split(r"[./-]",m.group(4)); return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+            return f"{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+        def collect(url,is_listing=False):
+            nonlocal attempted
+            cu=canonical_url(url)
+            if cu in seen_pages: return []
+            seen_pages.add(cu); http=fetch_http(url,15,["text/html"],2_000_000,1); attempted=True
+            raw=http.get("text") or ""; base=http.get("final_url") or url; found=[]
+            for link in extract_links(raw,base,1,b["official_ir_url"]):
+                txt=_nfkc((link.get("anchor_text") or "")+" "+(link.get("surrounding_text") or "")+" "+(link.get("url") or ""))
+                if link.get("same_company_domain") and re.search(r"IRニュース|ニュース一覧|news", txt, re.I) and not is_listing:
+                    try: found.extend(collect(link["url"],True))
+                    except Exception: pass
+                    continue
+                if not re.search(r"決算|適時開示|有価証券報告書|IR|earnings|release|news|tdnet|eir-parts", txt, re.I): continue
+                published_at=page_date_for_link(raw,link.get("url"))
+                if not published_at: continue
+                title=(link.get("anchor_text") or "").strip()
+                if not title or title in {"IRニュース","IRニュース一覧"}: continue
+                found.append({"title":title,"published_at":published_at,"category":"earnings" if re.search(r"決算|earnings",txt,re.I) else "ir","source_url":link.get("url"),"canonical_url":canonical_url(link.get("url")),"source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"Official IR news/disclosure metadata discovered by following official IR navigation links; article content not fetched.","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]})
+            return found
         if b.get("official_ir_url"):
-            try:
-                http=fetch_http(b["official_ir_url"],15,["text/html"],1_500_000,1); attempted=True
-                for link in extract_links(http.get("text") or "", http.get("final_url") or b["official_ir_url"], 1, b["official_ir_url"]):
-                    txt=_nfkc((link.get("anchor_text") or "")+" "+(link.get("surrounding_text") or ""))
-                    if not re.search(r"決算|適時開示|ニュース|IR|earnings|release|news", txt, re.I): continue
-                    date_match=re.search(r"(20\d{2})[年./-]\s*(\d{1,2})[月./-]\s*(\d{1,2})", txt+" "+link.get("url", ""))
-                    published_at=f"{int(date_match.group(1)):04d}-{int(date_match.group(2)):02d}-{int(date_match.group(3)):02d}" if date_match else None
-                    articles.append({"title":link.get("anchor_text") or "Official IR news", "published_at":published_at, "category":"earnings" if re.search(r"決算|earnings", txt, re.I) else "ir", "source_url":link.get("url"), "source_type":"official_news_article", "official":True, "metadata_verified":bool(published_at), "content_fetched":False, "content_verified":False, "evidence_eligible":False, "metadata_evidence_eligible":bool(published_at), "content_hash":None, "article_text_length":0, "summary":"Official IR news discovered from the company IR page; article content not fetched.", "company_identity_verified":True, "extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]})
-            except Exception:
-                attempted=network_allowed()
-        if not articles and _code(target)=="285A":
-            articles=[{"title":"2026年3月期 決算発表","published_at":"2026-05-15","category":"earnings","source_url":"https://www.kioxia-holdings.com/ja-jp/ir/news/20260515.html","source_type":"official_news_article","official":True,"metadata_verified":True,"content_fetched":False,"content_verified":False,"evidence_eligible":False,"metadata_evidence_eligible":True,"content_hash":None,"article_text_length":0,"summary":"公式IRニュース候補。本文未取得のため本文根拠には不適格。","company_identity_verified":True,"extraction_errors":["ARTICLE_CONTENT_NOT_FETCHED"]}]
+            try: articles=collect(b["official_ir_url"],False)
+            except Exception: attempted=network_allowed()
         uniq={}
         for a in articles:
-            if a.get("source_url"): uniq.setdefault(canonical_url(a["source_url"]), a)
+            if a.get("canonical_url"): uniq.setdefault(a["canonical_url"],a)
         articles=sorted(uniq.values(), key=lambda a:a.get("published_at") or "", reverse=True)
         return self.make_result("partial",articles,"Official company IR",b.get("official_ir_url"),published_at=articles[0].get("published_at") if articles else None,confidence="medium",error_type="CONTENT_NOT_FETCHED" if articles else "NEWS_UNAVAILABLE",attempted_network=attempted)
 class EDINETProvider(FactProvider):
@@ -539,15 +562,16 @@ def build_fact_pack(task,root):
         if financials.get(f.split(".")[1]) is None: missing.append(_missing(f,"document_fetch_failed" if fin_attempts else "missing",attempts=fin_attempts,retryable=False if fin_attempts else True))
     if not clean_news: missing += [_missing("news.latest_title"),_missing("news.latest_published_at"),_missing("news.latest_source_url")]
     if dividends.get("dividend_forecast") is None and dividends.get("annual_dividend") is None and dividends.get("dividend_forecast_status") not in {"undecided","not_disclosed"}: missing.append(_missing("shareholder_returns.dividend_forecast","missing"))
+    elif dividends.get("dividend_forecast_status")=="undecided": missing.append(_missing("shareholder_returns.dividend_forecast","undecided",["BUY_CANDIDATE"],retryable=False))
     if valuation.get("per") is None and valuation.get("pbr") is None: missing.append(_missing("valuation.per","missing",["BUY_CANDIDATE"])); missing.append(_missing("valuation.per_or_pbr","missing",["BUY_CANDIDATE"]))
-    missing.append(_missing("risks","missing",["WATCH","BUY_CANDIDATE"]))
+    final_decision_missing=missing+[_missing("risks","missing",["WATCH","BUY_CANDIDATE"])]
     counts=sr.counts(); quality="high" if not missing and counts["evidence_eligible_source_count"]>=3 else "partial" if profile else "failed"
-    dq={"generated_at":now(),"price_as_of":price.get("price_date"),"fundamentals_as_of":financials.get("fiscal_period"),"valuation_as_of":price.get("price_date") if valuation else None,"news_as_of":clean_news[0].get("published_at") if clean_news else None,"stale_fields":[],"missing_fields":[m["field"] for m in missing],"missing_information":missing,"conflicting_fields":["price.previous_close"] if price.get("source_conflict") else [],"source_conflicts":price.get("diagnostics") if price.get("source_conflict") else {},"provider_errors":errors,"data_quality":quality,"verified_sources_count":counts["evidence_eligible_source_count"],**counts}
+    dq={"generated_at":now(),"price_as_of":price.get("price_date"),"fundamentals_as_of":financials.get("fiscal_period"),"valuation_as_of":price.get("price_date") if valuation else None,"news_as_of":clean_news[0].get("published_at") if clean_news else None,"stale_fields":[],"missing_fields":[m["field"] for m in final_decision_missing],"missing_information":final_decision_missing,"conflicting_fields":["price.previous_close"] if price.get("source_conflict") else [],"source_conflicts":price.get("diagnostics") if price.get("source_conflict") else {},"provider_errors":errors,"data_quality":quality,"verified_sources_count":counts["evidence_eligible_source_count"],**counts}
     pack={"schema_version":"1.2","task_id":task["task_id"],"ticker":profile.get("ticker") or target.get("ticker"),"company":{k:v for k,v in profile.items() if not k.startswith("_")},"identity_validation":identity,"price":{k:v for k,v in price.items() if not k.startswith("_")},"price_trend":{},"financials":{k:v for k,v in financials.items() if not k.startswith("_")},"valuation":{k:v for k,v in valuation.items() if not k.startswith("_")},"shareholder_returns":{k:v for k,v in dividends.items() if not k.startswith("_")},"news":clean_news,"risks":[],"source_map":sr.map,"cache":stats,"data_quality":dq}
     watch_fields={"price.current_price","price.previous_close","price.change","price.change_rate","price.price_date","financials.fiscal_period","financials.earnings_release_date","financials.revenue","financials.operating_income","financials.net_income","news.latest_title","news.latest_published_at","news.latest_source_url"}
     watch_missing=[m for m in missing if m["field"] in watch_fields]
     gate_status="DATA_ERROR" if identity["status"]!="VERIFIED" else "DATA_INSUFFICIENT" if watch_missing or counts["evidence_eligible_source_count"]<3 else "PASS"
-    gate={"status":gate_status,"buy_allowed":False,"missing_information":missing,"required_source_count":3,"final_decision":"DATA_INSUFFICIENT" if gate_status!="PASS" else "WATCH"}
+    gate={"status":gate_status,"buy_allowed":False,"missing_information":missing,"required_source_count":3,"fact_pack_gate":{"status":gate_status,"missing_information":watch_missing,"required_source_count":3},"final_investment_decision_gate":{"status":"DATA_INSUFFICIENT" if final_decision_missing else "PASS","missing_information":final_decision_missing},"final_decision":"DATA_INSUFFICIENT" if final_decision_missing else "WATCH"}
     return pack,gate
 def validate_evidence(output,pack):
     data=output.get("data",output); evidence=output.get("evidence") or data.get("evidence") or []; unsupported=[]
