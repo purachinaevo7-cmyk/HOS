@@ -11,31 +11,33 @@ sys.path.insert(0, str(SKILL_DIR))
 
 from lesson_content import (  # noqa: E402
     DEFAULT_OUTPUT_DIR,
+    call_gemini,
     deterministic_lesson,
     jst_today,
     load_json,
+    profile_for_seed,
     read_recent_module_ids,
     select_seed,
-    call_gemini,
     validate_content,
 )
 from lesson_render import write_outputs  # noqa: E402
 
 __all__ = [
     "DEFAULT_OUTPUT_DIR",
+    "call_gemini",
     "deterministic_lesson",
     "jst_today",
     "load_json",
+    "profile_for_seed",
     "read_recent_module_ids",
     "select_seed",
-    "call_gemini",
     "validate_content",
     "write_outputs",
 ]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate the HOS morning lesson PowerPoint")
+    parser = argparse.ArgumentParser(description="Generate the HOS morning lesson PDF and preview image")
     parser.add_argument("--date", help="Target date in YYYY-MM-DD; defaults to today in Asia/Tokyo")
     parser.add_argument("--offline", action="store_true", help="Use deterministic curated lesson and skip Gemini")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
@@ -57,7 +59,8 @@ def main() -> int:
         "date": target_date.isoformat(),
         "provider": data["generation"]["provider"],
         "seed_id": data["generation"]["seed_id"],
-        "outputs": {key: str(value) for key, value in outputs.items()}
+        "profile_id": data["generation"]["profile_id"],
+        "outputs": {key: str(value) for key, value in outputs.items()},
     }, ensure_ascii=False))
     return 0
 
