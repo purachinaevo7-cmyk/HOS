@@ -1,0 +1,31 @@
+{
+  "required": [
+    "date",
+    "title",
+    "focus_summary",
+    "estimated_minutes",
+    "previous_feedback_summary",
+    "business",
+    "english",
+    "notification"
+  ],
+  "business_required": [
+    "title",
+    "theme",
+    "source_label",
+    "source_url",
+    "why_now",
+    "key_points",
+    "question",
+    "output_task"
+  ],
+  "english_required": [
+    "title",
+    "grammar_pattern",
+    "bad_example",
+    "correct_example",
+    "explanation",
+    "vocabulary",
+    "writing_prompt"
+  ]
+}

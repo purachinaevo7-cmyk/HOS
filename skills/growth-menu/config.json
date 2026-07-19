@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "timezone": "Asia/Tokyo",
+  "schedule": {
+    "generate_at_jst": "05:30",
+    "notify_at_jst": "06:30"
+  },
+  "output": {
+    "slide_count": 3,
+    "layout": "LAYOUT_WIDE",
+    "font_family": "Yu Gothic UI",
+    "title_pt": 20,
+    "body_pt": 16,
+    "note_pt": 14,
+    "closing_pt": 18,
+    "estimated_minutes_min": 20,
+    "estimated_minutes_max": 35
+  },
+  "curriculum": {
+    "daily_sections": [
+      "business_and_hr",
+      "english_grammar_and_writing"
+    ],
+    "business_rotation": [
+      "経営戦略",
+      "会計・財務",
+      "マーケティング",
+      "組織・人材マネジメント",
+      "コーポレートガバナンス",
+      "DX・AI"
+    ],
+    "english_error_patterns": [
+      "主語と動詞の骨格",
+      "冠詞と単数・複数",
+      "所有格",
+      "because節の接続",
+      "前置詞と動詞の型",
+      "自然なビジネス語彙"
+    ],
+    "explicit_exclusions": [
+      "Duolingo",
+      "Globis",
+      "グロービス",
+      "Udemy",
+      "Udemy Business"
+    ]
+  },
+  "privacy": {
+    "repository_is_public": true,
+    "store_raw_user_output": false,
+    "store_only_redacted_learning_diagnostics": true,
+    "forbidden_feedback_content": [
+      "顧客名",
+      "候補者名",
+      "社内限定情報",
+      "未公表情報",
+      "メールアドレス",
+      "電話番号"
+    ]
+  },
+  "source_policy": {
+    "prefer_official_ir": true,
+    "require_https": true,
+    "max_sources": 3
+  }
+}
