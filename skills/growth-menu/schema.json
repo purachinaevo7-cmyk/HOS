@@ -5,27 +5,39 @@
     "focus_summary",
     "estimated_minutes",
     "previous_feedback_summary",
-    "business",
-    "english",
-    "notification"
+    "business_lesson",
+    "case_lesson",
+    "english_lesson",
+    "notification",
+    "generation"
   ],
-  "business_required": [
+  "business_lesson_required": [
     "title",
-    "theme",
-    "source_label",
-    "source_url",
-    "why_now",
-    "key_points",
-    "question",
-    "output_task"
+    "concept",
+    "definition",
+    "why_it_matters",
+    "learning_points",
+    "cause_effect_chain",
+    "common_confusion"
   ],
-  "english_required": [
+  "case_lesson_required": [
+    "title",
+    "context",
+    "observations",
+    "interpretation",
+    "takeaway",
+    "reference_label"
+  ],
+  "english_lesson_required": [
     "title",
     "grammar_pattern",
+    "rule_points",
     "bad_example",
     "correct_example",
-    "explanation",
+    "example_breakdown",
     "vocabulary",
-    "writing_prompt"
+    "worked_example_ja",
+    "worked_example_en",
+    "practice_prompt"
   ]
 }
