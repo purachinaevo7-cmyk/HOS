@@ -60,17 +60,44 @@ def audit(output_dir: Path, expected_date: str | None = None) -> dict[str, Any]:
     check(data.get("date") == target_date, "date_matches", f"actual={data.get('date')} expected={target_date}", results)
 
     prs = Presentation(latest_pptx)
-    check(len(prs.slides) == config["output"]["slide_count"], "slide_count", f"actual={len(prs.slides)} expected={config['output']['slide_count']}", results)
+    check(
+        len(prs.slides) == config["output"]["slide_count"],
+        "slide_count",
+        f"actual={len(prs.slides)} expected={config['output']['slide_count']}",
+        results
+    )
 
     ppt_text, fonts = pptx_text_and_fonts(latest_pptx)
     for forbidden in config["curriculum"]["explicit_exclusions"]:
         check(forbidden.lower() not in ppt_text.lower(), f"excluded_{forbidden}", "not present", results)
+    for forbidden in config["output"]["forbidden_deck_phrases"]:
+        check(forbidden not in ppt_text, f"not_submission_form_{forbidden}", "not present in PowerPoint", results)
     check(config["output"]["font_family"] in fonts, "font_family", f"fonts={sorted(fonts)}", results)
 
-    source_url = str(data.get("business", {}).get("source_url", ""))
-    check(source_url.startswith("https://"), "https_source", source_url, results)
-    check(len(data.get("business", {}).get("key_points", [])) == 3, "three_business_points", "exactly 3", results)
-    check(len(data.get("english", {}).get("vocabulary", [])) == 5, "five_vocabulary_items", "exactly 5", results)
+    required_teaching_markers = ["基本概念", "ポイント1", "ケースの状況", "理論で読み解くと", "今日の型", "ルール"]
+    for marker in required_teaching_markers:
+        check(marker in ppt_text, f"teaching_marker_{marker}", "present", results)
+
+    check(len(data.get("business_lesson", {}).get("learning_points", [])) == 3,
+          "three_learning_points", "exactly 3", results)
+    check(len(data.get("business_lesson", {}).get("cause_effect_chain", [])) == 3,
+          "three_cause_effect_steps", "exactly 3", results)
+    check(len(data.get("case_lesson", {}).get("observations", [])) == 3,
+          "three_case_observations", "exactly 3", results)
+    check(len(data.get("case_lesson", {}).get("interpretation", [])) == 3,
+          "three_case_interpretations", "exactly 3", results)
+    check(len(data.get("english_lesson", {}).get("vocabulary", [])) == 5,
+          "five_vocabulary_items", "exactly 5", results)
+
+    generation = data.get("generation", {})
+    provider = generation.get("provider")
+    check(provider in {"offline", "gemini_free_tier"}, "allowed_provider", str(provider), results)
+    check("openai" not in json.dumps(generation, ensure_ascii=False).lower(),
+          "openai_not_used", "no OpenAI API provider", results)
+    check(config["provider"]["allow_paid_fallback"] is False,
+          "paid_fallback_disabled", "paid fallback is disabled", results)
+    check(config["provider"]["allow_search_grounding"] is False,
+          "search_grounding_disabled", "no paid/search grounding", results)
 
     privacy = config["privacy"]
     feedback = load_json(SKILL_DIR / "feedback" / "latest.json")
@@ -84,6 +111,8 @@ def audit(output_dir: Path, expected_date: str | None = None) -> dict[str, Any]:
     notification_text = notification.read_text(encoding="utf-8") if notification.exists() else ""
     check("latest.pptx" in notification_text, "stable_pptx_link", "notification links to latest.pptx", results)
     check("このチャット" in notification_text, "feedback_return_path", "submission returns to ChatGPT", results)
+    check("今日理解したこと" in notification_text, "notification_submission_guide",
+          "submission instructions stay outside PowerPoint", results)
 
     failures = [item for item in results if item["status"] == "fail"]
     return {
@@ -96,7 +125,7 @@ def audit(output_dir: Path, expected_date: str | None = None) -> dict[str, Any]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Audit generated HOS growth-menu outputs")
+    parser = argparse.ArgumentParser(description="Audit generated HOS morning lesson outputs")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--date", help="Expected content date in YYYY-MM-DD")
     parser.add_argument("--write-report", action="store_true")
@@ -111,7 +140,9 @@ def main() -> int:
         audit_dir.mkdir(parents=True, exist_ok=True)
         (audit_dir / "latest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         if report.get("checked_date"):
-            (audit_dir / f"{report['checked_date']}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            (audit_dir / f"{report['checked_date']}.json").write_text(
+                json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["status"] == "pass" else 1
 
