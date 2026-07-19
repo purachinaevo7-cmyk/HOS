@@ -17,6 +17,11 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def compact_text(value: Any) -> str:
+    """Normalize PDF extraction whitespace before textual assertions."""
+    return "".join(str(value or "").split())
+
+
 def check(condition: bool, name: str, details: str, results: list[dict[str, Any]]) -> None:
     results.append({"name": name, "status": "pass" if condition else "fail", "details": details})
 
@@ -55,6 +60,8 @@ def audit(output_dir: Path, expected_date: str | None = None) -> dict[str, Any]:
     check(data.get("date") == target_date, "date_matches", f"actual={data.get('date')} expected={target_date}", results)
 
     pdf_text, fonts, page_count, encrypted = pdf_text_and_fonts(latest_pdf)
+    compact_pdf = compact_text(pdf_text)
+    lower_compact_pdf = compact_pdf.lower()
     check(
         page_count == config["output"]["page_count"],
         "page_count",
@@ -66,9 +73,9 @@ def audit(output_dir: Path, expected_date: str | None = None) -> dict[str, Any]:
     check(any("Noto" in font or "YuGothic" in font for font in fonts), "japanese_font_present", f"fonts={sorted(fonts)}", results)
 
     for forbidden in config["curriculum"]["explicit_exclusions"]:
-        check(forbidden.lower() not in pdf_text.lower(), f"excluded_{forbidden}", "not present", results)
+        check(compact_text(forbidden).lower() not in lower_compact_pdf, f"excluded_{forbidden}", "not present", results)
     for forbidden in config["output"]["forbidden_deck_phrases"]:
-        check(forbidden not in pdf_text, f"not_submission_form_{forbidden}", "not present in PDF", results)
+        check(compact_text(forbidden) not in compact_pdf, f"not_submission_form_{forbidden}", "not present in PDF", results)
 
     required_teaching_markers = [
         "会社スナップショット" if data["case_profile"]["profile_type"] == "company" else "事業スナップショット",
@@ -80,11 +87,11 @@ def audit(output_dir: Path, expected_date: str | None = None) -> dict[str, Any]:
         "今日の型",
     ]
     for marker in required_teaching_markers:
-        check(marker in pdf_text, f"teaching_marker_{marker}", "present", results)
+        check(compact_text(marker) in compact_pdf, f"teaching_marker_{marker}", "present", results)
 
     profile = data.get("case_profile", {})
-    check(profile.get("name") in pdf_text, "profile_name_in_pdf", str(profile.get("name")), results)
-    check(profile.get("as_of") in pdf_text, "profile_as_of_in_pdf", str(profile.get("as_of")), results)
+    check(compact_text(profile.get("name")) in compact_pdf, "profile_name_in_pdf", str(profile.get("name")), results)
+    check(compact_text(profile.get("as_of")) in compact_pdf, "profile_as_of_in_pdf", str(profile.get("as_of")), results)
     check(len(profile.get("value_chain", [])) == 5, "five_value_chain_steps", "exactly 5", results)
     check(len(profile.get("scale_indicators", [])) == 3, "three_scale_indicators", "exactly 3", results)
     if profile.get("profile_type") == "company":
