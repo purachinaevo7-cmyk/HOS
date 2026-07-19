@@ -1,0 +1,70 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "focus_summary": {"type": "STRING"},
+    "estimated_minutes": {"type": "INTEGER"},
+    "previous_feedback_summary": {"type": "STRING"},
+    "business_lesson": {
+      "type": "OBJECT",
+      "properties": {
+        "title": {"type": "STRING"},
+        "concept": {"type": "STRING"},
+        "definition": {"type": "STRING"},
+        "why_it_matters": {"type": "STRING"},
+        "learning_points": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "cause_effect_chain": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "common_confusion": {"type": "STRING"}
+      },
+      "required": ["title", "concept", "definition", "why_it_matters", "learning_points", "cause_effect_chain", "common_confusion"]
+    },
+    "case_lesson": {
+      "type": "OBJECT",
+      "properties": {
+        "title": {"type": "STRING"},
+        "context": {"type": "STRING"},
+        "observations": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "interpretation": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "takeaway": {"type": "STRING"},
+        "reference_label": {"type": "STRING"}
+      },
+      "required": ["title", "context", "observations", "interpretation", "takeaway", "reference_label"]
+    },
+    "english_lesson": {
+      "type": "OBJECT",
+      "properties": {
+        "title": {"type": "STRING"},
+        "grammar_pattern": {"type": "STRING"},
+        "rule_points": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "bad_example": {"type": "STRING"},
+        "correct_example": {"type": "STRING"},
+        "example_breakdown": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "vocabulary": {
+          "type": "ARRAY",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "word": {"type": "STRING"},
+              "meaning": {"type": "STRING"},
+              "example": {"type": "STRING"}
+            },
+            "required": ["word", "meaning", "example"]
+          }
+        },
+        "worked_example_ja": {"type": "STRING"},
+        "worked_example_en": {"type": "STRING"},
+        "practice_prompt": {"type": "STRING"}
+      },
+      "required": ["title", "grammar_pattern", "rule_points", "bad_example", "correct_example", "example_breakdown", "vocabulary", "worked_example_ja", "worked_example_en", "practice_prompt"]
+    },
+    "notification": {
+      "type": "OBJECT",
+      "properties": {
+        "headline": {"type": "STRING"},
+        "summary": {"type": "STRING"},
+        "duration": {"type": "STRING"}
+      },
+      "required": ["headline", "summary", "duration"]
+    }
+  },
+  "required": ["focus_summary", "estimated_minutes", "previous_feedback_summary", "business_lesson", "case_lesson", "english_lesson", "notification"]
+}
