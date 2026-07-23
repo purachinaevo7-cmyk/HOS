@@ -2,7 +2,8 @@ name: Morning Growth Lesson
 
 on:
   schedule:
-    - cron: '30 20 * * *' # 05:30 JST on the following calendar day
+    - cron: '15 20 * * *' # 05:15 JST on the following calendar day
+    - cron: '50 20 * * *' # 05:50 JST conditional recovery run
   workflow_dispatch:
     inputs:
       target_date:
@@ -79,6 +80,7 @@ jobs:
           sudo apt-get install -y libreoffice-impress fonts-noto-cjk
       - name: Install Python dependencies
         run: python -m pip install -r requirements.txt
+
       - name: Resolve target date
         id: date
         shell: bash
@@ -93,26 +95,214 @@ jobs:
           date.fromisoformat('$DATE_INPUT')
           PY
           echo "value=$DATE_INPUT" >> "$GITHUB_OUTPUT"
-      - name: Validate Gemini free-tier secret
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.offline) }}
-        run: test -n "$GEMINI_API_KEY" || (echo 'GEMINI_API_KEY secret is required' >&2; exit 1)
-      - name: Generate teaching PDF and preview
+
+      - name: Check for an already published lesson
+        id: existing
         shell: bash
         run: |
           set -euo pipefail
-          OFFLINE=''
-          if [ '${{ github.event_name }}' = 'workflow_dispatch' ] && [ '${{ inputs.offline }}' = 'true' ]; then
-            OFFLINE='--offline'
-          fi
-          python skills/growth-menu/generate_growth_menu.py \
-            --date '${{ steps.date.outputs.value }}' \
-            $OFFLINE
-      - name: Audit generated lesson
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          target = os.environ["TARGET_DATE"]
+          root = Path("outputs/growth-menu")
+          required = [
+              root / "latest.json",
+              root / "latest.pdf",
+              root / "latest-preview.png",
+              root / "latest_notification.md",
+              root / "audit/latest.json",
+          ]
+          valid = False
+          try:
+              lesson = json.loads((root / "latest.json").read_text(encoding="utf-8"))
+              audit = json.loads((root / "audit/latest.json").read_text(encoding="utf-8"))
+              valid = (
+                  all(path.exists() for path in required)
+                  and lesson.get("date") == target
+                  and audit.get("status") == "pass"
+                  and audit.get("checked_date") == target
+              )
+          except (OSError, json.JSONDecodeError):
+              valid = False
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"skip={'true' if valid else 'false'}\n")
+          print(f"already_published={valid}")
+          PY
+        env:
+          TARGET_DATE: ${{ steps.date.outputs.value }}
+
+      - name: Generate lesson with free Gemini and deterministic recovery
+        id: generate_lesson
+        if: ${{ steps.existing.outputs.skip != 'true' }}
+        shell: bash
         run: |
-          python skills/growth-menu/audit_growth_menu.py \
-            --date '${{ steps.date.outputs.value }}' \
-            --write-report
-      - name: Commit audited outputs
+          set -uo pipefail
+          TARGET='${{ steps.date.outputs.value }}'
+          STAGE="/tmp/growth-menu-${TARGET}"
+          LOG_DIR="/tmp/growth-menu-logs"
+          DIAG="/tmp/growth-menu-diagnostic.json"
+          rm -rf "$STAGE" "$LOG_DIR"
+          mkdir -p "$STAGE" "$LOG_DIR"
+
+          PROVIDER=""
+          GEMINI_RESULT="not_attempted"
+          GEMINI_ERROR=""
+          OFFLINE_RESULT="not_attempted"
+          OFFLINE_ERROR=""
+
+          FORCE_OFFLINE='false'
+          if [ '${{ github.event_name }}' = 'workflow_dispatch' ] && [ '${{ inputs.offline }}' = 'true' ]; then
+            FORCE_OFFLINE='true'
+          fi
+
+          if [ "$FORCE_OFFLINE" = 'false' ] && [ -n "${GEMINI_API_KEY:-}" ]; then
+            if python skills/growth-menu/generate_growth_menu.py \
+              --date "$TARGET" \
+              --output-dir "$STAGE" \
+              >"$LOG_DIR/gemini.stdout" 2>"$LOG_DIR/gemini.stderr"; then
+              PROVIDER="gemini_free_tier"
+              GEMINI_RESULT="success"
+            else
+              GEMINI_RESULT="failed"
+              GEMINI_ERROR=$(tail -c 4000 "$LOG_DIR/gemini.stderr" | tr '\n' ' ')
+            fi
+          elif [ "$FORCE_OFFLINE" = 'true' ]; then
+            GEMINI_RESULT="skipped_manual_offline"
+          else
+            GEMINI_RESULT="skipped_missing_secret"
+          fi
+
+          if [ -z "$PROVIDER" ]; then
+            rm -rf "$STAGE"
+            mkdir -p "$STAGE"
+            if python skills/growth-menu/generate_growth_menu.py \
+              --offline \
+              --date "$TARGET" \
+              --output-dir "$STAGE" \
+              >"$LOG_DIR/offline.stdout" 2>"$LOG_DIR/offline.stderr"; then
+              PROVIDER="offline_recovery"
+              OFFLINE_RESULT="success"
+            else
+              OFFLINE_RESULT="failed"
+              OFFLINE_ERROR=$(tail -c 4000 "$LOG_DIR/offline.stderr" | tr '\n' ' ')
+            fi
+          fi
+
+          export TARGET PROVIDER GEMINI_RESULT GEMINI_ERROR OFFLINE_RESULT OFFLINE_ERROR DIAG
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          provider = os.environ["PROVIDER"]
+          payload = {
+              "date": os.environ["TARGET"],
+              "status": "generated" if provider else "generation_failed",
+              "stage": "content_and_render",
+              "provider": provider or None,
+              "gemini_result": os.environ["GEMINI_RESULT"],
+              "gemini_error": os.environ["GEMINI_ERROR"] or None,
+              "offline_result": os.environ["OFFLINE_RESULT"],
+              "offline_error": os.environ["OFFLINE_ERROR"] or None,
+              "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+          }
+          Path(os.environ["DIAG"]).write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          if [ -n "$PROVIDER" ]; then
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+            echo "provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          else
+            echo "generated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Audit staged package
+        id: audit_lesson
+        if: ${{ steps.existing.outputs.skip != 'true' && steps.generate_lesson.outputs.generated == 'true' }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          TARGET='${{ steps.date.outputs.value }}'
+          STAGE="/tmp/growth-menu-${TARGET}"
+          DIAG="/tmp/growth-menu-diagnostic.json"
+          if python skills/growth-menu/audit_growth_menu.py \
+            --date "$TARGET" \
+            --output-dir "$STAGE" \
+            --write-report \
+            >/tmp/growth-menu-audit.stdout 2>/tmp/growth-menu-audit.stderr; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+            AUDIT_ERROR=""
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            AUDIT_ERROR=$(tail -c 4000 /tmp/growth-menu-audit.stderr | tr '\n' ' ')
+          fi
+          export DIAG AUDIT_ERROR
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["DIAG"])
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          if os.environ["AUDIT_ERROR"]:
+              payload.update({
+                  "status": "audit_failed",
+                  "stage": "audit",
+                  "audit_error": os.environ["AUDIT_ERROR"],
+              })
+          else:
+              payload.update({
+                  "status": "pass",
+                  "stage": "audit",
+                  "audit_error": None,
+              })
+          path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Publish audited package atomically
+        if: ${{ steps.existing.outputs.skip != 'true' && steps.audit_lesson.outputs.passed == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET='${{ steps.date.outputs.value }}'
+          STAGE="/tmp/growth-menu-${TARGET}"
+          DEST="outputs/growth-menu"
+          mkdir -p "$DEST"
+          rsync -a "$STAGE/" "$DEST/"
+          mkdir -p "$DEST/diagnostics"
+          cp /tmp/growth-menu-diagnostic.json "$DEST/diagnostics/${TARGET}.json"
+          cp /tmp/growth-menu-diagnostic.json "$DEST/diagnostics/latest.json"
+
+      - name: Persist failure diagnostic
+        if: ${{ steps.existing.outputs.skip != 'true' && steps.audit_lesson.outputs.passed != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET='${{ steps.date.outputs.value }}'
+          DEST="outputs/growth-menu/diagnostics"
+          mkdir -p "$DEST"
+          if [ ! -f /tmp/growth-menu-diagnostic.json ]; then
+            cat > /tmp/growth-menu-diagnostic.json <<JSON
+          {
+            "date": "$TARGET",
+            "status": "workflow_failed_before_generation",
+            "stage": "workflow",
+            "provider": null
+          }
+          JSON
+          fi
+          cp /tmp/growth-menu-diagnostic.json "$DEST/${TARGET}.json"
+          cp /tmp/growth-menu-diagnostic.json "$DEST/latest.json"
+
+      - name: Commit outputs or diagnostics
+        if: ${{ steps.existing.outputs.skip != 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -126,7 +316,8 @@ jobs:
           git commit -m "Generate growth lesson ${{ steps.date.outputs.value }}"
           git pull --rebase origin main
           git push origin HEAD:main
-      - name: Upload generated package
+
+      - name: Upload generated package and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -137,15 +328,28 @@ jobs:
             outputs/growth-menu/latest.json
             outputs/growth-menu/latest_notification.md
             outputs/growth-menu/audit/latest.json
-          if-no-files-found: error
+            outputs/growth-menu/diagnostics/latest.json
+            /tmp/growth-menu-logs
+            /tmp/growth-menu-audit.stdout
+            /tmp/growth-menu-audit.stderr
+          if-no-files-found: warn
           retention-days: 30
+
+      - name: Fail only after diagnostic is persisted
+        if: ${{ steps.existing.outputs.skip != 'true' && steps.audit_lesson.outputs.passed != 'true' }}
+        run: |
+          echo 'Growth lesson was not published. See outputs/growth-menu/diagnostics/latest.json.' >&2
+          exit 1
+
       - name: Job summary
         if: always()
         run: |
           echo '## Morning Growth Lesson' >> "$GITHUB_STEP_SUMMARY"
           echo 'Date: ${{ steps.date.outputs.value }}' >> "$GITHUB_STEP_SUMMARY"
           echo 'Delivery: 5-page PDF + first-page PNG preview' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Provider: Gemini free tier (one call; no OpenAI fallback)' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Primary provider: Gemini free tier; deterministic recovery has no paid API' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Already published: ${{ steps.existing.outputs.skip }}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Generation provider: ${{ steps.generate_lesson.outputs.provider }}' >> "$GITHUB_STEP_SUMMARY"
           if [ -f outputs/growth-menu/audit/latest.json ]; then
             python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
@@ -154,4 +358,10 @@ jobs:
           print(f"Audit: {report.get('status')}")
           print(f"Failures: {report.get('failure_count')}")
           PY
+          fi
+          if [ -f outputs/growth-menu/diagnostics/latest.json ]; then
+            echo '### Diagnostic' >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat outputs/growth-menu/diagnostics/latest.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
