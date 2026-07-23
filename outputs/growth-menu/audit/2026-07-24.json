@@ -1,0 +1,243 @@
+{
+  "status": "pass",
+  "checked_date": "2026-07-24",
+  "generated_at": "2026-07-24",
+  "checks": [
+    {
+      "name": "latest_json_exists",
+      "status": "pass",
+      "details": "/tmp/growth-menu-2026-07-24/latest.json"
+    },
+    {
+      "name": "latest_pdf_exists",
+      "status": "pass",
+      "details": "/tmp/growth-menu-2026-07-24/latest.pdf"
+    },
+    {
+      "name": "preview_exists",
+      "status": "pass",
+      "details": "/tmp/growth-menu-2026-07-24/latest-preview.png"
+    },
+    {
+      "name": "notification_exists",
+      "status": "pass",
+      "details": "/tmp/growth-menu-2026-07-24/latest_notification.md"
+    },
+    {
+      "name": "date_matches",
+      "status": "pass",
+      "details": "actual=2026-07-24 expected=2026-07-24"
+    },
+    {
+      "name": "page_count",
+      "status": "pass",
+      "details": "actual=5 expected=5"
+    },
+    {
+      "name": "pdf_not_encrypted",
+      "status": "pass",
+      "details": "PDF opens without a password"
+    },
+    {
+      "name": "pdf_text_present",
+      "status": "pass",
+      "details": "characters=2380"
+    },
+    {
+      "name": "japanese_font_present",
+      "status": "pass",
+      "details": "fonts=['BAAAAA+DejaVuSans-Bold', 'CAAAAA+NotoSansCJKsc-Bold', 'DAAAAA+DejaVuSans', 'EAAAAA+NotoSansCJKsc-Regular', 'FAAAAA+NotoSansCJKsc-Regular']"
+    },
+    {
+      "name": "excluded_Duolingo",
+      "status": "pass",
+      "details": "not present"
+    },
+    {
+      "name": "excluded_Globis",
+      "status": "pass",
+      "details": "not present"
+    },
+    {
+      "name": "excluded_グロービス",
+      "status": "pass",
+      "details": "not present"
+    },
+    {
+      "name": "excluded_Udemy",
+      "status": "pass",
+      "details": "not present"
+    },
+    {
+      "name": "excluded_Udemy Business",
+      "status": "pass",
+      "details": "not present"
+    },
+    {
+      "name": "not_submission_form_提出先",
+      "status": "pass",
+      "details": "not present in PDF"
+    },
+    {
+      "name": "not_submission_form_完了条件",
+      "status": "pass",
+      "details": "not present in PDF"
+    },
+    {
+      "name": "not_submission_form_回答欄",
+      "status": "pass",
+      "details": "not present in PDF"
+    },
+    {
+      "name": "not_submission_form_提出用紙",
+      "status": "pass",
+      "details": "not present in PDF"
+    },
+    {
+      "name": "not_submission_form_アウトプット課題",
+      "status": "pass",
+      "details": "not present in PDF"
+    },
+    {
+      "name": "teaching_marker_事業スナップショット",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "teaching_marker_顧客と提供価値",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "teaching_marker_ビジネスモデル",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "teaching_marker_基本概念",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "teaching_marker_ケースの状況",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "teaching_marker_理論で読み解くと",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "teaching_marker_今日の型",
+      "status": "pass",
+      "details": "present"
+    },
+    {
+      "name": "profile_name_in_pdf",
+      "status": "pass",
+      "details": "AIデータセンター事業"
+    },
+    {
+      "name": "profile_as_of_in_pdf",
+      "status": "pass",
+      "details": "一般化した事業モデル"
+    },
+    {
+      "name": "five_value_chain_steps",
+      "status": "pass",
+      "details": "exactly 5"
+    },
+    {
+      "name": "three_scale_indicators",
+      "status": "pass",
+      "details": "exactly 3"
+    },
+    {
+      "name": "three_learning_points",
+      "status": "pass",
+      "details": "exactly 3"
+    },
+    {
+      "name": "three_cause_effect_steps",
+      "status": "pass",
+      "details": "exactly 3"
+    },
+    {
+      "name": "three_case_observations",
+      "status": "pass",
+      "details": "exactly 3"
+    },
+    {
+      "name": "three_case_interpretations",
+      "status": "pass",
+      "details": "exactly 3"
+    },
+    {
+      "name": "five_vocabulary_items",
+      "status": "pass",
+      "details": "exactly 5"
+    },
+    {
+      "name": "allowed_provider",
+      "status": "pass",
+      "details": "offline"
+    },
+    {
+      "name": "openai_not_used",
+      "status": "pass",
+      "details": "no OpenAI API provider"
+    },
+    {
+      "name": "paid_fallback_disabled",
+      "status": "pass",
+      "details": "paid fallback is disabled"
+    },
+    {
+      "name": "search_grounding_disabled",
+      "status": "pass",
+      "details": "no paid/search grounding"
+    },
+    {
+      "name": "feedback_privacy",
+      "status": "pass",
+      "details": "raw output is not stored in the public repository"
+    },
+    {
+      "name": "public_repo_awareness",
+      "status": "pass",
+      "details": "privacy guard enabled"
+    },
+    {
+      "name": "preview_resolution",
+      "status": "pass",
+      "details": "1536x864"
+    },
+    {
+      "name": "stable_pdf_link",
+      "status": "pass",
+      "details": "notification links to latest.pdf"
+    },
+    {
+      "name": "stable_preview_link",
+      "status": "pass",
+      "details": "notification links to preview image"
+    },
+    {
+      "name": "pptx_not_distributed",
+      "status": "pass",
+      "details": "PowerPoint is not the user-facing format"
+    },
+    {
+      "name": "feedback_return_path",
+      "status": "pass",
+      "details": "submission returns to ChatGPT"
+    },
+    {
+      "name": "notification_submission_guide",
+      "status": "pass",
+      "details": "submission instructions stay outside PDF"
+    }
+  ],
+  "failure_count": 0
+}
