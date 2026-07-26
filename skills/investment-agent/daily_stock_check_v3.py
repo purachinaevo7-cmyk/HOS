@@ -1,7 +1,8 @@
 """Stock Watch V3 entrypoint.
 
 This wrapper reuses the proven V2 market-data plumbing while adding explicit
-next-session order plans and a morning reminder even when no retry is needed.
+next-session order plans, account-specific strategy orders and a morning reminder
+even when no retry is needed.
 """
 from __future__ import annotations
 
@@ -23,10 +24,19 @@ from stock_watch_v3 import (
     render_notification,
     write_outputs,
 )
+from strategy_plan import (
+    evaluate_strategy,
+    load_strategy,
+    merge_watchlists,
+    render_strategy_notification,
+    strategy_watchlist,
+    write_strategy_output,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parents[1]
 DATA_DIR = BASE_DIR / "data" / "daily_prices"
+STRATEGY_PATH = BASE_DIR / "config" / "strategies" / "HOS_2026_FINAL_AGGRESSIVE_V2.json"
 EVENING = legacy.EVENING
 MORNING_RETRY = legacy.MORNING_RETRY
 
@@ -69,6 +79,7 @@ def _result_from_previous(previous: dict[str, Any], target_date: date) -> FetchR
 def _render_v3(
     universe: list[dict[str, Any]],
     policy: dict[str, Any],
+    strategy: dict[str, Any],
     result: FetchResult,
     mode: str,
     data_dir: Path,
@@ -89,7 +100,7 @@ def _render_v3(
         data_dir / state_name,
         float(policy.get("notification", {}).get("price_change_renotify_threshold_percent", 1.0)),
     )
-    return render_notification(
+    base_report = render_notification(
         alerts,
         decisions,
         result.trade_date,
@@ -97,13 +108,23 @@ def _render_v3(
         bool(policy.get("notification", {}).get("discord_notify_no_alert", False)),
     )
 
+    strategy_report = None
+    if strategy:
+        strategy_signals = evaluate_strategy(strategy, result.prices)
+        write_strategy_output(strategy_signals, ROOT_DIR / "outputs" / "strategy_order_plan.json")
+        strategy_report = render_strategy_notification(strategy_signals)
+
+    parts = [part for part in (strategy_report, base_report) if part]
+    return "\n\n".join(parts)[:1_980] if parts else None
+
 
 def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DATA_DIR) -> str | None:
     legacy.load_env()
     universe_path = BASE_DIR / "config" / "stock_watch_universe.json"
     policy_path = BASE_DIR / "config" / "portfolio_policy.json"
     universe = load_universe(universe_path)
-    watchlist = fetcher_watchlist(universe)
+    strategy = load_strategy(STRATEGY_PATH) if STRATEGY_PATH.exists() else {}
+    watchlist = merge_watchlists(fetcher_watchlist(universe), strategy_watchlist(strategy))
     policy = apply_private_budget(load_json(policy_path))
     now = legacy._jst_now()
 
@@ -116,6 +137,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
             "expected_date": expected_date.isoformat(),
             "current_date": now.date().isoformat(),
             "reason": reason,
+            "strategy_id": strategy.get("strategy_id"),
         }
         try:
             previous = legacy._load_previous_log(expected_date, data_dir)
@@ -125,7 +147,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         legacy._log_latest_available_data_date(result)
         retry_required = legacy._retry_required(result)
         legacy._write_mode_log(result, mode, retry_required, data_dir, context)
-        return _render_v3(universe, policy, result, mode, data_dir)
+        return _render_v3(universe, policy, strategy, result, mode, data_dir)
 
     if mode == MORNING_RETRY:
         target_date, reason = legacy._resolve_morning_trade_date(now, trade_date, data_dir)
@@ -136,6 +158,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
             "expected_date": target_date.isoformat(),
             "current_date": now.date().isoformat(),
             "reason": reason,
+            "strategy_id": strategy.get("strategy_id"),
         }
         try:
             previous = legacy._load_previous_log(target_date, data_dir)
@@ -146,7 +169,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
             # A complete evening run still needs a 07:00 order reminder. Reuse
             # the audited prior close instead of making pointless network calls.
             result = _result_from_previous(previous, target_date)
-            return _render_v3(universe, policy, result, mode, data_dir)
+            return _render_v3(universe, policy, strategy, result, mode, data_dir)
 
         previous_prices = [legacy._price_from_json(row) for row in previous.get("prices", [])] if previous else []
         previous_missing = [legacy._missing_from_json(row) for row in previous.get("missing", [])] if previous else []
@@ -169,7 +192,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
         )
         still_required = legacy._retry_required(result)
         legacy._write_mode_log(result, mode, still_required, data_dir, context)
-        return _render_v3(universe, policy, result, mode, data_dir)
+        return _render_v3(universe, policy, strategy, result, mode, data_dir)
 
     raise ValueError(f"unknown mode: {mode}")
 
