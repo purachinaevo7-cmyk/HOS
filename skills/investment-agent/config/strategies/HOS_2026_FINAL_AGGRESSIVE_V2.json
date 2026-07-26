@@ -1,7 +1,15 @@
 {
   "strategy_id": "HOS_2026_FINAL_AGGRESSIVE_V2",
-  "as_of": "2026-07-26",
-  "status": "ACTIVE_PENDING_REVALIDATION",
+  "revision": 3,
+  "as_of": "2026-07-27",
+  "status": "ACTIVE",
+  "purchase_authority": {
+    "mode": "REGISTERED_STRATEGY_ONLY",
+    "generic_daily_drop_signal": "CONTEXT_ONLY",
+    "max_household_orders_per_day": 1,
+    "sequential_steps_required": true,
+    "ready_flag": "PURCHASE_READY"
+  },
   "privacy": {
     "public_repository": true,
     "exact_cash_and_account_budgets_stored_in_actions_secrets": true
@@ -9,13 +17,15 @@
   "household_goal": {
     "target_year": 2045,
     "financial_assets_jpy": 200000000,
-    "annual_dividend_jpy": 6000000
+    "annual_dividend_jpy": 6000000,
+    "max_single_ticker_weight_warning": 0.05
   },
   "funding": {
     "available_investment_cash_jpy_env": "HOS_HOUSEHOLD_AVAILABLE_CASH_JPY",
     "target_investment_to_2027_03_jpy_env": "HOS_TARGET_INVESTMENT_TO_2027_03_JPY",
     "reserve_after_execution_jpy_env": "HOS_RESERVE_AFTER_EXECUTION_JPY",
     "maho_2026_individual_stock_cap_jpy_env": "HOS_MAHO_2026_STOCK_CAP_JPY",
+    "usd_jpy_planning_rate_env": "HOS_USDJPY_PLANNING_RATE",
     "rule": "名義人本人の資金で購入。夫婦間資金移動による名義分散は行わない"
   },
   "accounts": {
@@ -27,170 +37,235 @@
           "name": "三井住友FG",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 100,
           "purpose": "配当・Olive優待",
-          "earnings_wait": true,
+          "fy2026_decision": "BUY_2026_CORE",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 1,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 50, "limit_price": 7000},
-            {"shares": 50, "limit_price": 6800}
+            {"step_id": "8316-1", "shares": 50, "limit_price": 7000},
+            {"step_id": "8316-2", "shares": 50, "limit_price": 6800}
           ],
+          "target_shares": 100,
+          "earnings_wait": true,
           "completion_deadline": "2026-09-28",
           "final_ceiling": 7300,
-          "note": "2026年Vポイントは保有期間不足。定期預金優待等は対象可能"
-        },
-        {
-          "ticker": "7832",
-          "name": "バンダイナムコHD",
-          "market": "JP",
-          "currency": "JPY",
-          "target_shares": 300,
-          "purpose": "IP成長・ゲーム・株主優待",
-          "earnings_wait": true,
-          "order_steps": [
-            {"shares": 100, "limit_price": 4050},
-            {"shares": 100, "limit_price": 3900},
-            {"shares": 100, "limit_price": 3750}
-          ],
-          "completion_deadline": "2027-03-31",
-          "final_ceiling": 4100,
-          "household_holding_after_completion": 400,
-          "household_benefit_points": 3000
+          "benefit_verified_as_of": "2026-07-27",
+          "note": "2026年9月末の初回優待基準を狙う。Vポイントは継続保有等の条件を別確認"
         },
         {
           "ticker": "9433",
           "name": "KDDI",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 200,
-          "purpose": "増配・通信・株主優待",
-          "earnings_wait": true,
+          "purpose": "増配・通信。優待は長期保有後",
+          "fy2026_decision": "BUY_2026_CORE",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 2,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 100, "limit_price": 2850},
-            {"shares": 100, "limit_price": 2725}
+            {"step_id": "9433-1", "shares": 100, "limit_price": 2850},
+            {"step_id": "9433-2", "shares": 100, "limit_price": 2725}
           ],
+          "target_shares": 200,
+          "earnings_wait": true,
           "completion_deadline": "2027-03-31",
-          "final_ceiling": 2900
+          "final_ceiling": 2900,
+          "benefit_verified_as_of": "2026-07-27",
+          "note": "2026年購入分は直近優待対象ではなく長期保有開始"
         },
         {
           "ticker": "4262",
           "name": "ニフティライフスタイル",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 100,
           "purpose": "サウナ優待・配当",
-          "earnings_wait": true,
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "BENEFIT_SATELLITE",
+          "execution_priority": 3,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 100, "limit_price": 1400}
+            {"step_id": "4262-1", "shares": 100, "limit_price": 1400}
           ],
-          "preferred_price": 1350
+          "target_shares": 100,
+          "earnings_wait": true,
+          "preferred_price": 1350,
+          "final_ceiling": 1400,
+          "benefit_verified_as_of": "2026-07-27",
+          "note": "2027年3月末優待を狙う。世帯で100株に限定"
         },
         {
-          "ticker": "2340",
-          "name": "極楽湯HD",
+          "ticker": "7832",
+          "name": "バンダイナムコHD",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 100,
-          "purpose": "無料入浴優待",
+          "purpose": "IP成長・ゲーム・株主優待",
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 4,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 100, "limit_price": 510}
+            {"step_id": "7832-1", "shares": 100, "limit_price": 4050},
+            {"step_id": "7832-2", "shares": 100, "limit_price": 3900}
           ],
-          "completion_deadline": "2026-09-28",
-          "lend_shares": false
+          "target_shares": 200,
+          "earnings_wait": true,
+          "completion_deadline": "2027-03-31",
+          "final_ceiling": 4100,
+          "household_existing_shares": 100,
+          "household_target_after_completion": 300,
+          "household_benefit_points_after_completion": 2000,
+          "concentration_warning": "世帯400株は金融資産5%目安を超えるため300株で停止"
         },
         {
           "ticker": "9616",
           "name": "共立メンテナンス",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 100,
           "purpose": "ドーミーイン・旅行・温浴",
-          "earnings_wait": true,
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "BENEFIT_SATELLITE",
+          "execution_priority": 5,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 50, "limit_price": 3000},
-            {"shares": 50, "limit_price": 2850}
+            {"step_id": "9616-1", "shares": 50, "limit_price": 3000},
+            {"step_id": "9616-2", "shares": 50, "limit_price": 2850}
           ],
-          "final_ceiling": 3100
+          "target_shares": 100,
+          "earnings_wait": true,
+          "final_ceiling": 3100,
+          "benefit_verified_as_of": "2026-07-27"
         },
         {
-          "ticker": "9684",
-          "name": "スクウェア・エニックスHD",
+          "ticker": "2340",
+          "name": "極楽湯HD",
           "market": "JP",
           "currency": "JPY",
+          "purpose": "無料入浴優待の長期保有開始",
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "BENEFIT_SATELLITE",
+          "execution_priority": 6,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "2340-1", "shares": 100, "limit_price": 510}
+          ],
           "target_shares": 100,
-          "purpose": "ゲーム応援・e-STORE優待",
           "earnings_wait": true,
-          "order_steps": [
-            {"shares": 50, "limit_price": 2400},
-            {"shares": 50, "limit_price": 2250}
-          ],
-          "final_ceiling": 2500
-        },
-        {
-          "ticker": "2702",
-          "name": "日本マクドナルドHD",
-          "market": "JP",
-          "currency": "JPY",
-          "target_shares": 100,
-          "purpose": "外食優待",
-          "conditional": true,
-          "order_steps": [
-            {"shares": 50, "limit_price": 7200},
-            {"shares": 50, "limit_price": 6900}
-          ],
-          "rule": "7200円を超える場合は2026年購入見送り"
-        },
-        {
-          "ticker": "NVDA",
-          "name": "NVIDIA",
-          "market": "US",
-          "currency": "USD",
-          "target_additional_shares": 15,
-          "purpose": "AI成長",
-          "order_steps": [
-            {"shares": 5, "limit_price": 200},
-            {"shares": 5, "limit_price": 185},
-            {"shares": 5, "condition": "次回決算で見通し悪化なし", "limit_price": 220}
-          ]
+          "lend_shares": false,
+          "final_ceiling": 510,
+          "benefit_verified_as_of": "2026-07-27",
+          "note": "1年以上・連続名簿記録が必要。2026年9月優待を即取得する注文ではない"
         },
         {
           "ticker": "TSM",
           "name": "TSMC ADR",
           "market": "US",
           "currency": "USD",
-          "target_additional_shares": 7,
           "purpose": "半導体製造",
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 7,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 2, "limit_price": 400},
-            {"shares": 2, "limit_price": 370},
-            {"shares": 3, "condition": "次回決算で見通し悪化なし", "limit_price": 420}
-          ]
+            {"step_id": "TSM-1", "shares": 2, "limit_price": 400},
+            {"step_id": "TSM-2", "shares": 2, "limit_price": 370},
+            {"step_id": "TSM-3", "shares": 3, "limit_price": 420, "condition": "次回決算で見通し悪化なし", "condition_verified": false}
+          ],
+          "target_additional_shares": 7,
+          "earnings_wait": true,
+          "final_ceiling": 420
+        },
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "market": "US",
+          "currency": "USD",
+          "purpose": "AI成長",
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 8,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "NVDA-1", "shares": 5, "limit_price": 200},
+            {"step_id": "NVDA-2", "shares": 5, "limit_price": 185},
+            {"step_id": "NVDA-3", "shares": 5, "limit_price": 220, "condition": "次回決算で見通し悪化なし", "condition_verified": false}
+          ],
+          "target_additional_shares": 15,
+          "earnings_wait": true,
+          "final_ceiling": 220
+        },
+        {
+          "ticker": "9684",
+          "name": "スクウェア・エニックスHD",
+          "market": "JP",
+          "currency": "JPY",
+          "purpose": "ゲーム応援・e-STORE優待",
+          "fy2026_decision": "DEFER_2027",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 20,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "9684-1", "shares": 50, "limit_price": 2400},
+            {"step_id": "9684-2", "shares": 50, "limit_price": 2250}
+          ],
+          "target_shares": 100,
+          "final_ceiling": 2500,
+          "note": "ゲーム枠過多と2026年3月優待通過済みのため今年度は監視のみ"
+        },
+        {
+          "ticker": "2702",
+          "name": "日本マクドナルドHD",
+          "market": "JP",
+          "currency": "JPY",
+          "purpose": "外食優待",
+          "fy2026_decision": "SKIP_2026",
+          "purchase_class": "BENEFIT_SATELLITE",
+          "execution_priority": 21,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "2702-1", "shares": 100, "limit_price": 7200}
+          ],
+          "target_shares": 100,
+          "final_ceiling": 7200,
+          "benefit_verified_as_of": "2026-07-27",
+          "note": "1年以上保有条件。株価が上限超過のため2026年度購入見送り"
         },
         {
           "ticker": "RACE",
           "name": "Ferrari",
           "market": "US",
           "currency": "USD",
-          "target_shares": 3,
           "purpose": "F1・ブランド成長",
-          "priority": "low",
+          "fy2026_decision": "DEFER_2027",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 22,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 1, "limit_price": 350},
-            {"shares": 1, "limit_price": 325},
-            {"shares": 1, "limit_price": 300}
-          ]
+            {"step_id": "RACE-1", "shares": 1, "limit_price": 350},
+            {"step_id": "RACE-2", "shares": 1, "limit_price": 325},
+            {"step_id": "RACE-3", "shares": 1, "limit_price": 300}
+          ],
+          "target_shares": 3,
+          "final_ceiling": 350,
+          "note": "配当目標への寄与が小さく、今年度予算では後順位"
         },
         {
           "ticker": "FWONK",
           "name": "Liberty Formula One",
           "market": "US",
           "currency": "USD",
-          "target_shares": 10,
           "purpose": "F1・MotoGP商業権",
-          "priority": "low",
+          "fy2026_decision": "DEFER_2027",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 23,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 5, "limit_price": 95},
-            {"shares": 5, "limit_price": 88}
-          ]
+            {"step_id": "FWONK-1", "shares": 5, "limit_price": 95},
+            {"step_id": "FWONK-2", "shares": 5, "limit_price": 88}
+          ],
+          "target_shares": 10,
+          "final_ceiling": 95,
+          "note": "配当目標への寄与が小さく、今年度予算では後順位"
         }
       ]
     },
@@ -199,130 +274,182 @@
       "funding_rule": "ひろ本人の給与・預金から証券口座へ入金後に実行",
       "orders": [
         {
-          "ticker": "8316",
-          "name": "三井住友FG",
+          "ticker": "8593",
+          "name": "三菱HCキャピタル",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 100,
+          "purpose": "増配・配当基盤",
+          "fy2026_decision": "BUY_2026_CORE",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 1,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 50, "limit_price": 7000},
-            {"shares": 50, "limit_price": 6800}
+            {"step_id": "8593-1", "shares": 50, "limit_price": 1400},
+            {"step_id": "8593-2", "shares": 100, "limit_price": 1325},
+            {"step_id": "8593-3", "shares": 100, "limit_price": 1250}
           ],
-          "completion_deadline": "2026-09-28",
-          "final_ceiling": 7300
-        },
-        {
-          "ticker": "4262",
-          "name": "ニフティライフスタイル",
-          "market": "JP",
-          "currency": "JPY",
-          "target_shares": 100,
-          "order_steps": [
-            {"shares": 100, "limit_price": 1400}
-          ]
-        },
-        {
-          "ticker": "2340",
-          "name": "極楽湯HD",
-          "market": "JP",
-          "currency": "JPY",
-          "target_shares": 100,
-          "order_steps": [
-            {"shares": 100, "limit_price": 510}
-          ],
-          "completion_deadline": "2026-09-28",
-          "lend_shares": false
+          "current_shares": 50,
+          "target_total_shares": 300,
+          "earnings_wait": true,
+          "final_ceiling": 1450
         },
         {
           "ticker": "9882",
           "name": "イエローハット",
           "market": "JP",
           "currency": "JPY",
+          "purpose": "配当・カー用品優待",
+          "fy2026_decision": "BUY_2026_CORE",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 2,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "9882-1", "shares": 100, "limit_price": 1750}
+          ],
           "target_shares": 100,
           "earnings_wait": true,
-          "order_steps": [
-            {"shares": 100, "limit_price": 1750}
-          ],
-          "final_ceiling": 1800
-        },
-        {
-          "ticker": "8593",
-          "name": "三菱HCキャピタル",
-          "market": "JP",
-          "currency": "JPY",
-          "current_shares": 50,
-          "target_total_shares": 300,
-          "earnings_wait": true,
-          "order_steps": [
-            {"shares": 50, "limit_price": 1400},
-            {"shares": 100, "limit_price": 1325},
-            {"shares": 100, "limit_price": 1250}
-          ]
-        },
-        {
-          "ticker": "8306",
-          "name": "MUFG",
-          "market": "JP",
-          "currency": "JPY",
-          "current_shares": 15,
-          "target_total_shares": 100,
-          "conditional": true,
-          "order_steps": [
-            {"shares": 45, "limit_price": 3500},
-            {"shares": 40, "limit_price": 3300}
-          ],
-          "rule": "3600円超では単元化を急がない"
+          "final_ceiling": 1800,
+          "benefit_verification_status": "PARTIAL",
+          "note": "配当方針は確認済み。優待券の詳細は公式ページ画像のため約定前に再確認"
         },
         {
           "ticker": "2914",
           "name": "JT",
           "market": "JP",
           "currency": "JPY",
+          "purpose": "高配当",
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 3,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "2914-1", "shares_rule": "不足株数の半分", "limit_price": 6000},
+            {"step_id": "2914-2", "shares_rule": "残り不足株数", "limit_price": 5700}
+          ],
           "target_total_shares": 100,
           "current_shares_source": "HOS",
           "earnings_wait": true,
-          "order_steps": [
-            {"shares_rule": "不足株数の半分", "limit_price": 6000},
-            {"shares_rule": "残り不足株数", "limit_price": 5700}
-          ],
-          "rule": "6300円以上では買い増さない"
+          "final_ceiling": 6300,
+          "note": "6300円以上では買い増さない"
         },
         {
           "ticker": "9697",
           "name": "カプコン",
           "market": "JP",
           "currency": "JPY",
+          "purpose": "IP成長",
+          "fy2026_decision": "BUY_2026_CONDITIONAL",
+          "purchase_class": "GROWTH_SATELLITE",
+          "execution_priority": 4,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "9697-1", "shares": 50, "limit_price": 3300},
+            {"step_id": "9697-2", "shares": 50, "limit_price": 3100}
+          ],
           "target_shares": 100,
           "earnings_wait": true,
-          "order_steps": [
-            {"shares": 50, "limit_price": 3300},
-            {"shares": 50, "limit_price": 3100}
-          ],
           "final_ceiling": 3500
+        },
+        {
+          "ticker": "8316",
+          "name": "三井住友FG",
+          "market": "JP",
+          "currency": "JPY",
+          "purpose": "配当・Olive優待",
+          "fy2026_decision": "DEFER_UNTIL_FUNDED",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 20,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "8316-1", "shares": 50, "limit_price": 7000},
+            {"step_id": "8316-2", "shares": 50, "limit_price": 6800}
+          ],
+          "target_shares": 100,
+          "completion_deadline": "2026-09-28",
+          "final_ceiling": 7300,
+          "note": "まほ口座100株を優先。ひろ口座は入金と世帯5%確認後"
+        },
+        {
+          "ticker": "8306",
+          "name": "MUFG",
+          "market": "JP",
+          "currency": "JPY",
+          "purpose": "配当・銀行",
+          "fy2026_decision": "DEFER_2027",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 21,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "8306-1", "shares": 45, "limit_price": 3500},
+            {"step_id": "8306-2", "shares": 40, "limit_price": 3300}
+          ],
+          "current_shares": 15,
+          "target_total_shares": 100,
+          "final_ceiling": 3600,
+          "note": "SMFGと金融集中を避け、3600円超では単元化を急がない"
+        },
+        {
+          "ticker": "4262",
+          "name": "ニフティライフスタイル",
+          "market": "JP",
+          "currency": "JPY",
+          "purpose": "サウナ優待",
+          "fy2026_decision": "DEFER_DUPLICATE",
+          "purchase_class": "BENEFIT_SATELLITE",
+          "execution_priority": 22,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "4262-1", "shares": 100, "limit_price": 1400}
+          ],
+          "target_shares": 100,
+          "note": "2026年度はまほ口座100株のみ"
+        },
+        {
+          "ticker": "2340",
+          "name": "極楽湯HD",
+          "market": "JP",
+          "currency": "JPY",
+          "purpose": "無料入浴優待",
+          "fy2026_decision": "DEFER_DUPLICATE",
+          "purchase_class": "BENEFIT_SATELLITE",
+          "execution_priority": 23,
+          "completed_step_ids": [],
+          "order_steps": [
+            {"step_id": "2340-1", "shares": 100, "limit_price": 510}
+          ],
+          "target_shares": 100,
+          "lend_shares": false,
+          "note": "2026年度はまほ口座100株のみ"
         },
         {
           "ticker": "9433",
           "name": "KDDI",
           "market": "JP",
           "currency": "JPY",
-          "target_shares": 200,
-          "priority": "conditional",
+          "purpose": "増配・通信",
+          "fy2026_decision": "DEFER_DUPLICATE",
+          "purchase_class": "CORE_DIVIDEND",
+          "execution_priority": 24,
+          "completed_step_ids": [],
           "order_steps": [
-            {"shares": 100, "limit_price": 2700},
-            {"shares": 100, "limit_price": 2550}
-          ]
+            {"step_id": "9433-1", "shares": 100, "limit_price": 2700},
+            {"step_id": "9433-2", "shares": 100, "limit_price": 2550}
+          ],
+          "target_shares": 200,
+          "note": "2026年度はまほ口座200株を優先"
         }
       ]
     }
   },
   "monitoring_rules": [
-    "決算発表翌営業日までは新規注文禁止",
-    "決算で通期営業利益または配当予想の下方修正があれば買付停止",
+    "決算発表日から翌営業日終了までは新規注文禁止",
+    "通期営業利益または配当予想の下方修正があれば買付停止",
+    "登録戦略銘柄では日次下落率フラグを発注根拠にしない",
+    "注文段階は順番に実行し、前段階の約定記録なしに次段階を有効化しない",
     "指値未到達銘柄は追いかけず次回決算へ繰越",
-    "権利期限銘柄は権利付き最終日をJPX日程で再確認",
+    "権利付き最終日はJPX日程で再確認",
     "株価・予想配当・優待制度を毎回最新情報に更新",
     "一銘柄が世帯金融資産の5%を超える場合は警告",
-    "バンダイナムコは夫婦合算400株で停止",
     "優待変更・廃止時は事業価値のみで再判定"
   ]
 }
