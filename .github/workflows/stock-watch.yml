@@ -13,6 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      HOS_EXECUTION_ACCOUNT: maho
+      # Money values are private. Configure them as GitHub Actions secrets,
+      # never in the public repository.
+      HOS_MAHO_BUYING_POWER_JPY: ${{ secrets.HOS_MAHO_BUYING_POWER_JPY }}
+      HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY: ${{ secrets.HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY }}
+      HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY: ${{ secrets.HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY }}
+      HOS_MAX_SINGLE_ORDER_JPY: ${{ secrets.HOS_MAX_SINGLE_ORDER_JPY }}
+      HOS_ALLOW_ODD_LOT: true
 
     steps:
       - name: Checkout
@@ -35,7 +43,7 @@ jobs:
           else
             MODE=evening
           fi
-          python skills/investment-agent/daily_stock_check.py --mode "$MODE" 2>&1 | tee logs/stock-watch.log
+          python skills/investment-agent/daily_stock_check_v3.py --mode "$MODE" 2>&1 | tee logs/stock-watch.log
 
       - name: Upload logs
         if: always()
