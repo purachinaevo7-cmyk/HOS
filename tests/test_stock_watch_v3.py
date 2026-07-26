@@ -140,7 +140,7 @@ def test_daily_order_limit_allows_only_top_ranked_ready_order():
     })
     prices = [
         PriceRecord("4063", "信越化学工業", 3900, 4200, date(2026, 7, 14), "mock", "large"),
-        PriceRecord("6981", "村田製作所", 2700, 3000, date(2026, 7, 14), "mock", "large"),
+        PriceRecord("6981", "村田製作所", 2800, 3000, date(2026, 7, 14), "mock", "large"),
     ]
     rows = decide(universe, prices, policy, -0.5, date(2026, 7, 14), date(2026, 7, 15))
     assert sum(row.actionability == "READY" for row in rows) == 1
