@@ -13,6 +13,7 @@ from typing import Any
 
 import daily_stock_check as legacy
 from notifier import ConsoleNotifier, DiscordNotifier, GitHubSummaryNotifier
+from progress_notification import render_goal_progress
 from purchase_authority import enforce_registered_strategy_only
 from stock_fetcher import FetchResult, fetch_market_data
 from stock_watch_v3 import (
@@ -127,12 +128,17 @@ def _render_v3(
     )
 
     strategy_report = None
+    progress_report = None
     if strategy:
         strategy_signals = evaluate_strategy(strategy, result.prices, policy=policy)
         write_strategy_output(strategy_signals, ROOT_DIR / "outputs" / "strategy_order_plan.json")
         strategy_report = render_strategy_notification(strategy_signals)
+        if strategy_report or base_report:
+            progress_report = render_goal_progress(policy, strategy, strategy_signals)
 
-    parts = [part for part in (strategy_report, base_report) if part]
+    # Put progress before the generic context so Discord's 2,000-character
+    # limit cannot cut the long-term goal section off the end of the message.
+    parts = [part for part in (strategy_report, progress_report, base_report) if part]
     return "\n\n".join(parts)[:1_980] if parts else None
 
 
