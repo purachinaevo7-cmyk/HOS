@@ -14,10 +14,38 @@ def registered_strategy():
     return load_strategy(BASE / "config" / "strategies" / "HOS_2026_FINAL_AGGRESSIVE_V2.json")
 
 
+def base_order(ticker, name, steps, **extra):
+    order = {
+        "ticker": ticker,
+        "name": name,
+        "market": "JP",
+        "currency": "JPY",
+        "purpose": "test",
+        "fy2026_decision": "BUY_2026_CORE",
+        "purchase_class": "CORE_DIVIDEND",
+        "execution_priority": 1,
+        "completed_step_ids": [],
+        "order_steps": steps,
+    }
+    order.update(extra)
+    return order
+
+
+def env_values():
+    return {
+        "TEST_BUDGET": "1000000",
+        "TEST_BUYING_POWER": "1000000",
+        "HOS_STRATEGY_MAX_DAILY_ORDERS": "1",
+    }
+
+
 def test_registered_strategy_and_unique_japanese_watchlist():
     strategy = registered_strategy()
     assert strategy["strategy_id"] == "HOS_2026_FINAL_AGGRESSIVE_V2"
-    assert strategy["status"] == "ACTIVE_PENDING_REVALIDATION"
+    assert strategy["status"] == "ACTIVE"
+    bandai = next(order for order in strategy["accounts"]["maho"]["orders"] if order["ticker"] == "7832")
+    assert bandai["target_shares"] == 200
+    assert bandai["household_target_after_completion"] == 300
     watchlist = strategy_watchlist(strategy)
     codes = [row["code"] for row in watchlist]
     assert "4262" in codes
@@ -27,7 +55,7 @@ def test_registered_strategy_and_unique_japanese_watchlist():
     assert [row["code"] for row in merged].count("8316") == 1
 
 
-def test_limit_reached_is_ready_only_with_budget_buying_power_and_active_strategy():
+def test_limit_reached_is_purchase_ready_only_with_all_gates():
     strategy = {
         "strategy_id": "TEST",
         "status": "ACTIVE",
@@ -35,25 +63,16 @@ def test_limit_reached_is_ready_only_with_budget_buying_power_and_active_strateg
             "maho": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
-                "orders": [{
-                    "ticker": "2340",
-                    "name": "極楽湯HD",
-                    "market": "JP",
-                    "currency": "JPY",
-                    "purpose": "優待",
-                    "order_steps": [{"shares": 100, "limit_price": 510}],
-                }],
+                "orders": [base_order("2340", "極楽湯HD", [{"step_id": "2340-1", "shares": 100, "limit_price": 510}])],
             }
         },
     }
-    price = PriceRecord("2340", "極楽湯HD", 500, 520, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {
-        "TEST_BUDGET": "1000000",
-        "TEST_BUYING_POWER": "1000000",
-    })[0]
+    price = PriceRecord("2340", "極楽湯HD", 500, 520, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], env=env_values())[0]
     assert signal.status == "READY"
+    assert signal.purchase_flag == "PURCHASE_READY"
     assert signal.actionability == "READY"
-    assert signal.estimated_amount == 51000
+    assert signal.estimated_amount_jpy == 51000
 
 
 def test_earnings_wait_blocks_even_when_limit_is_reached():
@@ -64,28 +83,22 @@ def test_earnings_wait_blocks_even_when_limit_is_reached():
             "hiro": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
-                "orders": [{
-                    "ticker": "9882",
-                    "name": "イエローハット",
-                    "market": "JP",
-                    "currency": "JPY",
-                    "earnings_wait": True,
-                    "order_steps": [{"shares": 100, "limit_price": 1750}],
-                }],
+                "orders": [base_order(
+                    "9882", "イエローハット",
+                    [{"step_id": "9882-1", "shares": 100, "limit_price": 1750}],
+                    earnings_wait=True,
+                )],
             }
         },
     }
-    price = PriceRecord("9882", "イエローハット", 1700, 1800, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {
-        "TEST_BUDGET": "3200000",
-        "TEST_BUYING_POWER": "3200000",
-    })[0]
+    price = PriceRecord("9882", "イエローハット", 1700, 1800, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], env=env_values())[0]
     assert signal.status == "BLOCKED_AT_LIMIT"
-    assert signal.actionability == "DRAFT"
+    assert signal.purchase_flag == "REVIEW_REQUIRED"
     assert "EARNINGS_REVIEW_REQUIRED" in signal.blocks
 
 
-def test_pending_revalidation_blocks_a_reached_order():
+def test_inactive_strategy_blocks_a_reached_order():
     strategy = {
         "strategy_id": "TEST",
         "status": "ACTIVE_PENDING_REVALIDATION",
@@ -93,23 +106,55 @@ def test_pending_revalidation_blocks_a_reached_order():
             "maho": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
-                "orders": [{
-                    "ticker": "2340",
-                    "name": "極楽湯HD",
-                    "market": "JP",
-                    "currency": "JPY",
-                    "order_steps": [{"shares": 100, "limit_price": 510}],
-                }],
+                "orders": [base_order("2340", "極楽湯HD", [{"step_id": "2340-1", "shares": 100, "limit_price": 510}])],
             }
         },
     }
-    price = PriceRecord("2340", "極楽湯HD", 500, 520, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {
-        "TEST_BUDGET": "1000000",
-        "TEST_BUYING_POWER": "1000000",
-    })[0]
+    price = PriceRecord("2340", "極楽湯HD", 500, 520, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], env=env_values())[0]
     assert signal.status == "BLOCKED_AT_LIMIT"
-    assert "STRATEGY_REVALIDATION_REQUIRED" in signal.blocks
+    assert "STRATEGY_NOT_ACTIVE" in signal.blocks
+
+
+def test_only_first_incomplete_step_can_be_ready():
+    strategy = {
+        "strategy_id": "TEST",
+        "status": "ACTIVE",
+        "accounts": {
+            "maho": {
+                "target_budget_jpy_env": "TEST_BUDGET",
+                "buying_power_jpy_env": "TEST_BUYING_POWER",
+                "orders": [base_order("7832", "バンダイナムコHD", [
+                    {"step_id": "7832-1", "shares": 100, "limit_price": 4050},
+                    {"step_id": "7832-2", "shares": 100, "limit_price": 3900},
+                ])],
+            }
+        },
+    }
+    price = PriceRecord("7832", "バンダイナムコHD", 3800, 4100, date.today(), "mock", "medium")
+    signals = evaluate_strategy(strategy, [price], env=env_values())
+    assert signals[0].purchase_flag == "PURCHASE_READY"
+    assert signals[1].status == "WAIT_PREVIOUS_STEP"
+
+
+def test_deferred_fy_decision_never_becomes_ready():
+    deferred = base_order("2702", "日本マクドナルドHD", [{"step_id": "2702-1", "shares": 100, "limit_price": 7200}])
+    deferred["fy2026_decision"] = "SKIP_2026"
+    strategy = {
+        "strategy_id": "TEST",
+        "status": "ACTIVE",
+        "accounts": {
+            "maho": {
+                "target_budget_jpy_env": "TEST_BUDGET",
+                "buying_power_jpy_env": "TEST_BUYING_POWER",
+                "orders": [deferred],
+            }
+        },
+    }
+    price = PriceRecord("2702", "日本マクドナルドHD", 7000, 7300, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], env=env_values())[0]
+    assert signal.status == "SKIP_2026"
+    assert signal.actionability == "DRAFT"
 
 
 def test_missing_hos_holding_blocks_dynamic_jt_share_rule():
@@ -120,23 +165,17 @@ def test_missing_hos_holding_blocks_dynamic_jt_share_rule():
             "hiro": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
-                "orders": [{
-                    "ticker": "2914",
-                    "name": "JT",
-                    "market": "JP",
-                    "currency": "JPY",
-                    "target_total_shares": 100,
-                    "current_shares_source": "HOS",
-                    "order_steps": [{"shares_rule": "不足株数の半分", "limit_price": 6000}],
-                }],
+                "orders": [base_order(
+                    "2914", "JT",
+                    [{"step_id": "2914-1", "shares_rule": "不足株数の半分", "limit_price": 6000}],
+                    target_total_shares=100,
+                    current_shares_source="HOS",
+                )],
             }
         },
     }
-    price = PriceRecord("2914", "JT", 5900, 6100, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {
-        "TEST_BUDGET": "3200000",
-        "TEST_BUYING_POWER": "3200000",
-    })[0]
+    price = PriceRecord("2914", "JT", 5900, 6100, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], env=env_values())[0]
     assert signal.status == "BLOCKED_AT_LIMIT"
     assert signal.shares is None
     assert "HOLDING_DATA_REQUIRED" in signal.blocks
