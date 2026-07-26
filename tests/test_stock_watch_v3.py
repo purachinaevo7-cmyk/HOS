@@ -119,3 +119,29 @@ def test_watchlist_review_splits_daily_core_secondary_and_monitor(tmp_path):
     first = dedupe(rows, tmp_path / "state.json")
     second = dedupe(rows, tmp_path / "state.json")
     assert len(first) == 1 and first[0].new_signal is True and second == []
+
+
+def test_daily_order_limit_allows_only_top_ranked_ready_order():
+    base = [row for row in fixture_universe() if row["ticker"] in {"4063", "6981"}]
+    universe = [{
+        **row,
+        "fundamentals_as_of": "2026-07-10",
+        "fundamentals_verified": True,
+        "valuation_as_of": "2026-07-14",
+        "valuation_verified": True,
+        "news_as_of": "2026-07-14",
+        "news_verified": True,
+    } for row in base]
+    policy = apply_private_budget(fixture_policy(), {
+        "HOS_MAHO_BUYING_POWER_JPY": "600000",
+        "HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY": "600000",
+        "HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY": "2000000",
+        "HOS_MAX_SINGLE_ORDER_JPY": "600000",
+    })
+    prices = [
+        PriceRecord("4063", "信越化学工業", 3900, 4200, date(2026, 7, 14), "mock", "large"),
+        PriceRecord("6981", "村田製作所", 2700, 3000, date(2026, 7, 14), "mock", "large"),
+    ]
+    rows = decide(universe, prices, policy, -0.5, date(2026, 7, 14), date(2026, 7, 15))
+    assert sum(row.actionability == "READY" for row in rows) == 1
+    assert sum(row.actionability == "DAILY_ORDER_LIMIT" for row in rows) == 1
