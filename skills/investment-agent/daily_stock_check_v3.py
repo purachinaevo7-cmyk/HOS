@@ -105,15 +105,20 @@ def _render_v3(
     )
     decisions = suppress_generic_buy_for_strategy(decisions, strategy)
     write_outputs(decisions, universe, policy, ROOT_DIR / "outputs")
+
+    # The registered strategy report is authoritative. Suppressed generic BUY
+    # rows remain in JSON for diagnostics but are omitted from Discord to avoid
+    # two contradictory order instructions for the same ticker.
+    generic_decisions = [row for row in decisions if row.actionability != "STRATEGY_CONTROLLED"]
     state_name = "notification_state_v3_morning.json" if mode == MORNING_RETRY else "notification_state_v3_evening.json"
     alerts = dedupe(
-        decisions,
+        generic_decisions,
         data_dir / state_name,
         float(policy.get("notification", {}).get("price_change_renotify_threshold_percent", 1.0)),
     )
     base_report = render_notification(
         alerts,
-        decisions,
+        generic_decisions,
         result.trade_date,
         "朝の注文確認" if mode == MORNING_RETRY else "夜の注文案",
         bool(policy.get("notification", {}).get("discord_notify_no_alert", False)),
