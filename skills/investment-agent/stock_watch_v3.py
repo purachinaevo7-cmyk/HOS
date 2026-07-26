@@ -185,7 +185,8 @@ def _first_tranche(limit_price: float | None, row: dict[str, Any], policy: dict[
     odd_lot = bool(planning.get("allow_odd_lot", True))
     lot = int(row.get("minimum_order_lot", 1) if odd_lot else row.get("preferred_order_lot", 100))
     lot = max(1, lot)
-    shares = math.floor((budget * ratio) / limit_price / lot) * lot
+    max_orders = max(1, int(planning.get("max_daily_orders", 1)))
+    shares = math.floor((budget * ratio / max_orders) / limit_price / lot) * lot
     if shares < lot:
         return 0, lot, 0.0
     return shares, lot, round(shares * limit_price, 2)
@@ -340,6 +341,23 @@ def decide(
             ],
             generated_at=now,
         ))
+
+    max_orders = max(1, int(policy.get("order_planning", {}).get("max_daily_orders", 1)))
+    ready_indices = [index for index, row in enumerate(decisions) if row.actionability == "READY"]
+    ready_indices.sort(key=lambda index: (
+        decisions[index].priority,
+        decisions[index].change_percent if decisions[index].change_percent is not None else 999.0,
+        decisions[index].ticker,
+    ))
+    for index in ready_indices[max_orders:]:
+        row = decisions[index]
+        decisions[index] = replace(
+            row,
+            status="BUY_CANDIDATE",
+            actionability="DAILY_ORDER_LIMIT",
+            order_plan_status="DRAFT",
+            reasons=row.reasons + [f"1日最大{max_orders}注文のため次点待機"],
+        )
     return decisions
 
 
@@ -441,6 +459,7 @@ def _label(actionability: str) -> str:
         "FACTS_REQUIRED": "🛑 決算・評価・ニュース未確認",
         "BUDGET_AND_FACTS_REQUIRED": "🛑 予算と決算・評価・ニュース未確認",
         "POSITION_LIMIT": "🛑 保有上限に抵触",
+        "DAILY_ORDER_LIMIT": "⏭️ 本日の注文上限により次点待機",
         "BUDGET_TOO_SMALL": "🛑 1回目予算が最小株数未満",
         "WATCH_ONLY": "👀 監視専用",
         "DATA_ERROR": "⚠️ データ異常",
@@ -467,7 +486,7 @@ def render_notification(
         f"発注可 {sum(row.actionability == 'READY' for row in all_decisions)}｜要確認 {sum(row.status in {'BUY_CANDIDATE', 'REVIEW_REQUIRED'} for row in all_decisions)}｜接近 {sum(row.status == 'WATCH' for row in all_decisions)}｜異常 {sum(row.status == 'DATA_ERROR' for row in all_decisions)}",
         f"口座: {next((row.execution_account for row in all_decisions), 'maho')}｜成行禁止｜期限超過は再計算",
     ]
-    rank = {"READY": 0, "BUDGET_REQUIRED": 1, "FACTS_REQUIRED": 1, "BUDGET_AND_FACTS_REQUIRED": 1, "POSITION_LIMIT": 2, "WAIT": 3, "WATCH_ONLY": 4, "DATA_ERROR": 5}
+    rank = {"READY": 0, "BUDGET_REQUIRED": 1, "FACTS_REQUIRED": 1, "BUDGET_AND_FACTS_REQUIRED": 1, "POSITION_LIMIT": 2, "DAILY_ORDER_LIMIT": 2, "WAIT": 3, "WATCH_ONLY": 4, "DATA_ERROR": 5}
     important.sort(key=lambda row: (rank.get(row.actionability, 9), row.priority, row.change_percent if row.change_percent is not None else 999))
     for row in important[:5]:
         prefix = "NEW " if row.new_signal else "変更 " if row.status_changed else ""
