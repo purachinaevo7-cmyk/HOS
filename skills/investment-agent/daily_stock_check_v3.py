@@ -13,6 +13,7 @@ from typing import Any
 
 import daily_stock_check as legacy
 from notifier import ConsoleNotifier, DiscordNotifier, GitHubSummaryNotifier
+from purchase_authority import enforce_registered_strategy_only
 from stock_fetcher import FetchResult, fetch_market_data
 from stock_watch_v3 import (
     apply_private_budget,
@@ -30,7 +31,6 @@ from strategy_plan import (
     merge_watchlists,
     render_strategy_notification,
     strategy_watchlist,
-    suppress_generic_buy_for_strategy,
     write_strategy_output,
 )
 
@@ -103,13 +103,15 @@ def _render_v3(
         result.trade_date,
         order_session=order_session,
     )
-    decisions = suppress_generic_buy_for_strategy(decisions, strategy)
+    decisions = enforce_registered_strategy_only(decisions, strategy)
     write_outputs(decisions, universe, policy, ROOT_DIR / "outputs")
 
-    # The registered strategy report is authoritative. Suppressed generic BUY
-    # rows remain in JSON for diagnostics but are omitted from Discord to avoid
-    # two contradictory order instructions for the same ticker.
-    generic_decisions = [row for row in decisions if row.actionability != "STRATEGY_CONTROLLED"]
+    # Strategy-controlled and research-only price events remain in JSON, but
+    # Discord never presents them as executable orders.
+    generic_decisions = [
+        row for row in decisions
+        if row.actionability not in {"STRATEGY_CONTROLLED", "RESEARCH_ONLY"}
+    ]
     state_name = "notification_state_v3_morning.json" if mode == MORNING_RETRY else "notification_state_v3_evening.json"
     alerts = dedupe(
         generic_decisions,
