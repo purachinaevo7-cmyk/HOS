@@ -2,12 +2,12 @@
 
 The public repository stores the strategy and fixed order rules, while exact cash
 balances and account budgets remain in GitHub Actions secrets. The planner never
-sends orders. It only emits READY when price, account budget and all explicit
+sends orders. It only emits READY when price, account funding and all explicit
 review gates are satisfied.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
 import json
 import math
@@ -161,9 +161,11 @@ def evaluate_strategy(
     price_map.update(_fetch_us_prices(strategy))
     now = datetime.now(timezone.utc).isoformat()
     signals: list[StrategyOrderSignal] = []
+    strategy_needs_review = str(strategy.get("status") or "").upper() != "ACTIVE"
 
     for account_name, account in strategy.get("accounts", {}).items():
         account_budget = _env_number(account.get("target_budget_jpy_env"), source)
+        buying_power = _env_number(account.get("buying_power_jpy_env"), source)
         for order in account.get("orders", []):
             ticker = str(order["ticker"])
             market = str(order.get("market", "JP")).upper()
@@ -176,10 +178,20 @@ def evaluate_strategy(
             for step_index, step in enumerate(order.get("order_steps", []), start=1):
                 limit_price = float(step["limit_price"])
                 shares, shares_rule, share_blocks = _shares_for_step(order, step)
+                estimated_amount = round(shares * limit_price, 2) if shares is not None else None
                 blocks = list(share_blocks)
 
+                if strategy_needs_review:
+                    blocks.append("STRATEGY_REVALIDATION_REQUIRED")
                 if account_budget is None:
                     blocks.append("ACCOUNT_BUDGET_SECRET_REQUIRED")
+                if buying_power is None or buying_power <= 0:
+                    blocks.append("ACCOUNT_BUYING_POWER_REQUIRED")
+                if currency == "JPY" and estimated_amount is not None:
+                    if account_budget is not None and estimated_amount > account_budget:
+                        blocks.append("ACCOUNT_STRATEGY_BUDGET_INSUFFICIENT")
+                    if buying_power is not None and estimated_amount > buying_power:
+                        blocks.append("ACCOUNT_BUYING_POWER_INSUFFICIENT")
                 if order.get("earnings_wait") and not order.get("earnings_reviewed_ok"):
                     blocks.append("EARNINGS_REVIEW_REQUIRED")
                 if order.get("conditional") and not order.get("condition_verified"):
@@ -208,7 +220,6 @@ def evaluate_strategy(
                     else:
                         status = "WAIT"
 
-                estimated_amount = round(shares * limit_price, 2) if shares is not None else None
                 actionability = "READY" if status == "READY" and not blocks else "DRAFT"
                 note_parts = [str(order.get("note") or "").strip(), str(order.get("rule") or "").strip()]
                 note = " / ".join(part for part in note_parts if part) or None
@@ -236,6 +247,23 @@ def evaluate_strategy(
                     note=note,
                     generated_at=now,
                 ))
+
+    max_daily_orders = max(1, int(source.get("HOS_STRATEGY_MAX_DAILY_ORDERS", "1")))
+    ready_indices = [index for index, signal in enumerate(signals) if signal.actionability == "READY"]
+    ready_indices.sort(key=lambda index: (
+        1 if signals[index].account == "hiro" else 0,
+        signals[index].distance_to_limit_percent if signals[index].distance_to_limit_percent is not None else 999,
+        signals[index].ticker,
+        signals[index].step_index,
+    ))
+    for index in ready_indices[max_daily_orders:]:
+        signal = signals[index]
+        signals[index] = replace(
+            signal,
+            status="BLOCKED_DAILY_ORDER_LIMIT",
+            actionability="DRAFT",
+            blocks=sorted(set(signal.blocks + ["DAILY_ORDER_LIMIT"])),
+        )
     return signals
 
 
@@ -258,10 +286,10 @@ def _money(value: float | None, currency: str) -> str:
 
 
 def render_strategy_notification(signals: list[StrategyOrderSignal], limit: int = 4) -> str | None:
-    relevant = [signal for signal in signals if signal.status in {"READY", "BLOCKED_AT_LIMIT", "NEAR", "ABOVE_CEILING"}]
+    relevant = [signal for signal in signals if signal.status in {"READY", "BLOCKED_AT_LIMIT", "NEAR", "ABOVE_CEILING", "BLOCKED_DAILY_ORDER_LIMIT"}]
     if not relevant:
         return None
-    rank = {"READY": 0, "BLOCKED_AT_LIMIT": 1, "NEAR": 2, "ABOVE_CEILING": 3}
+    rank = {"READY": 0, "BLOCKED_AT_LIMIT": 1, "BLOCKED_DAILY_ORDER_LIMIT": 2, "NEAR": 3, "ABOVE_CEILING": 4}
     relevant.sort(key=lambda signal: (
         rank.get(signal.status, 9),
         signal.account,
@@ -276,6 +304,7 @@ def render_strategy_notification(signals: list[StrategyOrderSignal], limit: int 
     labels = {
         "READY": "✅ 指値条件到達",
         "BLOCKED_AT_LIMIT": "🛑 指値到達・確認待ち",
+        "BLOCKED_DAILY_ORDER_LIMIT": "⏭️ 本日の注文上限",
         "NEAR": "🟡 指値接近",
         "ABOVE_CEILING": "⏸️ 上限超過",
     }
@@ -285,7 +314,7 @@ def render_strategy_notification(signals: list[StrategyOrderSignal], limit: int 
             f"{labels[signal.status]}｜{signal.account}｜{signal.ticker} {signal.name}｜"
             f"現在 {_money(signal.current_price, signal.currency)} / 指値 {_money(signal.limit_price, signal.currency)}｜{shares}"
         )
-        if signal.blocks and signal.status == "BLOCKED_AT_LIMIT":
+        if signal.blocks and signal.status in {"BLOCKED_AT_LIMIT", "BLOCKED_DAILY_ORDER_LIMIT"}:
             lines.append(f"   未確認: {', '.join(signal.blocks[:3])}")
     if len(relevant) > limit:
         lines.append(f"ほか {len(relevant) - limit}件は outputs/strategy_order_plan.json")
