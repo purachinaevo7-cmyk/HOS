@@ -1,0 +1,50 @@
+name: サウナレビュー追加
+description: 完成レビューを貼るだけでHOSへ自動登録します
+title: "[Sauna Review] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ChatGPTで整えたレビュー全文をそのまま貼ってください。
+        「施設名」「総合評価」があれば取り込めます。訪問日は任意です。
+  - type: textarea
+    id: review_text
+    attributes:
+      label: レビュー本文
+      description: 入力テンプレートまたは完成レビューを貼り付けてください。
+      placeholder: |
+        施設名：
+
+        🔥 一言まとめ（キャッチコピー）：
+
+        総合評価（10点満点）：
+
+        - 好きだった点
+          #サウナ：
+          #水風呂：
+          #外気浴：
+          #導線：
+          #混み具合：
+
+        - 微妙だった点：
+
+        - 混雑（時間帯）：
+
+        - メモ（次回の入り方・持ち物・リピ条件）：
+    validations:
+      required: true
+  - type: input
+    id: visited_at
+    attributes:
+      label: 訪問日
+      description: 任意。YYYY-MM-DD形式です。
+      placeholder: "2026-07-26"
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: 確認
+      options:
+        - label: この内容をHOSのサウナレビューDBへ追加する
+          required: true
