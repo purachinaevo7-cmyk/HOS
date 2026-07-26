@@ -2,9 +2,7 @@ name: Stock Watch
 
 on:
   schedule:
-    # 21:00 JST on weekdays = 12:00 UTC
     - cron: '0 12 * * 1-5'
-    # 07:00 JST on weekdays = 22:00 UTC previous day
     - cron: '0 22 * * 0-4'
   workflow_dispatch:
 
@@ -14,13 +12,13 @@ jobs:
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       HOS_EXECUTION_ACCOUNT: maho
-      # Money values are private. Configure them as GitHub Actions secrets,
-      # never in the public repository.
       HOS_MAHO_BUYING_POWER_JPY: ${{ secrets.HOS_MAHO_BUYING_POWER_JPY }}
+      HOS_HIRO_BUYING_POWER_JPY: ${{ secrets.HOS_HIRO_BUYING_POWER_JPY }}
       HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY: ${{ secrets.HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY }}
       HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY: ${{ secrets.HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY }}
       HOS_MAX_SINGLE_ORDER_JPY: ${{ secrets.HOS_MAX_SINGLE_ORDER_JPY }}
       HOS_ALLOW_ODD_LOT: true
+      HOS_STRATEGY_MAX_DAILY_ORDERS: 1
       HOS_HOUSEHOLD_AVAILABLE_CASH_JPY: ${{ secrets.HOS_HOUSEHOLD_AVAILABLE_CASH_JPY }}
       HOS_TARGET_INVESTMENT_TO_2027_03_JPY: ${{ secrets.HOS_TARGET_INVESTMENT_TO_2027_03_JPY }}
       HOS_RESERVE_AFTER_EXECUTION_JPY: ${{ secrets.HOS_RESERVE_AFTER_EXECUTION_JPY }}
