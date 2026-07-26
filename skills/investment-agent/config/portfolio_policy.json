@@ -2,7 +2,7 @@
   "target_asset_value_at_age_60": 200000000,
   "target_annual_dividend": 6000000,
   "target_age": 60,
-  "birth_date": "1985-11-01",
+  "birth_date": "1985-11-10",
   "current_financial_assets": 25270000,
   "current_investment_trust": 15290000,
   "current_individual_stocks": 8200000,
@@ -10,6 +10,7 @@
   "monthly_individual_stock_budget": null,
   "annual_individual_stock_budget": null,
   "current_cash_balance": null,
+  "execution_account": "maho",
   "minimum_cash_ratio": 0.1,
   "max_single_stock_weight": 0.08,
   "max_sector_weights": {
@@ -28,6 +29,22 @@
   "minimum_expected_dividend_yield": 0.03,
   "portfolio_rebalance_tolerance": 0.02,
   "default_tranches": 3,
+  "order_planning": {
+    "enabled": true,
+    "strict_fact_gate": true,
+    "allow_odd_lot": true,
+    "max_daily_orders": 1,
+    "max_single_order_amount": null,
+    "order_validity": "NEXT_SESSION_ONLY",
+    "stage_allocations": [0.4, 0.3, 0.3],
+    "near_trigger_margin_percent": 1.0,
+    "cancel_if_open_gap_up_percent": 3.0,
+    "limit_offsets_percent": {
+      "large": [0.5, 1.2, 2.0],
+      "medium": [1.0, 2.0, 3.5],
+      "high": [1.5, 3.0, 5.0]
+    }
+  },
   "notification": {
     "discord_notify_no_alert": false,
     "summary_limit": 800,
