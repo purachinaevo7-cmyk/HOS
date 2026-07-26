@@ -76,6 +76,15 @@ def _result_from_previous(previous: dict[str, Any], target_date: date) -> FetchR
     )
 
 
+def _bind_private_account_secrets(strategy: dict[str, Any]) -> dict[str, Any]:
+    accounts = strategy.get("accounts", {})
+    if "maho" in accounts:
+        accounts["maho"]["buying_power_jpy_env"] = "HOS_MAHO_BUYING_POWER_JPY"
+    if "hiro" in accounts:
+        accounts["hiro"]["buying_power_jpy_env"] = "HOS_HIRO_BUYING_POWER_JPY"
+    return strategy
+
+
 def _render_v3(
     universe: list[dict[str, Any]],
     policy: dict[str, Any],
@@ -123,7 +132,7 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
     universe_path = BASE_DIR / "config" / "stock_watch_universe.json"
     policy_path = BASE_DIR / "config" / "portfolio_policy.json"
     universe = load_universe(universe_path)
-    strategy = load_strategy(STRATEGY_PATH) if STRATEGY_PATH.exists() else {}
+    strategy = _bind_private_account_secrets(load_strategy(STRATEGY_PATH)) if STRATEGY_PATH.exists() else {}
     watchlist = merge_watchlists(fetcher_watchlist(universe), strategy_watchlist(strategy))
     policy = apply_private_budget(load_json(policy_path))
     now = legacy._jst_now()
@@ -166,8 +175,6 @@ def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DA
             previous = None
 
         if previous and not previous.get("retry_required", False):
-            # A complete evening run still needs a 07:00 order reminder. Reuse
-            # the audited prior close instead of making pointless network calls.
             result = _result_from_previous(previous, target_date)
             return _render_v3(universe, policy, strategy, result, mode, data_dir)
 
