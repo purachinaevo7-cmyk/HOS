@@ -17,6 +17,7 @@ def registered_strategy():
 def test_registered_strategy_and_unique_japanese_watchlist():
     strategy = registered_strategy()
     assert strategy["strategy_id"] == "HOS_2026_FINAL_AGGRESSIVE_V2"
+    assert strategy["status"] == "ACTIVE_PENDING_REVALIDATION"
     watchlist = strategy_watchlist(strategy)
     codes = [row["code"] for row in watchlist]
     assert "4262" in codes
@@ -26,12 +27,14 @@ def test_registered_strategy_and_unique_japanese_watchlist():
     assert [row["code"] for row in merged].count("8316") == 1
 
 
-def test_limit_reached_is_ready_only_with_budget_and_no_review_block():
+def test_limit_reached_is_ready_only_with_budget_buying_power_and_active_strategy():
     strategy = {
         "strategy_id": "TEST",
+        "status": "ACTIVE",
         "accounts": {
             "maho": {
                 "target_budget_jpy_env": "TEST_BUDGET",
+                "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [{
                     "ticker": "2340",
                     "name": "極楽湯HD",
@@ -44,7 +47,10 @@ def test_limit_reached_is_ready_only_with_budget_and_no_review_block():
         },
     }
     price = PriceRecord("2340", "極楽湯HD", 500, 520, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {"TEST_BUDGET": "1000000"})[0]
+    signal = evaluate_strategy(strategy, [price], {
+        "TEST_BUDGET": "1000000",
+        "TEST_BUYING_POWER": "1000000",
+    })[0]
     assert signal.status == "READY"
     assert signal.actionability == "READY"
     assert signal.estimated_amount == 51000
@@ -53,9 +59,11 @@ def test_limit_reached_is_ready_only_with_budget_and_no_review_block():
 def test_earnings_wait_blocks_even_when_limit_is_reached():
     strategy = {
         "strategy_id": "TEST",
+        "status": "ACTIVE",
         "accounts": {
             "hiro": {
                 "target_budget_jpy_env": "TEST_BUDGET",
+                "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [{
                     "ticker": "9882",
                     "name": "イエローハット",
@@ -68,18 +76,50 @@ def test_earnings_wait_blocks_even_when_limit_is_reached():
         },
     }
     price = PriceRecord("9882", "イエローハット", 1700, 1800, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {"TEST_BUDGET": "3200000"})[0]
+    signal = evaluate_strategy(strategy, [price], {
+        "TEST_BUDGET": "3200000",
+        "TEST_BUYING_POWER": "3200000",
+    })[0]
     assert signal.status == "BLOCKED_AT_LIMIT"
     assert signal.actionability == "DRAFT"
     assert "EARNINGS_REVIEW_REQUIRED" in signal.blocks
 
 
+def test_pending_revalidation_blocks_a_reached_order():
+    strategy = {
+        "strategy_id": "TEST",
+        "status": "ACTIVE_PENDING_REVALIDATION",
+        "accounts": {
+            "maho": {
+                "target_budget_jpy_env": "TEST_BUDGET",
+                "buying_power_jpy_env": "TEST_BUYING_POWER",
+                "orders": [{
+                    "ticker": "2340",
+                    "name": "極楽湯HD",
+                    "market": "JP",
+                    "currency": "JPY",
+                    "order_steps": [{"shares": 100, "limit_price": 510}],
+                }],
+            }
+        },
+    }
+    price = PriceRecord("2340", "極楽湯HD", 500, 520, date(2026, 7, 24), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], {
+        "TEST_BUDGET": "1000000",
+        "TEST_BUYING_POWER": "1000000",
+    })[0]
+    assert signal.status == "BLOCKED_AT_LIMIT"
+    assert "STRATEGY_REVALIDATION_REQUIRED" in signal.blocks
+
+
 def test_missing_hos_holding_blocks_dynamic_jt_share_rule():
     strategy = {
         "strategy_id": "TEST",
+        "status": "ACTIVE",
         "accounts": {
             "hiro": {
                 "target_budget_jpy_env": "TEST_BUDGET",
+                "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [{
                     "ticker": "2914",
                     "name": "JT",
@@ -93,7 +133,10 @@ def test_missing_hos_holding_blocks_dynamic_jt_share_rule():
         },
     }
     price = PriceRecord("2914", "JT", 5900, 6100, date(2026, 7, 24), "mock", "medium")
-    signal = evaluate_strategy(strategy, [price], {"TEST_BUDGET": "3200000"})[0]
+    signal = evaluate_strategy(strategy, [price], {
+        "TEST_BUDGET": "3200000",
+        "TEST_BUYING_POWER": "3200000",
+    })[0]
     assert signal.status == "BLOCKED_AT_LIMIT"
     assert signal.shares is None
     assert "HOLDING_DATA_REQUIRED" in signal.blocks
