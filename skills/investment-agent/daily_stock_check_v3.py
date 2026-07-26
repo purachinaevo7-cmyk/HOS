@@ -30,6 +30,7 @@ from strategy_plan import (
     merge_watchlists,
     render_strategy_notification,
     strategy_watchlist,
+    suppress_generic_buy_for_strategy,
     write_strategy_output,
 )
 
@@ -102,6 +103,7 @@ def _render_v3(
         result.trade_date,
         order_session=order_session,
     )
+    decisions = suppress_generic_buy_for_strategy(decisions, strategy)
     write_outputs(decisions, universe, policy, ROOT_DIR / "outputs")
     state_name = "notification_state_v3_morning.json" if mode == MORNING_RETRY else "notification_state_v3_evening.json"
     alerts = dedupe(
@@ -119,7 +121,7 @@ def _render_v3(
 
     strategy_report = None
     if strategy:
-        strategy_signals = evaluate_strategy(strategy, result.prices)
+        strategy_signals = evaluate_strategy(strategy, result.prices, policy=policy)
         write_strategy_output(strategy_signals, ROOT_DIR / "outputs" / "strategy_order_plan.json")
         strategy_report = render_strategy_notification(strategy_signals)
 
