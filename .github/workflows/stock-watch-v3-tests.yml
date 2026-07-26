@@ -1,0 +1,26 @@
+name: Stock Watch V3 Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/investment-agent/**'
+      - 'tests/test_stock_watch_v2.py'
+      - 'tests/test_stock_watch_v3.py'
+      - '.github/workflows/stock-watch*.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: Run Stock Watch tests
+        run: python -m pytest -q tests/test_stock_watch_v2.py tests/test_stock_watch_v3.py
