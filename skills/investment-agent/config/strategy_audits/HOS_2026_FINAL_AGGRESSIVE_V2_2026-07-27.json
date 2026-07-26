@@ -1,0 +1,70 @@
+{
+  "strategy_id": "HOS_2026_FINAL_AGGRESSIVE_V2",
+  "audit_date": "2026-07-27",
+  "price_basis": "2026-07-24 close unless noted",
+  "result": "PASS_WITH_REVISIONS",
+  "purchase_flag_audit": {
+    "old_logic": "Daily percentage decline could become BUY after generic fact and budget gates.",
+    "finding": "Not suitable for account-specific fixed-price strategy; it could conflict with the registered order plan.",
+    "new_logic": "Only an active registered strategy step may become PURCHASE_READY. Daily decline signals are context-only.",
+    "required_gates": [
+      "FY2026 purchase decision is BUY_2026_CORE or BUY_2026_CONDITIONAL",
+      "only the first incomplete order step is eligible",
+      "current price is at or below the registered limit",
+      "latest earnings review is complete when earnings_wait is true",
+      "conditional and benefit checks are complete",
+      "price is fresh",
+      "account buying power and account budget are sufficient",
+      "household target budget and reserve are preserved",
+      "US orders have a JPY planning FX rate",
+      "household daily order limit is not exceeded"
+    ]
+  },
+  "budget_audit": {
+    "original_target_to_2027_03_jpy": 8500000,
+    "audited_active_maho_jp_orders_jpy": 2526000,
+    "audited_active_maho_us_orders_usd": 5825,
+    "audited_active_maho_us_orders_jpy_at_160": 932000,
+    "audited_active_maho_total_jpy_at_160": 3458000,
+    "audited_active_hiro_total_max_jpy_if_jt_current_shares_zero": 1407500,
+    "audited_active_household_total_jpy_at_160": 4865500,
+    "unallocated_opportunity_budget_jpy": 3634500,
+    "interpretation": "The unallocated amount is not an automatic spending quota. It is reserved for post-earnings dividend-core additions or market corrections."
+  },
+  "account_audit": {
+    "maho": [
+      {"ticker": "8316", "price": 7161, "decision": "BUY_2026_CORE", "state": "WAIT_EARNINGS_AND_7000_LIMIT", "reason": "Dividend core and initial Olive benefit record; do not chase before earnings."},
+      {"ticker": "9433", "price": 2922.5, "decision": "BUY_2026_CORE", "state": "ABOVE_2900_CEILING", "reason": "Dividend is primary; benefit requires longer holding."},
+      {"ticker": "4262", "price": 1348, "decision": "BUY_2026_CONDITIONAL", "state": "AT_LIMIT_BUT_EARNINGS_BLOCK", "reason": "Official 100-share bath benefit verified; one household account only."},
+      {"ticker": "7832", "price": 4111, "decision": "BUY_2026_CONDITIONAL", "state": "ABOVE_4100_CEILING", "reason": "Reduced Maho target from 300 to 200 shares so household target is 300, not 400, to stay near the 5% concentration guide."},
+      {"ticker": "9616", "price": 3064, "decision": "BUY_2026_CONDITIONAL", "state": "WAIT_EARNINGS_AND_3000_LIMIT", "reason": "Useful travel benefit but not dividend core."},
+      {"ticker": "2340", "price": 499, "decision": "BUY_2026_CONDITIONAL", "state": "AT_LIMIT_BUT_EARNINGS_BLOCK", "reason": "Purchase starts the long-holding clock; it does not create an immediate September 2026 benefit."},
+      {"ticker": "TSM", "price": 403.41, "decision": "BUY_2026_CONDITIONAL", "state": "WAIT_400_LIMIT_AND_REVIEW", "reason": "First step only; subsequent steps require completion of the prior step."},
+      {"ticker": "NVDA", "price": 206.84, "decision": "BUY_2026_CONDITIONAL", "state": "WAIT_200_LIMIT_AND_REVIEW", "reason": "Growth satellite, not dividend engine."},
+      {"ticker": "9684", "price": 2506.5, "decision": "DEFER_2027", "state": "MONITOR_ONLY", "reason": "Gaming exposure is already high and the March 2026 benefit record has passed."},
+      {"ticker": "2702", "price": 7590, "decision": "SKIP_2026", "state": "ABOVE_7200_RULE", "reason": "One-year benefit condition and current price above the user's ceiling."},
+      {"ticker": "RACE", "price": 372.07, "price_date": "2026-07-20", "decision": "DEFER_2027", "state": "STALE_AND_ABOVE_LIMIT", "reason": "Low contribution to the dividend target."},
+      {"ticker": "FWONK", "price": 102.2, "price_date": "2026-07-17", "decision": "DEFER_2027", "state": "STALE_AND_ABOVE_LIMIT", "reason": "Low contribution to the dividend target."}
+    ],
+    "hiro": [
+      {"ticker": "8593", "price": 1439, "decision": "BUY_2026_CORE", "state": "UNFUNDED_WAIT_EARNINGS_AND_1400_LIMIT", "reason": "Highest-priority dividend-core purchase after Hiro funds the account."},
+      {"ticker": "9882", "price": 1787, "decision": "BUY_2026_CORE", "state": "UNFUNDED_WAIT_EARNINGS_AND_1750_LIMIT", "reason": "2027/03 dividend forecast supports the dividend objective; benefit detail must be rechecked before execution."},
+      {"ticker": "2914", "price": 6461, "decision": "BUY_2026_CONDITIONAL", "state": "ABOVE_6300_CEILING_AND_HOLDING_DATA_MISSING", "reason": "Do not add above the registered ceiling."},
+      {"ticker": "9697", "price": 3364, "decision": "BUY_2026_CONDITIONAL", "state": "UNFUNDED_WAIT_EARNINGS_AND_3300_LIMIT", "reason": "Growth satellite only."},
+      {"ticker": "8316", "price": 7161, "decision": "DEFER_UNTIL_FUNDED", "state": "DEFERRED", "reason": "Maho's 100-share position is prioritized; a second household position risks exceeding the 5% guide."},
+      {"ticker": "8306", "price": 3754, "decision": "DEFER_2027", "state": "ABOVE_3600_RULE", "reason": "Avoid duplicating bank exposure in FY2026."},
+      {"ticker": "4262", "price": 1348, "decision": "DEFER_DUPLICATE", "state": "MAHO_ONLY", "reason": "One household 100-share benefit position is enough."},
+      {"ticker": "2340", "price": 499, "decision": "DEFER_DUPLICATE", "state": "MAHO_ONLY", "reason": "Avoid two low-priority benefit positions."},
+      {"ticker": "9433", "price": 2922.5, "decision": "DEFER_DUPLICATE", "state": "MAHO_ONLY", "reason": "Maho's 200-share core position is prioritized."}
+    ]
+  },
+  "current_purchase_ready": [],
+  "next_review_events": [
+    "2026-07-28 Capcom earnings",
+    "2026-07-30 Nifty Lifestyle and JT earnings",
+    "2026-07-31 SMFG and Yellow Hat earnings",
+    "2026-08-07 KDDI, Kyoritsu Maintenance and Mitsubishi HC Capital earnings",
+    "2026-08-10 Square Enix earnings",
+    "2026-08-14 Gokurakuyu earnings"
+  ]
+}
