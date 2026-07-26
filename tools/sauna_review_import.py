@@ -25,16 +25,19 @@ FIELD_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("facility", re.compile(r"^\s*(?:[-*]\s*)?施設名\s*[：:]\s*(.*)$")),
     ("visited_at", re.compile(r"^\s*(?:[-*]\s*)?訪問日\s*[：:]\s*(.*)$")),
     ("catchcopy", re.compile(r"^\s*(?:[-*]\s*)?🔥?\s*一言まとめ(?:（キャッチコピー）)?\s*[：:]\s*(.*)$")),
-    ("score", re.compile(r"^\s*(?:[-*]\s*)?総合評価(?:（10点満点）)?\s*[：:]\s*(.*)$")),
-    ("sauna", re.compile(r"^\s*(?:[-*]\s*)?#サウナ\s*[：:]\s*(.*)$")),
-    ("cold_bath", re.compile(r"^\s*(?:[-*]\s*)?#水風呂\s*[：:]\s*(.*)$")),
-    ("rest", re.compile(r"^\s*(?:[-*]\s*)?#外気浴\s*[：:]\s*(.*)$")),
-    ("flow", re.compile(r"^\s*(?:[-*]\s*)?#導線\s*[：:]\s*(.*)$")),
-    ("crowd", re.compile(r"^\s*(?:[-*]\s*)?#混み具合\s*[：:]\s*(.*)$")),
-    ("drawbacks", re.compile(r"^\s*(?:[-*]\s*)?微妙だった点\s*[：:]\s*(.*)$")),
-    ("crowd_time", re.compile(r"^\s*(?:[-*]\s*)?混雑（時間帯）\s*[：:]\s*(.*)$")),
-    ("memo", re.compile(r"^\s*(?:[-*]\s*)?メモ（次回の入り方・持ち物・リピ条件）\s*[：:]\s*(.*)$")),
+    ("score", re.compile(r"^\s*(?:\*\*)?\s*総合評価(?:（10点満点）)?\s*[：:]\s*(.*?)(?:\*\*)?\s*$")),
+    ("sauna", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?#サウナ\s*(?:[：:]\s*(.*))?$")),
+    ("cold_bath", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?#水風呂\s*(?:[：:]\s*(.*))?$")),
+    ("rest", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?#外気浴\s*(?:[：:]\s*(.*))?$")),
+    ("flow", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?#導線\s*(?:[：:]\s*(.*))?$")),
+    ("crowd", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?#混み具合\s*(?:[：:]\s*(.*))?$")),
+    ("drawbacks", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?微妙だった点\s*(?:[：:]\s*(.*))?$")),
+    ("crowd_time", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?混雑（時間帯）\s*(?:[：:]\s*(.*))?$")),
+    ("memo", re.compile(r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?メモ（次回の入り方・持ち物・リピ条件）\s*(?:[：:]\s*(.*))?$")),
 ]
+
+FACILITY_HEADING = re.compile(r"^\s*##\s*(?:🧖(?:\u200d♂️|\u200d♀️)?\s*)?(.+?)\s*$")
+BOLD_CATCHCOPY = re.compile(r"^\s*\*\*(?!総合評価)(.+?)\*\*\s*$")
 
 TAG_RULES: list[tuple[str, re.Pattern[str]]] = [
     ("ケロ", re.compile(r"ケロ", re.I)),
@@ -70,13 +73,28 @@ def parse_review_text(text: str) -> dict[str, Any]:
             match = pattern.match(raw_line)
             if match:
                 current = key
-                initial = _clean_line(match.group(1))
+                captured = match.group(1) if match.lastindex else ""
+                initial = _clean_line(captured or "")
                 if initial:
                     values[key].append(initial)
                 matched = True
                 break
         if matched:
             continue
+
+        if not values["facility"]:
+            facility_heading = FACILITY_HEADING.match(raw_line)
+            if facility_heading:
+                values["facility"].append(_clean_line(facility_heading.group(1)))
+                current = None
+                continue
+
+        if values["facility"] and not values["catchcopy"] and not values["score"]:
+            catchcopy_match = BOLD_CATCHCOPY.match(raw_line)
+            if catchcopy_match:
+                values["catchcopy"].append(_clean_line(catchcopy_match.group(1)))
+                current = None
+                continue
 
         stripped = raw_line.strip()
         if not stripped:
