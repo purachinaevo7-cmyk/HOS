@@ -34,7 +34,7 @@
     "strict_fact_gate": true,
     "allow_odd_lot": true,
     "max_daily_orders": 1,
-    "max_single_order_amount": null,
+    "max_single_order_amount": 2000000,
     "order_validity": "NEXT_SESSION_ONLY",
     "stage_allocations": [0.4, 0.3, 0.3],
     "near_trigger_margin_percent": 1.0,
