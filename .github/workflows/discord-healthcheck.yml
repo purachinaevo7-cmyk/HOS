@@ -1,0 +1,82 @@
+name: Discord Healthcheck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/discord-healthcheck.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test Discord webhook and write result
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+          from urllib import request
+
+          webhook = os.getenv('DISCORD_WEBHOOK_URL', '').strip()
+          result = {
+              'checked_at': datetime.now(timezone.utc).isoformat(),
+              'status': 'failure',
+              'reason': None,
+          }
+
+          if not webhook:
+              result['reason'] = 'DISCORD_WEBHOOK_URL secret is missing or empty'
+          else:
+              try:
+                  payload = json.dumps({
+                      'content': '✅ HOS Discord疎通確認：Webhook送信に成功しました。Stock Watchの通知経路は有効です。'
+                  }, ensure_ascii=False).encode('utf-8')
+                  req = request.Request(
+                      webhook,
+                      data=payload,
+                      headers={
+                          'Content-Type': 'application/json',
+                          'User-Agent': 'HOS Discord Healthcheck',
+                      },
+                      method='POST',
+                  )
+                  with request.urlopen(req, timeout=15) as response:
+                      status_code = getattr(response, 'status', None)
+                      response.read()
+                  if status_code in (200, 204):
+                      result['status'] = 'success'
+                      result['reason'] = f'HTTP {status_code}'
+                  else:
+                      result['reason'] = f'unexpected HTTP status: {status_code}'
+              except Exception as exc:
+                  result['reason'] = f'{type(exc).__name__}: {exc}'
+
+          output = Path('outputs/discord-healthcheck.json')
+          output.parent.mkdir(parents=True, exist_ok=True)
+          output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(json.dumps(result, ensure_ascii=False))
+          PY
+
+      - name: Commit healthcheck result
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add outputs/discord-healthcheck.json
+          if git diff --cached --quiet; then
+            echo 'No result change to commit'
+          else
+            git commit -m 'Record Discord healthcheck result'
+            git push
+          fi
