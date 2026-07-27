@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 import daily_stock_check as legacy
+from discord_report import render_discord_report
 from notifier import ConsoleNotifier, DiscordNotifier, GitHubSummaryNotifier
-from progress_notification import render_goal_progress
 from purchase_authority import enforce_registered_strategy_only
 from stock_fetcher import FetchResult, fetch_market_data
 from stock_watch_v3 import (
@@ -23,14 +23,12 @@ from stock_watch_v3 import (
     fetcher_watchlist,
     load_json,
     load_universe,
-    render_notification,
     write_outputs,
 )
 from strategy_plan import (
     evaluate_strategy,
     load_strategy,
     merge_watchlists,
-    render_strategy_notification,
     strategy_watchlist,
     write_strategy_output,
 )
@@ -107,8 +105,8 @@ def _render_v3(
     decisions = enforce_registered_strategy_only(decisions, strategy)
     write_outputs(decisions, universe, policy, ROOT_DIR / "outputs")
 
-    # Strategy-controlled and research-only price events remain in JSON, but
-    # Discord never presents them as executable orders.
+    # Strategy-controlled and research-only events remain in JSON, but the
+    # compact Discord market section only shows actionable generic alerts.
     generic_decisions = [
         row for row in decisions
         if row.actionability not in {"STRATEGY_CONTROLLED", "RESEARCH_ONLY"}
@@ -119,33 +117,21 @@ def _render_v3(
         data_dir / state_name,
         float(policy.get("notification", {}).get("price_change_renotify_threshold_percent", 1.0)),
     )
-    # A successful scheduled run must always produce a Discord message. Silence
-    # is operationally indistinguishable from a broken scheduler.
-    base_report = render_notification(
-        alerts,
-        generic_decisions,
-        result.trade_date,
-        "朝の注文確認" if mode == MORNING_RETRY else "夜の注文案",
-        True,
-    )
 
-    strategy_report = None
-    progress_report = None
+    strategy_signals = []
     if strategy:
         strategy_signals = evaluate_strategy(strategy, result.prices, policy=policy)
         write_strategy_output(strategy_signals, ROOT_DIR / "outputs" / "strategy_order_plan.json")
-        strategy_report = render_strategy_notification(strategy_signals)
-        # Always show household progress and both account coverage, even when no
-        # ticker is near a limit price.
-        progress_report = render_goal_progress(policy, strategy, strategy_signals)
 
-    # Put progress before the generic context so Discord's 2,000-character
-    # limit cannot cut the long-term goal section off the end of the message.
-    parts = [part for part in (strategy_report, progress_report, base_report) if part]
-    if not parts:
-        mode_label = "朝の注文確認" if mode == MORNING_RETRY else "夜の注文案"
-        return f"📊 株式監視V3｜{result.trade_date.strftime('%m/%d')}終値｜{mode_label}\n通知対象なし｜処理は正常完了"
-    return "\n\n".join(parts)[:1_980]
+    mode_label = "朝の確認" if mode == MORNING_RETRY else "夜の注文案"
+    return render_discord_report(
+        policy=policy,
+        strategy=strategy,
+        signals=strategy_signals,
+        alerts=alerts,
+        trade_date=result.trade_date,
+        mode_label=mode_label,
+    )
 
 
 def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DATA_DIR) -> str:
