@@ -1,10 +1,6 @@
 name: Stock Watch Active
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/stock-watch-diagnostic.yml'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
@@ -66,7 +62,6 @@ jobs:
         id: guard
         env:
           SLOT: ${{ steps.slot.outputs.slot }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           python - <<'PY'
           import json
@@ -75,7 +70,7 @@ jobs:
 
           path = Path('outputs/stock-watch-diagnostic.json')
           same_success = False
-          if os.environ.get('EVENT_NAME') != 'push' and path.exists():
+          if path.exists():
               try:
                   current = json.loads(path.read_text(encoding='utf-8'))
                   same_success = current.get('slot') == os.environ['SLOT'] and current.get('status') == 'success'
