@@ -2,8 +2,8 @@ name: Stock Watch
 
 on:
   schedule:
-    - cron: '0 12 * * 1-5'
-    - cron: '0 22 * * 0-4'
+    - cron: '7 12 * * 1-5'
+    - cron: '7 22 * * 0-4'
   workflow_dispatch:
 
 jobs:
@@ -40,11 +40,18 @@ jobs:
       - name: Install requirements
         run: python -m pip install -r requirements.txt
 
+      - name: Validate Discord webhook
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::DISCORD_WEBHOOK_URL secret is not configured"
+            exit 1
+          fi
+
       - name: Run stock watch
         run: |
           set -o pipefail
           mkdir -p logs
-          if [ "${{ github.event.schedule }}" = "0 22 * * 0-4" ]; then
+          if [ "${{ github.event.schedule }}" = "7 22 * * 0-4" ]; then
             MODE=morning-retry
           else
             MODE=evening
