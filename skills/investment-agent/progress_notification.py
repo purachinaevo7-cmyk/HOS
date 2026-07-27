@@ -6,6 +6,10 @@ import os
 from typing import Any, Iterable, Mapping
 
 
+ACTIVE_FY_DECISIONS = {"BUY_2026_CORE", "BUY_2026_CONDITIONAL"}
+ACCOUNT_LABELS = {"maho": "まほ", "hiro": "ひろ"}
+
+
 def _number(value: Any) -> float | None:
     if value in (None, ""):
         return None
@@ -42,6 +46,22 @@ def _compact_yen(value: float | None) -> str:
     if value >= 10_000:
         return f"{value / 10_000:,.1f}万円".replace(".0万円", "万円")
     return f"{value:,.0f}円"
+
+
+def _active_account_counts(signals: Iterable[Any]) -> dict[str, int]:
+    active_tickers: dict[str, set[str]] = {}
+    seen_accounts: set[str] = set()
+    for signal in signals:
+        account = str(getattr(signal, "account", "") or "")
+        if not account:
+            continue
+        seen_accounts.add(account)
+        if getattr(signal, "fy2026_decision", None) not in ACTIVE_FY_DECISIONS:
+            continue
+        ticker = str(getattr(signal, "ticker", "") or "")
+        if ticker:
+            active_tickers.setdefault(account, set()).add(ticker)
+    return {account: len(active_tickers.get(account, set())) for account in seen_accounts}
 
 
 def build_progress_snapshot(
@@ -89,7 +109,8 @@ def render_goal_progress(
     signals: Iterable[Any],
     env: Mapping[str, str] | None = None,
 ) -> str:
-    snapshot = build_progress_snapshot(policy, strategy, list(signals), env)
+    signal_list = list(signals)
+    snapshot = build_progress_snapshot(policy, strategy, signal_list, env)
     assets_bar = _progress_bar(snapshot["current_assets"], snapshot["target_assets"])
     dividend_bar = _progress_bar(snapshot["current_dividend"], snapshot["target_dividend"])
     investment_bar = _progress_bar(snapshot["completed_investment"], snapshot["target_investment"])
@@ -98,6 +119,15 @@ def render_goal_progress(
         "📈 世帯目標の進捗",
         f"資産 {assets_bar} {_percent(snapshot['current_assets'], snapshot['target_assets'])}｜{_compact_yen(snapshot['current_assets'])} / {_compact_yen(snapshot['target_assets'])}",
     ]
+    account_counts = _active_account_counts(signal_list)
+    ordered_accounts = [account for account in ("maho", "hiro") if account in account_counts]
+    ordered_accounts.extend(sorted(account for account in account_counts if account not in {"maho", "hiro"}))
+    if ordered_accounts:
+        account_summary = "｜".join(
+            f"{ACCOUNT_LABELS.get(account, account)} {account_counts[account]}銘柄"
+            for account in ordered_accounts
+        )
+        lines.insert(1, f"👥 購入監視｜{account_summary}")
     if snapshot["current_dividend"] is None:
         lines.append(f"配当 {dividend_bar} 現在額未設定｜目標 {_compact_yen(snapshot['target_dividend'])}/年")
     else:
