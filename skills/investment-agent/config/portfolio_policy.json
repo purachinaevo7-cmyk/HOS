@@ -46,7 +46,7 @@
     }
   },
   "notification": {
-    "discord_notify_no_alert": false,
+    "discord_notify_no_alert": true,
     "summary_limit": 800,
     "watch_limit": 600,
     "buy_candidate_limit": 900,
