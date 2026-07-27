@@ -39,7 +39,7 @@ class DiscordNotifier:
                 raise RuntimeError("DISCORD_WEBHOOK_URL is not configured")
             return
 
-        payload = json.dumps({"content": self._format_message(report)}).encode("utf-8")
+        payload = json.dumps({"content": self._format_message(report)}, ensure_ascii=False).encode("utf-8")
         webhook_request = request.Request(
             self.webhook_url,
             data=payload,
@@ -47,7 +47,11 @@ class DiscordNotifier:
             method="POST",
         )
         with request.urlopen(webhook_request, timeout=10) as response:
+            status = getattr(response, "status", response.getcode())
             response.read()
+        if status not in (200, 204):
+            raise RuntimeError(f"Discord webhook returned unexpected HTTP status: {status}")
+        print(f"Discord delivery succeeded: HTTP {status}")
 
     @staticmethod
     def _format_message(report: str) -> str:
