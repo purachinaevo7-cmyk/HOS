@@ -94,7 +94,7 @@ def _render_v3(
     result: FetchResult,
     mode: str,
     data_dir: Path,
-) -> str | None:
+) -> str:
     order_session = _next_jpx_session(result.trade_date)
     decisions = decide(
         universe,
@@ -119,12 +119,14 @@ def _render_v3(
         data_dir / state_name,
         float(policy.get("notification", {}).get("price_change_renotify_threshold_percent", 1.0)),
     )
+    # A successful scheduled run must always produce a Discord message. Silence
+    # is operationally indistinguishable from a broken scheduler.
     base_report = render_notification(
         alerts,
         generic_decisions,
         result.trade_date,
         "朝の注文確認" if mode == MORNING_RETRY else "夜の注文案",
-        bool(policy.get("notification", {}).get("discord_notify_no_alert", False)),
+        True,
     )
 
     strategy_report = None
@@ -133,16 +135,20 @@ def _render_v3(
         strategy_signals = evaluate_strategy(strategy, result.prices, policy=policy)
         write_strategy_output(strategy_signals, ROOT_DIR / "outputs" / "strategy_order_plan.json")
         strategy_report = render_strategy_notification(strategy_signals)
-        if strategy_report or base_report:
-            progress_report = render_goal_progress(policy, strategy, strategy_signals)
+        # Always show household progress and both account coverage, even when no
+        # ticker is near a limit price.
+        progress_report = render_goal_progress(policy, strategy, strategy_signals)
 
     # Put progress before the generic context so Discord's 2,000-character
     # limit cannot cut the long-term goal section off the end of the message.
     parts = [part for part in (strategy_report, progress_report, base_report) if part]
-    return "\n\n".join(parts)[:1_980] if parts else None
+    if not parts:
+        mode_label = "朝の注文確認" if mode == MORNING_RETRY else "夜の注文案"
+        return f"📊 株式監視V3｜{result.trade_date.strftime('%m/%d')}終値｜{mode_label}\n通知対象なし｜処理は正常完了"
+    return "\n\n".join(parts)[:1_980]
 
 
-def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DATA_DIR) -> str | None:
+def run(mode: str = EVENING, trade_date: date | None = None, data_dir: Path = DATA_DIR) -> str:
     legacy.load_env()
     universe_path = BASE_DIR / "config" / "stock_watch_universe.json"
     policy_path = BASE_DIR / "config" / "portfolio_policy.json"
@@ -224,8 +230,6 @@ def main() -> None:
     parser.add_argument("--mode", choices=[EVENING, MORNING_RETRY], default=EVENING)
     args = parser.parse_args()
     report = run(args.mode)
-    if report is None:
-        return
     ConsoleNotifier().notify(report)
     GitHubSummaryNotifier().notify(report)
     DiscordNotifier().notify(report)
