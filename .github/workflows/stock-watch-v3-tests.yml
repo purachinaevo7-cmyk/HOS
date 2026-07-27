@@ -10,6 +10,7 @@ on:
       - 'tests/test_strategy_plan.py'
       - 'tests/test_purchase_authority.py'
       - 'tests/test_progress_notification.py'
+      - 'tests/test_discord_report.py'
       - '.github/workflows/stock-watch*.yml'
   workflow_dispatch:
 
@@ -26,4 +27,4 @@ jobs:
       - name: Install requirements
         run: python -m pip install -r requirements.txt
       - name: Run Stock Watch tests
-        run: python -m pytest -q tests/test_stock_watch_v2.py tests/test_stock_watch_v3.py tests/test_strategy_plan.py tests/test_purchase_authority.py tests/test_progress_notification.py
+        run: python -m pytest -q tests/test_stock_watch_v2.py tests/test_stock_watch_v3.py tests/test_strategy_plan.py tests/test_purchase_authority.py tests/test_progress_notification.py tests/test_discord_report.py
