@@ -35,6 +35,8 @@ class DiscordNotifier:
 
     def notify(self, report: str) -> None:
         if not self.webhook_url:
+            if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
+                raise RuntimeError("DISCORD_WEBHOOK_URL is not configured")
             return
 
         payload = json.dumps({"content": self._format_message(report)}).encode("utf-8")
