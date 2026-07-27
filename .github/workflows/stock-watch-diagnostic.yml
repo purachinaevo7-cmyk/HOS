@@ -1,10 +1,6 @@
 name: Stock Watch Active
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/stock-watch-diagnostic.yml'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
