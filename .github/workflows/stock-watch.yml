@@ -1,6 +1,10 @@
 name: Stock Watch
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stock-watch.yml'
   schedule:
     - cron: '7,27 12 * * 1-5'
     - cron: '7,27 22 * * 0-4'
