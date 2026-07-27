@@ -1,6 +1,10 @@
 name: Stock Watch Active
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stock-watch-diagnostic.yml'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
@@ -62,6 +66,7 @@ jobs:
         id: guard
         env:
           SLOT: ${{ steps.slot.outputs.slot }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           python - <<'PY'
           import json
@@ -70,7 +75,7 @@ jobs:
 
           path = Path('outputs/stock-watch-diagnostic.json')
           same_success = False
-          if path.exists():
+          if os.environ.get('EVENT_NAME') != 'push' and path.exists():
               try:
                   current = json.loads(path.read_text(encoding='utf-8'))
                   same_success = current.get('slot') == os.environ['SLOT'] and current.get('status') == 'success'
@@ -141,6 +146,7 @@ jobs:
               'evaluated_accounts': accounts,
               'strategy_signal_count': signal_count,
               'purchase_ready_count': ready_count,
+              'notification_layout': 'account-separated-v2',
               'log_tail': log[-4000:],
           }
           Path('outputs/stock-watch-diagnostic.json').write_text(
@@ -159,6 +165,7 @@ jobs:
             echo 'No result change to commit'
           else
             git commit -m "Record Stock Watch result ${{ steps.slot.outputs.slot }}"
+            git pull --rebase origin main
             git push
           fi
 
