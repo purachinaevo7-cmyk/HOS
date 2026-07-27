@@ -1,17 +1,22 @@
-name: Stock Watch Diagnostic
+name: Stock Watch Active
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/stock-watch-diagnostic.yml'
+  schedule:
+    - cron: '7 12 * * 1-5'
+    - cron: '27 12 * * 1-5'
+    - cron: '7 22 * * 0-4'
+    - cron: '27 22 * * 0-4'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  diagnostic:
+  stock-watch:
     runs-on: ubuntu-latest
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -44,17 +49,67 @@ jobs:
       - name: Install requirements
         run: python -m pip install -r requirements.txt
 
+      - name: Resolve run mode and slot
+        id: slot
+        run: |
+          schedule='${{ github.event.schedule }}'
+          case "$schedule" in
+            '7 22 * * 0-4'|'27 22 * * 0-4') mode='morning-retry' ;;
+            *) mode='evening' ;;
+          esac
+          run_date=$(TZ=Asia/Tokyo date +%F)
+          slot="${run_date}-${mode}"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "slot=$slot" >> "$GITHUB_OUTPUT"
+
+      - name: Skip already successful slot
+        id: guard
+        env:
+          SLOT: ${{ steps.slot.outputs.slot }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path('outputs/stock-watch-diagnostic.json')
+          same_success = False
+          if path.exists():
+              try:
+                  current = json.loads(path.read_text(encoding='utf-8'))
+                  same_success = current.get('slot') == os.environ['SLOT'] and current.get('status') == 'success'
+              except Exception:
+                  pass
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f"should_run={'false' if same_success else 'true'}\n")
+          print(f"same_success={same_success}")
+          PY
+
+      - name: Validate Discord webhook
+        if: steps.guard.outputs.should_run == 'true'
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::DISCORD_WEBHOOK_URL secret is not configured"
+            exit 1
+          fi
+
       - name: Run actual Stock Watch pipeline
+        if: steps.guard.outputs.should_run == 'true'
         run: |
           mkdir -p logs outputs
           set +e
-          python skills/investment-agent/daily_stock_check_v3.py --mode evening > logs/stock-watch-diagnostic.log 2>&1
+          python skills/investment-agent/daily_stock_check_v3.py --mode '${{ steps.slot.outputs.mode }}' > logs/stock-watch-diagnostic.log 2>&1
           code=$?
           echo "$code" > logs/stock-watch-exit-code.txt
           cat logs/stock-watch-diagnostic.log
           exit 0
 
-      - name: Write diagnostic result
+      - name: Write verified result
+        if: steps.guard.outputs.should_run == 'true'
+        env:
+          SLOT: ${{ steps.slot.outputs.slot }}
+          MODE: ${{ steps.slot.outputs.mode }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           python - <<'PY'
           from datetime import datetime, timezone
@@ -66,6 +121,7 @@ jobs:
           exit_code = int(code_path.read_text().strip()) if code_path.exists() else -1
           log_path = Path('logs/stock-watch-diagnostic.log')
           log = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else ''
+          delivery_confirmed = 'Discord delivery succeeded: HTTP ' in log
           strategy_path = Path('outputs/strategy_order_plan.json')
           accounts = []
           signal_count = 0
@@ -77,12 +133,15 @@ jobs:
               accounts = sorted({str(row.get('account')) for row in signals if row.get('account')})
               ready_count = sum(1 for row in signals if row.get('actionability') == 'READY')
 
+          success = exit_code == 0 and delivery_confirmed and accounts == ['hiro', 'maho']
           result = {
+              'slot': os.environ['SLOT'],
+              'mode': os.environ['MODE'],
               'checked_at': datetime.now(timezone.utc).isoformat(),
-              'status': 'success' if exit_code == 0 else 'failure',
+              'github_run_id': os.environ.get('RUN_ID'),
+              'status': 'success' if success else 'failure',
               'exit_code': exit_code,
-              'discord_webhook_configured': bool(os.getenv('DISCORD_WEBHOOK_URL', '').strip()),
-              'strategy_output_exists': strategy_path.exists(),
+              'discord_delivery_confirmed': delivery_confirmed,
               'evaluated_accounts': accounts,
               'strategy_signal_count': signal_count,
               'purchase_ready_count': ready_count,
@@ -94,14 +153,30 @@ jobs:
           print(json.dumps(result, ensure_ascii=False))
           PY
 
-      - name: Commit diagnostic result
+      - name: Commit verified result
+        if: steps.guard.outputs.should_run == 'true'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add outputs/stock-watch-diagnostic.json
           if git diff --cached --quiet; then
-            echo 'No diagnostic change to commit'
+            echo 'No result change to commit'
           else
-            git commit -m 'Record Stock Watch diagnostic result'
+            git commit -m "Record Stock Watch result ${{ steps.slot.outputs.slot }}"
             git push
           fi
+
+      - name: Report duplicate skip
+        if: steps.guard.outputs.should_run == 'false'
+        run: echo 'Already completed successfully; duplicate notification skipped.'
+
+      - name: Fail when verification failed
+        if: steps.guard.outputs.should_run == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('outputs/stock-watch-diagnostic.json').read_text(encoding='utf-8'))
+          if result.get('status') != 'success':
+              raise SystemExit('Stock Watch delivery verification failed')
+          PY
