@@ -42,6 +42,24 @@ def test_progress_block_shows_assets_dividend_and_year_budget():
     assert "815万円" in report
 
 
+def test_progress_block_shows_both_active_purchase_accounts_once_per_ticker():
+    policy = {
+        "current_financial_assets": 25_270_000,
+        "target_asset_value_at_age_60": 200_000_000,
+        "target_annual_dividend": 6_000_000,
+    }
+    strategy = {"funding": {}}
+    signals = [
+        SimpleNamespace(account="maho", ticker="8316", fy2026_decision="BUY_2026_CORE", status="WAIT", estimated_amount_jpy=0),
+        SimpleNamespace(account="maho", ticker="8316", fy2026_decision="BUY_2026_CORE", status="WAIT_PREVIOUS_STEP", estimated_amount_jpy=0),
+        SimpleNamespace(account="hiro", ticker="8593", fy2026_decision="BUY_2026_CORE", status="WAIT", estimated_amount_jpy=0),
+        SimpleNamespace(account="hiro", ticker="8316", fy2026_decision="DEFER_UNTIL_FUNDED", status="WAIT", estimated_amount_jpy=0),
+    ]
+
+    report = render_goal_progress(policy, strategy, signals, {})
+    assert "👥 購入監視｜まほ 1銘柄｜ひろ 1銘柄" in report
+
+
 def test_progress_block_marks_current_dividend_as_unset_without_secret():
     policy = {
         "current_financial_assets": 25_270_000,
