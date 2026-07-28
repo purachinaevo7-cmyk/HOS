@@ -1,6 +1,10 @@
 name: Stock Watch Active
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stock-watch-diagnostic.yml'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
@@ -160,6 +164,10 @@ jobs:
             echo 'No result change to commit'
           else
             git commit -m "Record Stock Watch result ${{ steps.slot.outputs.slot }}"
+            # The pipeline updates several tracked output files. They are runtime
+            # products, not part of this heartbeat commit, and block rebase if left dirty.
+            git reset --hard HEAD
+            git clean -fd
             git pull --rebase origin main
             git push
           fi
