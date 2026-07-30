@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 23 * * *' # 08:00 JST independent recovery check
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/growth-menu-recovery.yml'
 
 permissions:
   contents: read
