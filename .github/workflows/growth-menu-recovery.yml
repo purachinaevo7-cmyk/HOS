@@ -21,6 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           TARGET=$(TZ=Asia/Tokyo date +%F)
+          export TARGET
           VALID=$(python - <<'PY'
           import json
           import os
@@ -51,8 +52,6 @@ jobs:
           )
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
           echo "valid=$VALID" >> "$GITHUB_OUTPUT"
-        env:
-          TARGET: ${{ env.TARGET }}
 
       - name: Dispatch offline recovery
         if: ${{ steps.check.outputs.valid != 'true' }}
