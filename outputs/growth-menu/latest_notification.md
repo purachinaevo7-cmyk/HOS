@@ -1,8 +1,8 @@
-## 8月2日の朝学習PDF
+## 8月3日の朝学習PDF
 
-今日は『AIデータセンター事業 × 制約条件から競争優位を考える』を、会社・事業の全体像から学びます。
+今日は『ニトリホールディングス × KSFと競争優位を分ける』を、会社・事業の全体像から学びます。
 
-所要時間：約25分
+所要時間：約30分
 
 [今日のPDF授業を開く](https://raw.githubusercontent.com/purachinaevo7-cmyk/HOS/main/outputs/growth-menu/latest.pdf)
 
