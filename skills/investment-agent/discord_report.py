@@ -183,7 +183,7 @@ def _progress_lines(
     return lines
 
 
-def _market_lines(alerts: Iterable[Any], limit: int = 2) -> list[str]:
+def _market_lines(alerts: Iterable[Any], mode_label: str, limit: int = 2) -> list[str]:
     important = [
         row for row in alerts
         if int(getattr(row, "priority", 99)) <= 2
@@ -197,6 +197,15 @@ def _market_lines(alerts: Iterable[Any], limit: int = 2) -> list[str]:
     if not important:
         lines.append("新規アラートなし")
         return lines
+
+    data_errors = [row for row in important if getattr(row, "status", None) == "DATA_ERROR"]
+    if data_errors:
+        lines.append(f"🚨 日本株データ取得失敗 {len(data_errors)}件")
+        if "夜" in mode_label:
+            lines.append("   07:07・07:27の朝取得で再試行")
+        else:
+            lines.append("   朝の再取得でも未解消。日本株の購入判定は停止")
+
     for row in important[:limit]:
         status = getattr(row, "status", None)
         ticker = getattr(row, "ticker", "")
@@ -255,7 +264,7 @@ def render_discord_report(
     lines.append("")
     lines.extend(_progress_lines(policy, strategy, signal_list))
     lines.append("")
-    lines.extend(_market_lines(alert_list))
+    lines.extend(_market_lines(alert_list, mode_label))
     lines.append("")
     lines.append("発注ルール：成行禁止・固定指値・1日最大1注文")
 
