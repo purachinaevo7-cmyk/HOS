@@ -71,10 +71,16 @@ def build_progress_snapshot(
     env: Mapping[str, str] | None = None,
 ) -> dict[str, float | None]:
     source = env if env is not None else os.environ
-    current_assets = _number(policy.get("current_financial_assets"))
+
+    # Exact household totals are private and must be verified before Discord uses
+    # them. Old public-policy snapshots are retained only as historical reference.
+    current_assets = _env_number("HOS_CURRENT_FINANCIAL_ASSETS_JPY", source)
+    if current_assets is None and policy.get("current_values_verified") is True:
+        current_assets = _number(policy.get("current_financial_assets"))
+
     target_assets = _number(policy.get("target_asset_value_at_age_60"))
     current_dividend = _env_number("HOS_CURRENT_ANNUAL_DIVIDEND_JPY", source)
-    if current_dividend is None:
+    if current_dividend is None and policy.get("current_values_verified") is True:
         current_dividend = _number(policy.get("current_annual_dividend"))
     target_dividend = _number(policy.get("target_annual_dividend"))
 
