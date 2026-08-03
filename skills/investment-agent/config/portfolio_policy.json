@@ -3,6 +3,8 @@
   "target_annual_dividend": 6000000,
   "target_age": 60,
   "birth_date": "1985-11-10",
+  "current_values_verified": false,
+  "current_values_note": "旧集計値。投資信託・WealthNavi・SBI VC・夫婦別証券口座を再監査するまでDiscord進捗には使用しない",
   "current_financial_assets": 25270000,
   "current_investment_trust": 15290000,
   "current_individual_stocks": 8200000,
