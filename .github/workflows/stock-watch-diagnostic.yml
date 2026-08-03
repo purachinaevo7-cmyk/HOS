@@ -29,6 +29,7 @@ jobs:
       HOS_ALLOW_ODD_LOT: true
       HOS_STRATEGY_MAX_DAILY_ORDERS: 1
       HOS_USDJPY_PLANNING_RATE: 160
+      HOS_CURRENT_FINANCIAL_ASSETS_JPY: ${{ secrets.HOS_CURRENT_FINANCIAL_ASSETS_JPY }}
       HOS_CURRENT_ANNUAL_DIVIDEND_JPY: ${{ secrets.HOS_CURRENT_ANNUAL_DIVIDEND_JPY }}
       HOS_HOUSEHOLD_AVAILABLE_CASH_JPY: ${{ secrets.HOS_HOUSEHOLD_AVAILABLE_CASH_JPY }}
       HOS_TARGET_INVESTMENT_TO_2027_03_JPY: ${{ secrets.HOS_TARGET_INVESTMENT_TO_2027_03_JPY }}
@@ -62,7 +63,7 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "slot=$slot" >> "$GITHUB_OUTPUT"
 
-      - name: Skip already successful slot
+      - name: Skip only complete successful slot
         id: guard
         env:
           SLOT: ${{ steps.slot.outputs.slot }}
@@ -77,12 +78,17 @@ jobs:
           if path.exists():
               try:
                   current = json.loads(path.read_text(encoding='utf-8'))
-                  same_success = current.get('slot') == os.environ['SLOT'] and current.get('status') == 'success'
+                  same_success = (
+                      current.get('slot') == os.environ['SLOT']
+                      and current.get('status') == 'success'
+                      and int(current.get('market_missing_count', 1)) == 0
+                      and int(current.get('market_price_count', 0)) > 0
+                  )
               except Exception:
                   pass
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
               output.write(f"should_run={'false' if same_success else 'true'}\n")
-          print(f"same_success={same_success}")
+          print(f"same_complete_success={same_success}")
           PY
 
       - name: Validate Discord webhook
@@ -122,6 +128,7 @@ jobs:
           log_path = Path('logs/stock-watch-diagnostic.log')
           log = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else ''
           delivery_confirmed = 'Discord delivery succeeded: HTTP ' in log
+
           strategy_path = Path('outputs/strategy_order_plan.json')
           accounts = []
           signal_count = 0
@@ -133,19 +140,67 @@ jobs:
               accounts = sorted({str(row.get('account')) for row in signals if row.get('account')})
               ready_count = sum(1 for row in signals if row.get('actionability') == 'READY')
 
-          success = exit_code == 0 and delivery_confirmed and accounts == ['hiro', 'maho']
+          daily_dir = Path('skills/investment-agent/data/daily_prices')
+          daily_candidates = [
+              path for path in daily_dir.glob('*.json')
+              if not path.name.startswith('notification_state_')
+          ]
+          daily_path = max(daily_candidates, key=lambda path: path.stat().st_mtime) if daily_candidates else None
+          market_price_count = 0
+          market_missing_count = 0
+          trade_date = None
+          retry_required = None
+          if daily_path is not None:
+              daily = json.loads(daily_path.read_text(encoding='utf-8'))
+              market_price_count = len(daily.get('prices', []))
+              market_missing_count = len(daily.get('missing', []))
+              trade_date = daily.get('trade_date')
+              retry_required = bool(daily.get('retry_required'))
+
+          required_configuration = [
+              'HOS_MAHO_BUYING_POWER_JPY',
+              'HOS_HIRO_BUYING_POWER_JPY',
+              'HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY',
+              'HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY',
+              'HOS_MAX_SINGLE_ORDER_JPY',
+              'HOS_HOUSEHOLD_AVAILABLE_CASH_JPY',
+              'HOS_TARGET_INVESTMENT_TO_2027_03_JPY',
+              'HOS_RESERVE_AFTER_EXECUTION_JPY',
+              'HOS_MAHO_2026_STOCK_CAP_JPY',
+              'HOS_MAHO_STRATEGY_BUDGET_JPY',
+              'HOS_HIRO_STRATEGY_BUDGET_JPY',
+          ]
+          missing_configuration = [name for name in required_configuration if not os.getenv(name, '').strip()]
+
+          pipeline_ok = exit_code == 0 and delivery_confirmed and accounts == ['hiro', 'maho']
+          market_complete = market_price_count > 0 and market_missing_count == 0
+          if not pipeline_ok:
+              status = 'failure'
+          elif not market_complete:
+              status = 'degraded'
+          else:
+              status = 'success'
+
           result = {
               'slot': os.environ['SLOT'],
               'mode': os.environ['MODE'],
               'checked_at': datetime.now(timezone.utc).isoformat(),
               'github_run_id': os.environ.get('RUN_ID'),
-              'status': 'success' if success else 'failure',
+              'status': status,
               'exit_code': exit_code,
               'discord_delivery_confirmed': delivery_confirmed,
               'evaluated_accounts': accounts,
               'strategy_signal_count': signal_count,
               'purchase_ready_count': ready_count,
               'notification_layout': 'account-separated-v2',
+              'trade_date': trade_date,
+              'daily_data_file': str(daily_path) if daily_path else None,
+              'market_price_count': market_price_count,
+              'market_missing_count': market_missing_count,
+              'market_data_status': 'complete' if market_complete else 'incomplete',
+              'retry_required': retry_required,
+              'configuration_status': 'complete' if not missing_configuration else 'incomplete',
+              'missing_configuration': missing_configuration,
               'log_tail': log[-4000:],
           }
           Path('outputs/stock-watch-diagnostic.json').write_text(
@@ -154,18 +209,17 @@ jobs:
           print(json.dumps(result, ensure_ascii=False))
           PY
 
-      - name: Commit verified result
+      - name: Commit verified result and retry state
         if: steps.guard.outputs.should_run == 'true'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add outputs/stock-watch-diagnostic.json
+          git add skills/investment-agent/data/daily_prices/*.json
           if git diff --cached --quiet; then
             echo 'No result change to commit'
           else
             git commit -m "Record Stock Watch result ${{ steps.slot.outputs.slot }}"
-            # The pipeline updates several tracked output files. They are runtime
-            # products, not part of this heartbeat commit, and block rebase if left dirty.
             git reset --hard HEAD
             git clean -fd
             git pull --rebase origin main
@@ -174,15 +228,18 @@ jobs:
 
       - name: Report duplicate skip
         if: steps.guard.outputs.should_run == 'false'
-        run: echo 'Already completed successfully; duplicate notification skipped.'
+        run: echo 'Already completed with complete market data; duplicate notification skipped.'
 
-      - name: Fail when verification failed
+      - name: Verify pipeline result
         if: steps.guard.outputs.should_run == 'true'
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           result = json.loads(Path('outputs/stock-watch-diagnostic.json').read_text(encoding='utf-8'))
-          if result.get('status') != 'success':
+          status = result.get('status')
+          if status == 'failure':
               raise SystemExit('Stock Watch delivery verification failed')
+          if status == 'degraded':
+              print('::warning::Stock Watch delivered, but market data is incomplete. A later schedule will retry.')
           PY
