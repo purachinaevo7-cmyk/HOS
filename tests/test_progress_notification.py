@@ -26,6 +26,7 @@ def test_progress_block_shows_assets_dividend_and_year_budget():
     ]
     env = {
         "TEST_TARGET_INVESTMENT": "8500000",
+        "HOS_CURRENT_FINANCIAL_ASSETS_JPY": "25270000",
         "HOS_CURRENT_ANNUAL_DIVIDEND_JPY": "1200000",
     }
 
@@ -40,6 +41,21 @@ def test_progress_block_shows_assets_dividend_and_year_budget():
     assert "20.0%" in report
     assert "年度投資" in report
     assert "815万円" in report
+
+
+def test_progress_block_hides_unverified_legacy_asset_total():
+    policy = {
+        "current_financial_assets": 25_270_000,
+        "target_asset_value_at_age_60": 200_000_000,
+        "target_annual_dividend": 6_000_000,
+    }
+    strategy = {"funding": {}}
+
+    report = render_goal_progress(policy, strategy, [], {})
+
+    assert "資産 ?????????? 未設定｜未設定 / 2億円" in report
+    assert "2,527万円" not in report
+    assert "12.6%" not in report
 
 
 def test_progress_block_shows_both_active_purchase_accounts_once_per_ticker():
