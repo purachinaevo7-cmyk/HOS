@@ -5,19 +5,35 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stock-watch-diagnostic.yml'
+      - 'skills/investment-agent/daily_stock_check_v3.py'
+      - 'skills/investment-agent/stock_fetcher.py'
+      - 'skills/investment-agent/discord_report.py'
+      - 'skills/investment-agent/progress_notification.py'
+      - 'skills/investment-agent/strategy_plan.py'
+      - 'skills/investment-agent/purchase_authority.py'
+      - 'skills/investment-agent/config/portfolio_policy.json'
+      - 'skills/investment-agent/config/stock_watch_universe.json'
+      - 'skills/investment-agent/config/strategies/HOS_2026_FINAL_AGGRESSIVE_V2.json'
+      - 'outputs/stock-watch-retry-trigger.txt'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
     - cron: '7 22 * * 0-4'
     - cron: '27 22 * * 0-4'
+    - cron: '47 22 * * 0-4'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: stock-watch-active
+  cancel-in-progress: false
+
 jobs:
   stock-watch:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       HOS_EXECUTION_ACCOUNT: maho
@@ -55,7 +71,7 @@ jobs:
         run: |
           schedule='${{ github.event.schedule }}'
           case "$schedule" in
-            '7 22 * * 0-4'|'27 22 * * 0-4') mode='morning-retry' ;;
+            '7 22 * * 0-4'|'27 22 * * 0-4'|'47 22 * * 0-4') mode='morning-retry' ;;
             *) mode='evening' ;;
           esac
           run_date=$(TZ=Asia/Tokyo date +%F)
@@ -158,6 +174,8 @@ jobs:
               retry_required = bool(daily.get('retry_required'))
 
           required_configuration = [
+              'HOS_CURRENT_FINANCIAL_ASSETS_JPY',
+              'HOS_CURRENT_ANNUAL_DIVIDEND_JPY',
               'HOS_MAHO_BUYING_POWER_JPY',
               'HOS_HIRO_BUYING_POWER_JPY',
               'HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY',
