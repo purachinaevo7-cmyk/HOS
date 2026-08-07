@@ -1,0 +1,52 @@
+name: Sauna Review CI
+
+on:
+  pull_request:
+    paths:
+      - "sauna.html"
+      - "sauna.css"
+      - "sauna.js"
+      - "tools/sauna_review_import.py"
+      - "tests/test_sauna_review_import.py"
+      - "data/sauna/**"
+      - ".github/workflows/sauna-review-*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python importer
+        run: |
+          python -m py_compile tools/sauna_review_import.py
+          python -m unittest tests.test_sauna_review_import
+
+      - name: Validate dashboard JavaScript
+        run: node --check sauna.js
+
+      - name: Validate seed data
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          dataset = json.loads(Path("data/sauna/reviews.json").read_text(encoding="utf-8"))
+          summary = json.loads(Path("data/sauna/summary.json").read_text(encoding="utf-8"))
+          reviews = dataset["reviews"]
+          facilities = {review["facility"] for review in reviews}
+
+          assert len(reviews) == summary["review_count"]
+          assert len(facilities) == summary["facility_count"]
+          assert all(0 <= float(review["score"]) <= 10 for review in reviews)
+          assert len({review["review_hash"] for review in reviews}) == len(reviews)
+          print(f"validated {len(reviews)} reviews across {len(facilities)} facilities")
+          PY
