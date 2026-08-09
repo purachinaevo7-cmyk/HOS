@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>HOS Sauna Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="sauna.css">
+</head>
+<body class="sauna-page">
+  <header>
+    <div class="header-inner">
+      <h1>🧖 HOS Sauna Dashboard</h1>
+      <p>レビューを訪問ログとして蓄積し、施設ランキング、再訪履歴、好みの傾向へ変えるサウナOS。</p>
+    </div>
+  </header>
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="inbox.html">Inbox</a>
+        <a href="brain.html">Brain</a>
+        <a href="projects.html">Projects</a>
+        <a href="knowledge.html">Knowledge</a>
+        <a href="outputs.html">Outputs</a>
+        <a href="prompts.html">Prompts</a>
+        <a href="dividend.html">Dividend Empire</a>
+        <a href="investment.html">Investment Commander</a>
+        <a href="ai-company.html">AI Company</a>
+        <a class="active" href="sauna.html">Sauna</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="sauna-shell">
+    <section class="sauna-hero">
+      <div class="sauna-hero-copy">
+        <p class="sauna-eyebrow">HOS Experience Intelligence</p>
+        <h2>蒸された記憶を、次の一軒に使えるデータへ。</h2>
+        <p>点数だけで終わらせず、熱さ、水風呂、休憩、導線、混雑、再訪履歴を施設単位で育てます。</p>
+        <div class="sauna-hero-actions">
+          <a class="sauna-button" href="#reviews">レビューを見る</a>
+          <a class="sauna-button secondary" href="https://github.com/purachinaevo7-cmyk/HOS/issues/new?template=sauna-review.yml" target="_blank" rel="noreferrer">レビューを追加</a>
+        </div>
+      </div>
+      <aside class="sauna-import-card">
+        <h3>スマホから1回で追加</h3>
+        <ol>
+          <li>「レビューを追加」を開く</li>
+          <li>このチャットの完成レビューを貼る</li>
+          <li>Issueを送信する</li>
+        </ol>
+        <p>GitHub Actionsが <code>reviews.json</code> と集計を更新し、公開ページへ反映します。</p>
+        <a class="sauna-button secondary" href="https://github.com/purachinaevo7-cmyk/HOS/actions/workflows/sauna-review-import.yml" target="_blank" rel="noreferrer">自動取込の実行履歴</a>
+      </aside>
+    </section>
+
+    <section class="sauna-metrics" aria-label="サウナレビュー集計">
+      <article class="sauna-metric"><span>レビュー件数</span><strong id="metricReviews">-</strong></article>
+      <article class="sauna-metric"><span>施設数</span><strong id="metricFacilities">-</strong></article>
+      <article class="sauna-metric"><span>平均点</span><strong id="metricAverage">-</strong></article>
+      <article class="sauna-metric"><span>再訪施設</span><strong id="metricRepeat">-</strong></article>
+    </section>
+
+    <section class="sauna-section">
+      <div class="sauna-section-head">
+        <div>
+          <p class="sauna-eyebrow">Overview</p>
+          <h2>ランキングと最近の訪問</h2>
+        </div>
+      </div>
+      <div class="sauna-overview-grid">
+        <div>
+          <h3>施設別ランキング</h3>
+          <ol id="rankingList" class="sauna-ranking-list"></ol>
+        </div>
+        <div>
+          <h3>最近のレビュー</h3>
+          <ol id="recentList" class="sauna-recent-list"></ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="sauna-section" id="reviews">
+      <div class="sauna-section-head">
+        <div>
+          <p class="sauna-eyebrow">Review Database</p>
+          <h2>施設レビュー</h2>
+        </div>
+        <p id="resultCount">読み込み中</p>
+      </div>
+
+      <div class="sauna-controls">
+        <input id="reviewSearch" type="search" placeholder="施設名・ケロ・5℃・畳・混雑など">
+        <select id="scoreFilter" aria-label="最低点">
+          <option value="0">すべての点数</option>
+          <option value="9">9点以上</option>
+          <option value="8">8点以上</option>
+          <option value="7">7点以上</option>
+          <option value="5">5点以上</option>
+        </select>
+        <select id="tagFilter" aria-label="特徴タグ">
+          <option value="all">すべての特徴</option>
+        </select>
+        <select id="sortOrder" aria-label="並び順">
+          <option value="latest">新しい順</option>
+          <option value="score">点数順</option>
+          <option value="facility">施設名順</option>
+        </select>
+        <button id="resetFilters" class="sauna-button secondary" type="button">解除</button>
+      </div>
+
+      <div id="facilityGrid" class="sauna-facility-grid"></div>
+      <p id="dataStatus" class="sauna-data-status">データ読込中</p>
+      <p class="sauna-note">旧レビューの一部は点数のみで初期投入しています。再訪レビューを追加すると、同じ施設の履歴として詳細が育ちます。</p>
+    </section>
+  </main>
+
+  <script src="sauna.js"></script>
+</body>
+</html>

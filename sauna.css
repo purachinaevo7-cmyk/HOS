@@ -1,0 +1,102 @@
+:root{
+  --sauna-bg:#101315;
+  --sauna-panel:#191e21;
+  --sauna-panel-soft:#20272b;
+  --sauna-text:#f4f1eb;
+  --sauna-muted:#b6b1a8;
+  --sauna-line:#343c40;
+  --sauna-accent:#ff8a3d;
+  --sauna-accent-soft:#ffb06f;
+  --sauna-cold:#8fd8ff;
+  --sauna-good:#8ee0a0;
+}
+body.sauna-page{background:var(--sauna-bg);color:var(--sauna-text)}
+body.sauna-page header{background:linear-gradient(135deg,#2a1b12,#101315)}
+body.sauna-page nav{background:#111618;border-bottom:1px solid var(--sauna-line)}
+body.sauna-page .nav-links a.active{background:var(--sauna-accent);color:#151515}
+.sauna-shell{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:32px 0 72px}
+.sauna-hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:24px;align-items:stretch;margin-bottom:24px}
+.sauna-hero-copy,.sauna-import-card,.sauna-section{background:var(--sauna-panel);border:1px solid var(--sauna-line);border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.2)}
+.sauna-hero-copy{padding:30px}
+.sauna-eyebrow{margin:0 0 8px;color:var(--sauna-accent-soft);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.sauna-hero h2{margin:.1em 0 .4em;font-size:clamp(2rem,5vw,3.8rem);line-height:1.05}
+.sauna-hero p{color:var(--sauna-muted)}
+.sauna-hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.sauna-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--sauna-accent);background:var(--sauna-accent);color:#18110c;text-decoration:none;font-weight:800;cursor:pointer}
+.sauna-button.secondary{background:transparent;color:var(--sauna-text);border-color:var(--sauna-line)}
+.sauna-import-card{padding:24px;display:flex;flex-direction:column;justify-content:center}
+.sauna-import-card h3{margin:0 0 10px}
+.sauna-import-card ol{margin:8px 0 18px;padding-left:1.3em;color:var(--sauna-muted)}
+.sauna-import-card code{background:#0b0e0f;padding:2px 6px;border-radius:5px}
+.sauna-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.sauna-metric{background:var(--sauna-panel);border:1px solid var(--sauna-line);border-radius:16px;padding:20px}
+.sauna-metric span{display:block;color:var(--sauna-muted);font-size:.86rem}
+.sauna-metric strong{display:block;margin-top:5px;font-size:2rem}
+.sauna-section{padding:24px;margin-top:24px}
+.sauna-section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.sauna-section-head h2{margin:0}
+.sauna-section-head p{margin:0;color:var(--sauna-muted)}
+.sauna-overview-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr);gap:24px}
+.sauna-ranking-list,.sauna-recent-list{list-style:none;padding:0;margin:0}
+.sauna-ranking-row{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--sauna-line)}
+.sauna-ranking-row:last-child{border-bottom:0}
+.rank-number{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--sauna-panel-soft);font-weight:900}
+.rank-title{display:flex;justify-content:space-between;gap:12px}
+.rank-bar{height:8px;margin:7px 0;background:#0d1012;border-radius:999px;overflow:hidden}
+.rank-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--sauna-accent),var(--sauna-accent-soft));border-radius:inherit}
+.rank-main small{color:var(--sauna-muted)}
+.sauna-recent-list li{display:grid;grid-template-columns:120px minmax(120px,.7fr) 56px minmax(0,1.3fr);gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--sauna-line)}
+.sauna-recent-list li:last-child{border-bottom:0}
+.sauna-recent-list span,.sauna-recent-list small{color:var(--sauna-muted)}
+.sauna-controls{display:grid;grid-template-columns:minmax(180px,2fr) repeat(3,minmax(130px,1fr)) auto;gap:10px;margin-bottom:18px}
+.sauna-controls input,.sauna-controls select{min-height:44px;border:1px solid var(--sauna-line);border-radius:12px;background:#0f1315;color:var(--sauna-text);padding:0 12px}
+.sauna-facility-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.sauna-facility-card{background:var(--sauna-panel-soft);border:1px solid var(--sauna-line);border-radius:18px;padding:20px;min-width:0}
+.facility-head{display:flex;justify-content:space-between;gap:16px;align-items:start}
+.facility-head h3{margin:3px 0 0;font-size:1.35rem}
+.facility-date{margin:0;color:var(--sauna-muted);font-size:.82rem}
+.facility-score{display:flex;align-items:baseline;gap:2px;min-width:74px;justify-content:end}
+.facility-score strong{font-size:2.1rem}
+.facility-score span{color:var(--sauna-muted)}
+.score-excellent{color:var(--sauna-accent-soft)}
+.score-good{color:var(--sauna-good)}
+.score-mid{color:#f5d37a}
+.score-low{color:#ff9a9a}
+.facility-catchcopy{font-size:1.02rem;font-weight:800;margin:14px 0;color:var(--sauna-text)}
+.facility-meta{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.facility-meta span,.legacy-badge{font-size:.76rem;padding:5px 8px;border-radius:999px;background:#121719;color:var(--sauna-muted)}
+.legacy-badge{border:1px solid #795f37;color:#f5d37a}
+.tag-list{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.tag-button{border:1px solid #3e5360;background:#14222a;color:var(--sauna-cold);border-radius:999px;padding:5px 9px;cursor:pointer}
+.review-details{margin:0;border-top:1px solid var(--sauna-line)}
+.review-detail{display:grid;grid-template-columns:68px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--sauna-line)}
+.review-detail dt{color:var(--sauna-accent-soft);font-weight:800}
+.review-detail dd{margin:0;color:#e7e4de;line-height:1.65}
+.review-placeholder,.sauna-empty{padding:18px;border:1px dashed var(--sauna-line);border-radius:12px;color:var(--sauna-muted)}
+.visit-history{margin-top:14px}
+.visit-history summary{cursor:pointer;color:var(--sauna-cold);font-weight:800}
+.visit-history ol{padding-left:1.25em}
+.visit-history li{display:grid;grid-template-columns:110px 48px 1fr;gap:8px;padding:6px 0}
+.visit-history small{color:var(--sauna-muted)}
+.sauna-data-status{text-align:right;color:var(--sauna-muted);font-size:.8rem;margin-top:12px}
+.sauna-note{color:var(--sauna-muted);font-size:.88rem}
+@media(max-width:900px){
+  .sauna-hero,.sauna-overview-grid{grid-template-columns:1fr}
+  .sauna-metrics{grid-template-columns:repeat(2,1fr)}
+  .sauna-controls{grid-template-columns:1fr 1fr}
+  .sauna-controls input{grid-column:1/-1}
+  .sauna-facility-grid{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .sauna-shell{width:min(100% - 20px,1180px);padding-top:20px}
+  .sauna-hero-copy,.sauna-import-card,.sauna-section{padding:18px;border-radius:16px}
+  .sauna-metrics{grid-template-columns:1fr 1fr;gap:10px}
+  .sauna-metric{padding:14px}
+  .sauna-metric strong{font-size:1.55rem}
+  .sauna-controls{grid-template-columns:1fr}
+  .sauna-controls input{grid-column:auto}
+  .sauna-recent-list li{grid-template-columns:95px 1fr 46px}
+  .sauna-recent-list small{grid-column:1/-1}
+  .review-detail{grid-template-columns:58px 1fr}
+  .visit-history li{grid-template-columns:95px 42px 1fr}
+}

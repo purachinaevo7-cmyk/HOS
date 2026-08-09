@@ -1,0 +1,141 @@
+name: Sauna Review Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      review_text:
+        description: "完成レビューまたは入力テンプレート全文"
+        required: true
+        type: string
+      visited_at:
+        description: "訪問日 YYYY-MM-DD（任意）"
+        required: false
+        type: string
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: sauna-review-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[Sauna Review]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare review input
+        id: prepare
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_REVIEW_TEXT: ${{ inputs.review_text }}
+          MANUAL_VISITED_AT: ${{ inputs.visited_at }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          event_name = os.environ["EVENT_NAME"]
+          if event_name == "workflow_dispatch":
+              review_text = os.environ.get("MANUAL_REVIEW_TEXT", "")
+              visited_at = os.environ.get("MANUAL_VISITED_AT", "").strip()
+          else:
+              body = os.environ.get("ISSUE_BODY", "")
+              review_match = re.search(
+                  r"### レビュー本文\s*\n+(.*?)(?=\n### 訪問日\s*\n|\Z)",
+                  body,
+                  flags=re.S,
+              )
+              if not review_match:
+                  raise SystemExit("Issue本文からレビュー本文を取得できませんでした。")
+              review_text = review_match.group(1).strip()
+              date_match = re.search(
+                  r"### 訪問日\s*\n+([^\n]+)",
+                  body,
+              )
+              visited_at = date_match.group(1).strip() if date_match else ""
+              if visited_at in {"_No response_", "No response"}:
+                  visited_at = ""
+
+          if not review_text.strip():
+              raise SystemExit("レビュー本文が空です。")
+
+          Path("/tmp/sauna-review.txt").write_text(review_text, encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"visited_at={visited_at}\n")
+          PY
+
+      - name: Validate parser
+        run: |
+          DATE_ARG=()
+          if [ -n "${{ steps.prepare.outputs.visited_at }}" ]; then
+            DATE_ARG=(--date "${{ steps.prepare.outputs.visited_at }}")
+          fi
+          python tools/sauna_review_import.py             --input /tmp/sauna-review.txt             --check             "${DATE_ARG[@]}"
+
+      - name: Import review
+        id: import
+        run: |
+          DATE_ARG=()
+          if [ -n "${{ steps.prepare.outputs.visited_at }}" ]; then
+            DATE_ARG=(--date "${{ steps.prepare.outputs.visited_at }}")
+          fi
+          RESULT="$(python tools/sauna_review_import.py             --input /tmp/sauna-review.txt             --source "github-${{ github.event_name }}"             "${DATE_ARG[@]}")"
+          echo "$RESULT"
+          python - "$RESULT" <<'PY'
+          import json
+          import os
+          import sys
+
+          result = json.loads(sys.argv[1])
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              for key in ("status", "id", "facility", "score", "visited_at"):
+                  value = result.get(key)
+                  output.write(f"{key}={'' if value is None else value}\n")
+          PY
+
+      - name: Commit data
+        if: steps.import.outputs.status == 'created'
+        run: |
+          git config user.name "HOS Sauna Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/sauna/reviews.json data/sauna/summary.json
+          git commit -m "data(sauna): add ${{ steps.import.outputs.facility }} review"
+          git push origin HEAD:main
+
+      - name: Comment on issue
+        if: github.event_name == 'issues' && always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          STATUS: ${{ steps.import.outputs.status }}
+          FACILITY: ${{ steps.import.outputs.facility }}
+          SCORE: ${{ steps.import.outputs.score }}
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            if [ "$STATUS" = "duplicate" ]; then
+              MESSAGE="同じ内容のレビューはすでに登録済みでした。重複追加はしていません。"
+            else
+              MESSAGE="「${FACILITY}」${SCORE}点のレビューをHOSへ追加しました。Sauna Dashboardへ反映されます。"
+            fi
+            gh issue comment "$ISSUE_NUMBER" --repo "${{ github.repository }}" --body "$MESSAGE"
+            gh issue close "$ISSUE_NUMBER" --repo "${{ github.repository }}" --reason completed
+          else
+            gh issue comment "$ISSUE_NUMBER" --repo "${{ github.repository }}" --body "自動取込に失敗しました。Actionsの実行ログを確認してください。Issueは開いたままにしています。"
+          fi
