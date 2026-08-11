@@ -1,218 +1,242 @@
 {
   "7203": {
-    "status": "HOLD",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 2981.0,
-    "limit_price": 2966.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6758": {
-    "status": "HOLD",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3764.0,
-    "limit_price": 3745.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "7751": {
-    "status": "HOLD",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 4628.0,
-    "limit_price": 4580.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "9432": {
-    "status": "HOLD",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 159.89999389648438,
-    "limit_price": 159.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "1605": {
-    "status": "HOLD",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3612.0,
-    "limit_price": 3555.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
+  },
+  "8593": {
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "7974": {
-    "status": "HOLD",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 8265.0,
-    "limit_price": 8220.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "5713": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 10065.0,
-    "limit_price": 9910.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "5711": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 5112.0,
-    "limit_price": 5060.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "2768": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 5680.0,
-    "limit_price": 5620.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "7456": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 6850.0,
-    "limit_price": 6780.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "4063": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 6286.0,
-    "limit_price": 6250.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6981": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 7302.0,
-    "limit_price": 7260.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8001": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 2090.5,
-    "limit_price": 2080.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8002": {
-    "status": "WATCH",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 4950.0,
-    "limit_price": 4925.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "7832": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 5429.0,
-    "limit_price": 5370.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "9697": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 4223.0,
-    "limit_price": 4180.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "9684": {
-    "status": "NO_ALERT",
-    "actionability": "WATCH_ONLY",
-    "close": 2871.0,
-    "limit_price": 2842.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "5698": {
-    "status": "NO_ALERT",
-    "actionability": "WATCH_ONLY",
-    "close": 895.0,
-    "limit_price": 881.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
+  },
+  "9433": {
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "9434": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 228.39999389648438,
-    "limit_price": 226.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8058": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 4849.0,
-    "limit_price": 4820.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8031": {
-    "status": "WATCH",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 4880.0,
-    "limit_price": 4855.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
+  },
+  "8316": {
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8306": {
-    "status": "WATCH",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3510.0,
-    "limit_price": 3490.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
+  },
+  "8766": {
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8591": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 6272.0,
-    "limit_price": 6200.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "8424": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 4456.0,
-    "limit_price": 4410.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6501": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 5620.0,
-    "limit_price": 5590.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6503": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 5844.0,
-    "limit_price": 5810.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6762": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3045.0,
-    "limit_price": 3025.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6971": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3822.0,
-    "limit_price": 3800.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "7735": {
-    "status": "NO_ALERT",
-    "actionability": "WATCH_ONLY",
-    "close": 13175.0,
-    "limit_price": 12970.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6857": {
-    "status": "NO_ALERT",
-    "actionability": "WATCH_ONLY",
-    "close": 34260.0,
-    "limit_price": 33700.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "4452": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3738.0,
-    "limit_price": 3700.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "4502": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 5582.0,
-    "limit_price": 5520.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "2914": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 7095.0,
-    "limit_price": 7020.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "1928": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 3425.0,
-    "limit_price": 3390.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "6098": {
-    "status": "NO_ALERT",
-    "actionability": "BUDGET_AND_FACTS_REQUIRED",
-    "close": 16165.0,
-    "limit_price": 16080.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   },
   "9983": {
-    "status": "NO_ALERT",
-    "actionability": "WATCH_ONLY",
-    "close": 78720.0,
-    "limit_price": 77500.0
+    "status": "DATA_ERROR",
+    "actionability": "DATA_ERROR",
+    "close": null,
+    "limit_price": null
   }
 }

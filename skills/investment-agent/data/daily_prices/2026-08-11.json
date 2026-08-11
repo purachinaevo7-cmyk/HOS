@@ -1,7 +1,7 @@
 {
   "trade_date": "2026-08-11",
-  "run_mode": "evening",
-  "fetched_at_jst": "2026-08-11T22:54:22.209222+09:00",
+  "run_mode": "morning-retry",
+  "fetched_at_jst": "2026-08-12T07:57:30.595436+09:00",
   "topix": [],
   "topix_source_status": "判定保留",
   "topix_source": "未取得",
@@ -1099,14 +1099,14 @@
   ],
   "retry_required": true,
   "used_fallback_data": false,
-  "mode": "evening",
-  "mode_label": "夜間通常取得",
+  "mode": "morning-retry",
+  "mode_label": "朝補完取得",
   "run_context": {
-    "run_at": "2026-08-11T22:52:53.461408+09:00",
-    "mode": "evening",
+    "run_at": "2026-08-12T07:56:13.935915+09:00",
+    "mode": "morning-retry",
     "expected_date": "2026-08-11",
-    "current_date": "2026-08-11",
-    "reason": "実行時点で終了済みの直近東証営業日",
+    "current_date": "2026-08-12",
+    "reason": "前夜JSON（2026-08-11.json）が存在するため、そのtrade_dateを優先",
     "strategy_id": "HOS_2026_FINAL_AGGRESSIVE_V2"
   }
 }
