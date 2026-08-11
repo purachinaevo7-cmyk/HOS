@@ -1,7 +1,7 @@
 {
   "trade_date": "2026-08-11",
   "run_mode": "evening",
-  "fetched_at_jst": "2026-08-11T22:20:32.833796+09:00",
+  "fetched_at_jst": "2026-08-11T22:54:22.209222+09:00",
   "topix": [],
   "topix_source_status": "判定保留",
   "topix_source": "未取得",
@@ -1102,7 +1102,7 @@
   "mode": "evening",
   "mode_label": "夜間通常取得",
   "run_context": {
-    "run_at": "2026-08-11T22:19:03.038363+09:00",
+    "run_at": "2026-08-11T22:52:53.461408+09:00",
     "mode": "evening",
     "expected_date": "2026-08-11",
     "current_date": "2026-08-11",
