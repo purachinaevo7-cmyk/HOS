@@ -1,7 +1,7 @@
 {
   "trade_date": "2026-08-10",
   "run_mode": "evening",
-  "fetched_at_jst": "2026-08-10T22:22:33.522673+09:00",
+  "fetched_at_jst": "2026-08-12T08:07:01.564991+09:00",
   "topix": [
     {
       "provider": "TOPIX ETF median",
@@ -1323,11 +1323,11 @@
   "mode": "evening",
   "mode_label": "夜間通常取得",
   "run_context": {
-    "run_at": "2026-08-10T22:22:15.194273+09:00",
+    "run_at": "2026-08-12T08:06:52.190712+09:00",
     "mode": "evening",
     "expected_date": "2026-08-10",
-    "current_date": "2026-08-10",
-    "reason": "実行時点で終了済みの直近東証営業日",
+    "current_date": "2026-08-12",
+    "reason": "明示指定されたtrade_dateを使用",
     "strategy_id": "HOS_2026_FINAL_AGGRESSIVE_V2"
   }
 }
