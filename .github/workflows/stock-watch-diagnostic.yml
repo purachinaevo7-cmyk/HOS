@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stock-watch-diagnostic.yml'
+      - 'skills/investment-agent/stock_watch_runner.py'
+      - 'skills/investment-agent/jpx_trade_date.py'
       - 'skills/investment-agent/daily_stock_check_v3.py'
       - 'skills/investment-agent/stock_fetcher.py'
       - 'skills/investment-agent/discord_report.py'
@@ -16,12 +18,28 @@ on:
       - 'skills/investment-agent/config/strategies/HOS_2026_FINAL_AGGRESSIVE_V2.json'
       - 'outputs/stock-watch-retry-trigger.txt'
   schedule:
+    # Evening checks, roughly 21:07 / 21:27 JST on weekdays.
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
+    # Morning recovery checks, roughly 07:07 / 07:27 / 07:47 JST.
     - cron: '7 22 * * 0-4'
     - cron: '27 22 * * 0-4'
     - cron: '47 22 * * 0-4'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'evening or morning-retry'
+        required: false
+        default: 'morning-retry'
+        type: choice
+        options:
+          - morning-retry
+          - evening
+      force:
+        description: 'Send again even if the same trade-date slot already succeeded'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -66,198 +84,56 @@ jobs:
       - name: Install requirements
         run: python -m pip install -r requirements.txt
 
-      - name: Resolve run mode and slot
-        id: slot
+      - name: Resolve mode
+        id: mode
+        shell: bash
         run: |
-          schedule='${{ github.event.schedule }}'
-          case "$schedule" in
-            '7 22 * * 0-4'|'27 22 * * 0-4'|'47 22 * * 0-4') mode='morning-retry' ;;
-            *) mode='evening' ;;
-          esac
-          run_date=$(TZ=Asia/Tokyo date +%F)
-          slot="${run_date}-${mode}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            mode='${{ inputs.mode }}'
+            force='${{ inputs.force }}'
+          else
+            schedule='${{ github.event.schedule }}'
+            case "$schedule" in
+              '7 22 * * 0-4'|'27 22 * * 0-4'|'47 22 * * 0-4') mode='morning-retry' ;;
+              *) mode='evening' ;;
+            esac
+            force='false'
+          fi
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
-          echo "slot=$slot" >> "$GITHUB_OUTPUT"
-
-      - name: Skip only complete successful slot
-        id: guard
-        env:
-          SLOT: ${{ steps.slot.outputs.slot }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          path = Path('outputs/stock-watch-diagnostic.json')
-          same_success = False
-          if path.exists():
-              try:
-                  current = json.loads(path.read_text(encoding='utf-8'))
-                  same_success = (
-                      current.get('slot') == os.environ['SLOT']
-                      and current.get('status') == 'success'
-                      and int(current.get('market_missing_count', 1)) == 0
-                      and int(current.get('market_price_count', 0)) > 0
-                  )
-              except Exception:
-                  pass
-          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
-              output.write(f"should_run={'false' if same_success else 'true'}\n")
-          print(f"same_complete_success={same_success}")
-          PY
+          echo "force=$force" >> "$GITHUB_OUTPUT"
 
       - name: Validate Discord webhook
-        if: steps.guard.outputs.should_run == 'true'
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then
             echo "::error::DISCORD_WEBHOOK_URL secret is not configured"
             exit 1
           fi
 
-      - name: Run actual Stock Watch pipeline
-        if: steps.guard.outputs.should_run == 'true'
+      - name: Run Stock Watch V3
+        shell: bash
         run: |
           mkdir -p logs outputs
-          set +e
-          python skills/investment-agent/daily_stock_check_v3.py --mode '${{ steps.slot.outputs.mode }}' > logs/stock-watch-diagnostic.log 2>&1
-          code=$?
-          echo "$code" > logs/stock-watch-exit-code.txt
-          cat logs/stock-watch-diagnostic.log
-          exit 0
+          args=(--mode '${{ steps.mode.outputs.mode }}')
+          if [ '${{ steps.mode.outputs.force }}' = 'true' ]; then
+            args+=(--force)
+          fi
+          set -o pipefail
+          python skills/investment-agent/stock_watch_runner.py "${args[@]}" 2>&1 | tee logs/stock-watch.log
 
-      - name: Write verified result
-        if: steps.guard.outputs.should_run == 'true'
-        env:
-          SLOT: ${{ steps.slot.outputs.slot }}
-          MODE: ${{ steps.slot.outputs.mode }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          python - <<'PY'
-          from datetime import datetime, timezone
-          import json
-          import os
-          from pathlib import Path
-
-          code_path = Path('logs/stock-watch-exit-code.txt')
-          exit_code = int(code_path.read_text().strip()) if code_path.exists() else -1
-          log_path = Path('logs/stock-watch-diagnostic.log')
-          log = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else ''
-          delivery_confirmed = 'Discord delivery succeeded: HTTP ' in log
-
-          strategy_path = Path('outputs/strategy_order_plan.json')
-          accounts = []
-          signal_count = 0
-          ready_count = 0
-          if strategy_path.exists():
-              data = json.loads(strategy_path.read_text(encoding='utf-8'))
-              signals = data.get('signals', [])
-              signal_count = len(signals)
-              accounts = sorted({str(row.get('account')) for row in signals if row.get('account')})
-              ready_count = sum(1 for row in signals if row.get('actionability') == 'READY')
-
-          daily_dir = Path('skills/investment-agent/data/daily_prices')
-          daily_candidates = [
-              path for path in daily_dir.glob('*.json')
-              if not path.name.startswith('notification_state_')
-          ]
-          daily_path = max(daily_candidates, key=lambda path: path.stat().st_mtime) if daily_candidates else None
-          market_price_count = 0
-          market_missing_count = 0
-          trade_date = None
-          retry_required = None
-          if daily_path is not None:
-              daily = json.loads(daily_path.read_text(encoding='utf-8'))
-              market_price_count = len(daily.get('prices', []))
-              market_missing_count = len(daily.get('missing', []))
-              trade_date = daily.get('trade_date')
-              retry_required = bool(daily.get('retry_required'))
-
-          required_configuration = [
-              'HOS_CURRENT_FINANCIAL_ASSETS_JPY',
-              'HOS_CURRENT_ANNUAL_DIVIDEND_JPY',
-              'HOS_MAHO_BUYING_POWER_JPY',
-              'HOS_HIRO_BUYING_POWER_JPY',
-              'HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY',
-              'HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY',
-              'HOS_MAX_SINGLE_ORDER_JPY',
-              'HOS_HOUSEHOLD_AVAILABLE_CASH_JPY',
-              'HOS_TARGET_INVESTMENT_TO_2027_03_JPY',
-              'HOS_RESERVE_AFTER_EXECUTION_JPY',
-              'HOS_MAHO_2026_STOCK_CAP_JPY',
-              'HOS_MAHO_STRATEGY_BUDGET_JPY',
-              'HOS_HIRO_STRATEGY_BUDGET_JPY',
-          ]
-          missing_configuration = [name for name in required_configuration if not os.getenv(name, '').strip()]
-
-          pipeline_ok = exit_code == 0 and delivery_confirmed and accounts == ['hiro', 'maho']
-          market_complete = market_price_count > 0 and market_missing_count == 0
-          if not pipeline_ok:
-              status = 'failure'
-          elif not market_complete:
-              status = 'degraded'
-          else:
-              status = 'success'
-
-          result = {
-              'slot': os.environ['SLOT'],
-              'mode': os.environ['MODE'],
-              'checked_at': datetime.now(timezone.utc).isoformat(),
-              'github_run_id': os.environ.get('RUN_ID'),
-              'status': status,
-              'exit_code': exit_code,
-              'discord_delivery_confirmed': delivery_confirmed,
-              'evaluated_accounts': accounts,
-              'strategy_signal_count': signal_count,
-              'purchase_ready_count': ready_count,
-              'notification_layout': 'account-separated-v2',
-              'trade_date': trade_date,
-              'daily_data_file': str(daily_path) if daily_path else None,
-              'market_price_count': market_price_count,
-              'market_missing_count': market_missing_count,
-              'market_data_status': 'complete' if market_complete else 'incomplete',
-              'retry_required': retry_required,
-              'configuration_status': 'complete' if not missing_configuration else 'incomplete',
-              'missing_configuration': missing_configuration,
-              'log_tail': log[-4000:],
-          }
-          Path('outputs/stock-watch-diagnostic.json').write_text(
-              json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8'
-          )
-          print(json.dumps(result, ensure_ascii=False))
-          PY
-
-      - name: Commit verified result and retry state
-        if: steps.guard.outputs.should_run == 'true'
+      - name: Persist heartbeat and daily market data
+        if: always()
+        shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add outputs/stock-watch-diagnostic.json
-          git add skills/investment-agent/data/daily_prices/*.json
+          git add outputs/stock-watch-diagnostic.json 2>/dev/null || true
+          git add skills/investment-agent/data/daily_prices/*.json 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo 'No result change to commit'
-          else
-            git commit -m "Record Stock Watch result ${{ steps.slot.outputs.slot }}"
-            git reset --hard HEAD
-            git clean -fd
-            git pull --rebase origin main
-            git push
+            echo 'No Stock Watch runtime change to commit'
+            exit 0
           fi
-
-      - name: Report duplicate skip
-        if: steps.guard.outputs.should_run == 'false'
-        run: echo 'Already completed with complete market data; duplicate notification skipped.'
-
-      - name: Verify pipeline result
-        if: steps.guard.outputs.should_run == 'true'
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          result = json.loads(Path('outputs/stock-watch-diagnostic.json').read_text(encoding='utf-8'))
-          status = result.get('status')
-          if status == 'failure':
-              raise SystemExit('Stock Watch delivery verification failed')
-          if status == 'degraded':
-              print('::warning::Stock Watch delivered, but market data is incomplete. A later schedule will retry.')
-          PY
+          git commit -m "Record Stock Watch runtime result"
+          git reset --hard HEAD
+          git clean -fd
+          git pull --rebase origin main
+          git push
