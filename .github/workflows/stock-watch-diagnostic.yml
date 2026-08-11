@@ -91,6 +91,10 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             mode='${{ inputs.mode }}'
             force='${{ inputs.force }}'
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            hour=$(TZ=Asia/Tokyo date +%H)
+            if [ "$hour" -lt 12 ]; then mode='morning-retry'; else mode='evening'; fi
+            force='false'
           else
             schedule='${{ github.event.schedule }}'
             case "$schedule" in
