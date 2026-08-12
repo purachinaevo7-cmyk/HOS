@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/stock-watch-diagnostic.yml'
       - 'skills/investment-agent/stock_watch_runner.py'
+      - 'skills/investment-agent/household_runtime.py'
       - 'skills/investment-agent/jpx_trade_date.py'
       - 'skills/investment-agent/daily_stock_check_v3.py'
       - 'skills/investment-agent/stock_fetcher.py'
@@ -16,6 +17,7 @@ on:
       - 'skills/investment-agent/config/portfolio_policy.json'
       - 'skills/investment-agent/config/stock_watch_universe.json'
       - 'skills/investment-agent/config/strategies/HOS_2026_FINAL_AGGRESSIVE_V2.json'
+      - 'skills/investment-agent/config/strategy_household_overrides_2026-08-12.json'
       - 'outputs/stock-watch-retry-trigger.txt'
   schedule:
     # Evening checks, roughly 21:07 / 21:27 JST on weekdays.
@@ -54,6 +56,7 @@ jobs:
     timeout-minutes: 15
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      HOS_PRIVATE_PROFILE_JSON: ${{ secrets.HOS_PRIVATE_PROFILE_JSON }}
       HOS_EXECUTION_ACCOUNT: maho
       HOS_MAHO_BUYING_POWER_JPY: ${{ secrets.HOS_MAHO_BUYING_POWER_JPY }}
       HOS_HIRO_BUYING_POWER_JPY: ${{ secrets.HOS_HIRO_BUYING_POWER_JPY }}
@@ -65,6 +68,10 @@ jobs:
       HOS_USDJPY_PLANNING_RATE: 160
       HOS_CURRENT_FINANCIAL_ASSETS_JPY: ${{ secrets.HOS_CURRENT_FINANCIAL_ASSETS_JPY }}
       HOS_CURRENT_ANNUAL_DIVIDEND_JPY: ${{ secrets.HOS_CURRENT_ANNUAL_DIVIDEND_JPY }}
+      HOS_CURRENT_HOUSEHOLD_CASH_JPY: ${{ secrets.HOS_CURRENT_HOUSEHOLD_CASH_JPY }}
+      HOS_PROTECTED_CASH_FLOOR_JPY: ${{ secrets.HOS_PROTECTED_CASH_FLOOR_JPY }}
+      HOS_HIRO_TAXABLE_GIFTS_YTD_JPY: ${{ secrets.HOS_HIRO_TAXABLE_GIFTS_YTD_JPY }}
+      HOS_HIRO_GIFT_TAX_REVIEWED: ${{ secrets.HOS_HIRO_GIFT_TAX_REVIEWED }}
       HOS_HOUSEHOLD_AVAILABLE_CASH_JPY: ${{ secrets.HOS_HOUSEHOLD_AVAILABLE_CASH_JPY }}
       HOS_TARGET_INVESTMENT_TO_2027_03_JPY: ${{ secrets.HOS_TARGET_INVESTMENT_TO_2027_03_JPY }}
       HOS_RESERVE_AFTER_EXECUTION_JPY: ${{ secrets.HOS_RESERVE_AFTER_EXECUTION_JPY }}
