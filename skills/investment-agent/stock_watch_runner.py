@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import daily_stock_check as legacy
 import daily_stock_check_v3 as v3
+import discord_report
 import stock_fetcher
 from household_runtime import (
     apply_household_funding_gates,
@@ -48,6 +49,16 @@ PURCHASE_CONFIGURATION = [
     "HOS_HIRO_TAXABLE_GIFTS_YTD_JPY",
 ]
 
+HOUSEHOLD_BLOCK_LABELS = {
+    "HOUSEHOLD_CASH_REQUIRED": "世帯現預金未設定",
+    "PROTECTED_CASH_FLOOR_REQUIRED": "現金防衛ライン未設定",
+    "PROTECTED_CASH_FLOOR_BREACH": "現金防衛ライン割れ",
+    "EXISTING_POSITION_REQUIRED": "既存保有確認",
+    "HIRO_COMPLETION_TRANSFER_REQUIRED": "補完資金の入金待ち",
+    "HIRO_TAXABLE_GIFTS_YTD_REQUIRED": "課税対象贈与累計未設定",
+    "GIFT_TAX_REVIEW_REQUIRED": "贈与税確認",
+}
+
 
 def _install_calendar_guard() -> None:
     legacy._is_jpx_session = is_jpx_cash_session
@@ -59,6 +70,7 @@ def _install_household_runtime(profile: dict) -> None:
     base_strategy_watchlist = v3.strategy_watchlist
     base_evaluate_strategy = v3.evaluate_strategy
     base_render_v3 = v3._render_v3
+    base_progress_lines = discord_report._progress_lines
 
     def load_strategy_with_overrides(path):
         return apply_strategy_overrides(base_load_strategy(path), OVERRIDE_PATH)
@@ -74,6 +86,34 @@ def _install_household_runtime(profile: dict) -> None:
         publish_runtime_asset_snapshot(profile, result.prices)
         return base_render_v3(universe, policy, strategy, result, mode, data_dir)
 
+    def progress_lines_with_confirmed_partial(policy, strategy, signals):
+        lines = base_progress_lines(policy, strategy, signals)
+        if os.getenv("HOS_CURRENT_FINANCIAL_ASSETS_JPY", "").strip():
+            return lines
+        partial_raw = os.getenv("HOS_CONFIRMED_INVESTED_ASSETS_JPY", "").strip()
+        if not partial_raw:
+            return lines
+        try:
+            partial = float(partial_raw)
+        except ValueError:
+            return lines
+        missing_raw = [item for item in os.getenv("HOS_FINANCIAL_ASSETS_MISSING_ITEMS", "").split(",") if item]
+        labels = []
+        for item in missing_raw:
+            if item == "maho_cash":
+                label = "まほ現預金"
+            elif item.startswith("price:"):
+                label = f"{item.split(':', 1)[1]}株価"
+            else:
+                label = item
+            if label not in labels:
+                labels.append(label)
+        suffix = f"｜未確定：{'・'.join(labels[:3])}" if labels else ""
+        lines.insert(2, f"確認済み投資資産 {discord_report._compact_yen(partial)}{suffix}")
+        return lines
+
+    discord_report.BLOCK_LABELS.update(HOUSEHOLD_BLOCK_LABELS)
+    discord_report._progress_lines = progress_lines_with_confirmed_partial
     v3.load_strategy = load_strategy_with_overrides
     v3.strategy_watchlist = strategy_watchlist_with_private
     v3.evaluate_strategy = evaluate_strategy_with_household_gates
