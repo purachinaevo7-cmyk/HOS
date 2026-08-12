@@ -15,7 +15,10 @@ STRATEGY = BASE / "config" / "strategies" / "HOS_2026_FINAL_AGGRESSIVE_V2.json"
 
 
 def audited_strategy():
-    return apply_strategy_overrides(load_strategy(STRATEGY), OVERRIDE)
+    strategy = apply_strategy_overrides(load_strategy(STRATEGY), OVERRIDE)
+    strategy["accounts"]["hiro"]["buying_power_jpy_env"] = "HOS_HIRO_BUYING_POWER_JPY"
+    strategy["accounts"]["maho"]["buying_power_jpy_env"] = "HOS_MAHO_BUYING_POWER_JPY"
+    return strategy
 
 
 def base_env():
