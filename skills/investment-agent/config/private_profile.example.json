@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "as_of": "YYYY-MM-DD",
+  "balances": [
+    {
+      "id": "maho_cash",
+      "owner": "maho",
+      "category": "cash",
+      "value_jpy": null,
+      "verified": false,
+      "include_in_financial_assets": true
+    }
+  ],
+  "holdings": [
+    {
+      "owner": "hiro",
+      "broker": "SBI証券",
+      "market": "JP",
+      "ticker": "0000",
+      "name": "銘柄名",
+      "shares": 0,
+      "verified": true
+    }
+  ],
+  "cash_policy": {
+    "current_household_cash_jpy": null,
+    "protected_cash_floor_jpy": 10000000
+  },
+  "buying_power": {
+    "maho_jpy": 0,
+    "hiro_jpy": 0
+  },
+  "budgets": {
+    "monthly_stock_budget_remaining_jpy": 6000000,
+    "annual_stock_budget_remaining_jpy": 6000000,
+    "max_single_order_jpy": 2000000,
+    "target_investment_to_2027_03_jpy": 8500000,
+    "maho_2026_stock_cap_jpy": 6000000,
+    "maho_strategy_budget_jpy": 5300000,
+    "hiro_strategy_budget_jpy": 3200000
+  },
+  "transfers": {
+    "hiro_taxable_gifts_ytd_jpy": 0,
+    "hiro_gift_tax_reviewed": false,
+    "gift_tax_basic_deduction_jpy": 1100000
+  },
+  "progress": {
+    "current_annual_dividend_jpy": null
+  }
+}
