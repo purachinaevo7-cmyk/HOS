@@ -1,7 +1,7 @@
 {
-  "slot": "2026-08-12-evening",
-  "mode": "evening",
-  "checked_at": "2026-08-12T13:23:17.388863+00:00",
+  "slot": "2026-08-12-morning-retry",
+  "mode": "morning-retry",
+  "checked_at": "2026-08-12T22:54:15.720259+00:00",
   "status": "success",
   "discord_delivery_confirmed": true,
   "trade_date": "2026-08-12",
@@ -17,7 +17,7 @@
     "HOS_CURRENT_ANNUAL_DIVIDEND_JPY"
   ],
   "private_profile_loaded": true,
-  "confirmed_invested_assets_jpy": "42647610",
+  "confirmed_invested_assets_jpy": "42680697",
   "financial_assets_missing_items": [],
   "current_household_cash_jpy": "25000000",
   "protected_cash_floor_jpy": "10000000",
