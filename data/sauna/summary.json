@@ -1,1 +1,253 @@
-{"schema_version":1,"generated_at":"2026-07-26T12:26:54.215144+00:00","review_count":25,"facility_count":23,"average_score":7.16,"score_9_or_more":5,"rankings":[{"facility":"北欧","average_score":10.0,"latest_score":10,"visits":1,"latest_visit":"2026-03-10","tags":["ブレインスリープ","外気浴","好導線","混雑","高湿度"]},{"facility":"和","average_score":9.0,"latest_score":9,"visits":2,"latest_visit":null,"tags":["グルシン","チラー","ロウリュ","好導線","高温","高湿度"]},{"facility":"かるまる","average_score":9.0,"latest_score":9,"visits":1,"latest_visit":null,"tags":["グルシン","ブレインスリープ","ロウリュ","外気浴"]},{"facility":"サウナ東京","average_score":8.5,"latest_score":9,"visits":2,"latest_visit":null,"tags":["グルシン","ケロ","ブレインスリープ","ロウリュ","混雑","畳","高湿度"]},{"facility":"MONSTER SAUNA","average_score":8.0,"latest_score":8,"visits":1,"latest_visit":null,"tags":["高温"]},{"facility":"てんくう","average_score":8.0,"latest_score":8,"visits":1,"latest_visit":null,"tags":[]},{"facility":"仕上がるサウナ神田店","average_score":8.0,"latest_score":8,"visits":1,"latest_visit":null,"tags":["バレル"]},{"facility":"高輪SAUNAS","average_score":8.0,"latest_score":8,"visits":1,"latest_visit":null,"tags":[]},{"facility":"ゆるーむ","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":["グルシン"]},{"facility":"サウナジャポン中目黒","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":["外気浴"]},{"facility":"パラダイス大手町","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":[]},{"facility":"南大門","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":[]},{"facility":"品川サウナ","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":[]},{"facility":"星野温泉","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":"2026-07-26","tags":["チラー","二重扉","好導線","岩水風呂","景観","高湿度"]},{"facility":"望海","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":[]},{"facility":"極楽湯和光","average_score":7.0,"latest_score":7,"visits":1,"latest_visit":null,"tags":[]},{"facility":"スパジャングリア","average_score":6.0,"latest_score":6,"visits":1,"latest_visit":null,"tags":[]},{"facility":"スパユーラシア","average_score":6.0,"latest_score":6,"visits":1,"latest_visit":null,"tags":[]},{"facility":"宮沢湖温泉 喜楽里別邸","average_score":6.0,"latest_score":6,"visits":1,"latest_visit":null,"tags":[]},{"facility":"おゆぎわ新座","average_score":5.0,"latest_score":5,"visits":1,"latest_visit":null,"tags":[]},{"facility":"お湯むすび","average_score":5.0,"latest_score":5,"visits":1,"latest_visit":null,"tags":["高湿度"]},{"facility":"滝見の湯","average_score":5.0,"latest_score":5,"visits":1,"latest_visit":"2026-07-25","tags":["バレル","少人数向け","混雑"]},{"facility":"月待ちの湯","average_score":4.0,"latest_score":4,"visits":1,"latest_visit":null,"tags":[]}]}
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-12T05:06:37.207545+00:00",
+  "review_count": 26,
+  "facility_count": 24,
+  "average_score": 7.19,
+  "score_9_or_more": 5,
+  "rankings": [
+    {
+      "facility": "北欧",
+      "average_score": 10.0,
+      "latest_score": 10,
+      "visits": 1,
+      "latest_visit": "2026-03-10",
+      "tags": [
+        "ブレインスリープ",
+        "外気浴",
+        "好導線",
+        "混雑",
+        "高湿度"
+      ]
+    },
+    {
+      "facility": "和",
+      "average_score": 9.0,
+      "latest_score": 9,
+      "visits": 2,
+      "latest_visit": null,
+      "tags": [
+        "グルシン",
+        "チラー",
+        "ロウリュ",
+        "好導線",
+        "高温",
+        "高湿度"
+      ]
+    },
+    {
+      "facility": "かるまる",
+      "average_score": 9.0,
+      "latest_score": 9,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "グルシン",
+        "ブレインスリープ",
+        "ロウリュ",
+        "外気浴"
+      ]
+    },
+    {
+      "facility": "サウナ東京",
+      "average_score": 8.5,
+      "latest_score": 9,
+      "visits": 2,
+      "latest_visit": null,
+      "tags": [
+        "グルシン",
+        "ケロ",
+        "ブレインスリープ",
+        "ロウリュ",
+        "混雑",
+        "畳",
+        "高湿度"
+      ]
+    },
+    {
+      "facility": "MONSTER SAUNA",
+      "average_score": 8.0,
+      "latest_score": 8,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "高温"
+      ]
+    },
+    {
+      "facility": "てんくう",
+      "average_score": 8.0,
+      "latest_score": 8,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "仕上がるサウナ神田店",
+      "average_score": 8.0,
+      "latest_score": 8,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "バレル"
+      ]
+    },
+    {
+      "facility": "水沢温泉館",
+      "average_score": 8.0,
+      "latest_score": 8,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "チラー",
+        "ロウリュ",
+        "高湿度"
+      ]
+    },
+    {
+      "facility": "高輪SAUNAS",
+      "average_score": 8.0,
+      "latest_score": 8,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "ゆるーむ",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "グルシン"
+      ]
+    },
+    {
+      "facility": "サウナジャポン中目黒",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "外気浴"
+      ]
+    },
+    {
+      "facility": "パラダイス大手町",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "南大門",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "品川サウナ",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "星野温泉",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": "2026-07-26",
+      "tags": [
+        "チラー",
+        "二重扉",
+        "好導線",
+        "岩水風呂",
+        "景観",
+        "高湿度"
+      ]
+    },
+    {
+      "facility": "望海",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "極楽湯和光",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "スパジャングリア",
+      "average_score": 6.0,
+      "latest_score": 6,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "スパユーラシア",
+      "average_score": 6.0,
+      "latest_score": 6,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "宮沢湖温泉 喜楽里別邸",
+      "average_score": 6.0,
+      "latest_score": 6,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "おゆぎわ新座",
+      "average_score": 5.0,
+      "latest_score": 5,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    },
+    {
+      "facility": "お湯むすび",
+      "average_score": 5.0,
+      "latest_score": 5,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "高湿度"
+      ]
+    },
+    {
+      "facility": "滝見の湯",
+      "average_score": 5.0,
+      "latest_score": 5,
+      "visits": 1,
+      "latest_visit": "2026-07-25",
+      "tags": [
+        "バレル",
+        "少人数向け",
+        "混雑"
+      ]
+    },
+    {
+      "facility": "月待ちの湯",
+      "average_score": 4.0,
+      "latest_score": 4,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": []
+    }
+  ]
+}
