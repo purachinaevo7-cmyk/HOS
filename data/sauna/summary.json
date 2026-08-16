@@ -1,19 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-16T08:25:24.583394+00:00",
-  "review_count": 28,
+  "generated_at": "2026-08-16T08:25:56.833887+00:00",
+  "review_count": 29,
   "facility_count": 26,
-  "average_score": 7.32,
-  "score_9_or_more": 7,
+  "average_score": 7.41,
+  "score_9_or_more": 8,
   "rankings": [
     {
       "facility": "北欧",
       "average_score": 10.0,
       "latest_score": 10,
-      "visits": 1,
-      "latest_visit": "2026-03-10",
+      "visits": 2,
+      "latest_visit": "2026-08-13",
       "tags": [
         "ブレインスリープ",
+        "ロウリュ",
         "外気浴",
         "好導線",
         "混雑",
