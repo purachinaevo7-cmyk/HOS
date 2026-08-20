@@ -92,11 +92,16 @@
       "report_date": "2026-07-30",
       "expires_on": "2026-10-29",
       "source_verified": true,
-      "source_url": "https://www.jt.com/investors/results/forecast/index.html",
-      "guidance_status": "UNCHANGED",
-      "dividend_status": "UNCHANGED",
+      "source_url": "https://www.jt.com/investors/results/forecast/pdf/2026/Second_Quarter/20260730_06.pdf",
+      "revenue_yoy_pct": 17.7,
+      "primary_profit_yoy_pct": 26.2,
+      "net_income_yoy_pct": 28.9,
+      "full_year_profit_progress_pct": 67.3,
+      "guidance_status": "RAISED",
+      "guidance_revision_pct": 12.9,
+      "dividend_status": "RAISED",
       "hard_flags": [],
-      "audit_note": "Official Q2 materials and next Q3 date are confirmed. Normalized Q2 metrics remain pending extraction audit; no purchase clearance yet."
+      "audit_note": "H1 revenue +17.7%, adjusted operating profit +26.2%, profit +28.9%; full-year forecasts raised and planned annual DPS raised by 30 yen to 272 yen."
     }
   }
 }
