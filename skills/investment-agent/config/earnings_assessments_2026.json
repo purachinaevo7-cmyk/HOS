@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "as_of": "2026-08-21",
+  "policy": {
+    "positive_is_required_to_clear_earnings_gate": true,
+    "neutral_blocks_purchase": true,
+    "negative_blocks_purchase_and_requests_replacement_review": true,
+    "expired_review_returns_to_needs_data": true,
+    "official_ir_source_required": true
+  },
+  "reviews": {
+    "8316": {
+      "name": "三井住友フィナンシャルグループ",
+      "period": "FY2027/3 Q1",
+      "report_date": "2026-07-31",
+      "expires_on": "2026-11-01",
+      "source_verified": true,
+      "source_url": "https://www.smfg.co.jp/english/investor/financial/latest_statement/2027_3/2027_1q_e01.pdf",
+      "revenue_yoy_pct": 16.6,
+      "primary_profit_yoy_pct": 43.4,
+      "net_income_yoy_pct": 33.0,
+      "full_year_profit_progress_pct": 29.5,
+      "guidance_status": "UNCHANGED",
+      "guidance_revision_pct": 0.0,
+      "dividend_status": "UNCHANGED",
+      "hard_flags": [],
+      "audit_note": "Ordinary income +16.6%, ordinary profit +43.4%, parent profit +33.0%; FY parent-profit forecast and dividend forecast unchanged."
+    },
+    "9433": {
+      "name": "KDDI",
+      "period": "FY2027/3 Q1",
+      "report_date": "2026-08-07",
+      "expires_on": "2026-11-01",
+      "source_verified": true,
+      "source_url": "https://newsroom.kddi.com/ir-news/detail/kddi_ir-1210_4659.html",
+      "revenue_yoy_pct": 5.1,
+      "primary_profit_yoy_pct": 21.1,
+      "net_income_yoy_pct": 21.6,
+      "full_year_profit_progress_pct": 26.5,
+      "margin_change_pt": 2.8,
+      "guidance_status": "UNCHANGED",
+      "guidance_revision_pct": 0.0,
+      "dividend_status": "UNCHANGED",
+      "hard_flags": [],
+      "audit_note": "Revenue +5.1%, adjusted operating profit +21.1%, adjusted parent profit +21.6%; healthy Q1 progress."
+    },
+    "9697": {
+      "name": "カプコン",
+      "period": "FY2027/3 Q1",
+      "report_date": "2026-07-28",
+      "expires_on": "2026-10-20",
+      "source_verified": true,
+      "source_url": "https://www.capcom.co.jp/ir/data/pdf/result/2027/1st/result_2027_1st_01.pdf",
+      "revenue_yoy_pct": 54.7,
+      "primary_profit_yoy_pct": 66.9,
+      "net_income_yoy_pct": 69.2,
+      "full_year_profit_progress_pct": 50.3,
+      "margin_change_pt": 4.2,
+      "guidance_status": "UNCHANGED",
+      "guidance_revision_pct": 0.0,
+      "dividend_status": "UNCHANGED",
+      "hard_flags": [],
+      "audit_note": "Revenue +54.7%, operating profit +66.9%, parent profit +69.2%; full-year plan unchanged."
+    },
+    "4262": {
+      "name": "ニフティライフスタイル",
+      "period": "FY2027/3 Q1",
+      "report_date": "2026-07-30",
+      "expires_on": "2026-10-29",
+      "source_verified": true,
+      "source_url": "https://niftylifestyle.co.jp/ir/results/",
+      "guidance_status": "UNCHANGED",
+      "dividend_status": "UNCHANGED",
+      "hard_flags": [],
+      "audit_note": "Official Q1 release date confirmed, but normalized operating metrics have not yet passed HOS extraction audit. Keep blocked."
+    },
+    "8593": {
+      "name": "三菱HCキャピタル",
+      "period": "FY2027/3 Q1",
+      "report_date": "2026-08-07",
+      "expires_on": "2026-10-31",
+      "source_verified": true,
+      "source_url": "https://www.mitsubishi-hc-capital.com/investors/library/videos.html",
+      "guidance_status": "UNCHANGED",
+      "dividend_status": "UNCHANGED",
+      "hard_flags": [],
+      "audit_note": "Official FY2027/3 Q1 materials are published. Normalized metrics remain pending extraction audit, so the earnings gate stays closed."
+    },
+    "2914": {
+      "name": "JT",
+      "period": "FY2026 Q2",
+      "report_date": "2026-07-30",
+      "expires_on": "2026-10-29",
+      "source_verified": true,
+      "source_url": "https://www.jt.com/investors/results/forecast/index.html",
+      "guidance_status": "UNCHANGED",
+      "dividend_status": "UNCHANGED",
+      "hard_flags": [],
+      "audit_note": "Official Q2 materials and next Q3 date are confirmed. Normalized Q2 metrics remain pending extraction audit; no purchase clearance yet."
+    }
+  }
+}
