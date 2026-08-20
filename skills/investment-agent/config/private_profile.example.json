@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "as_of": "YYYY-MM-DD",
   "balances": [
     {
@@ -23,12 +23,13 @@
     }
   ],
   "cash_policy": {
-    "current_household_cash_jpy": null,
-    "protected_cash_floor_jpy": 10000000
+    "protected_cash_floor_jpy": 10000000,
+    "note": "current household cash is derived only from verified balances whose category is cash; broker buying power is never added here"
   },
   "buying_power": {
     "maho_jpy": 0,
-    "hiro_jpy": 0
+    "hiro_jpy": 0,
+    "note": "actual broker buying power; separate from bank cash and financial-asset progress"
   },
   "budgets": {
     "monthly_stock_budget_remaining_jpy": 6000000,
