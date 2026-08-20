@@ -1,7 +1,8 @@
 {
   "slot": "2026-08-20-morning-retry",
   "mode": "morning-retry",
-  "checked_at": "2026-08-20T22:38:28.955922+00:00",
+  "decision_fingerprint": "d8207079d66421d4",
+  "checked_at": "2026-08-20T22:55:23.908402+00:00",
   "status": "success",
   "discord_delivery_confirmed": true,
   "trade_date": "2026-08-20",
@@ -17,9 +18,10 @@
     "HOS_CURRENT_ANNUAL_DIVIDEND_JPY"
   ],
   "private_profile_loaded": true,
-  "confirmed_invested_assets_jpy": "42698075",
+  "earnings_assessment_book": "skills/investment-agent/config/earnings_assessments_2026.json",
+  "confirmed_invested_assets_jpy": "42697413",
   "financial_assets_missing_items": [],
-  "current_household_cash_jpy": "25000000",
+  "current_household_cash_jpy": "10000000.0",
   "protected_cash_floor_jpy": "10000000",
   "hiro_taxable_gifts_ytd_jpy": "0",
   "notification_layout": "account-separated-v3-household-audit",
