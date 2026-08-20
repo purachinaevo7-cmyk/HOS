@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "status": "DESIGN_READY_DISABLED",
+  "goal_alignment": {
+    "financial_assets_jpy": 200000000,
+    "annual_dividend_jpy": 6000000,
+    "principle": "入れ替えは売買回転を増やすためではなく、2億円・年間配当600万円への到達確率を上げる場合に限る"
+  },
+  "triggers": {
+    "earnings_negative": true,
+    "dividend_cut_or_suspension": true,
+    "structural_thesis_break": true,
+    "two_consecutive_neutral_earnings": true,
+    "hard_concentration_breach": true,
+    "price_above_entry_ceiling_alone": false,
+    "one_bad_quarter_alone": false
+  },
+  "candidate_requirements": {
+    "official_ir_verified": true,
+    "same_or_better_portfolio_role": true,
+    "no_purchase_hard_block": true,
+    "minimum_score_advantage": 15,
+    "minimum_quality_score": 55,
+    "turnover_cost_check_required": true
+  },
+  "score_weights": {
+    "cash_dividend_contribution": 30,
+    "earnings_quality_and_growth": 25,
+    "valuation_and_entry_margin": 20,
+    "portfolio_diversification": 15,
+    "shareholder_return_durability": 10
+  },
+  "decisions": {
+    "KEEP": "現保有を維持",
+    "WATCH": "売却せず監視。新規買い増し停止",
+    "REPLACE_CANDIDATE": "入れ替え候補として人間確認へ。自動売却・自動発注は禁止",
+    "EXIT_REVIEW": "保有継続の前提が崩れたため売却可否を別途監査。自動売却は禁止"
+  },
+  "execution": {
+    "auto_sell": false,
+    "auto_buy": false,
+    "requires_explicit_strategy_registration": true,
+    "requires_latest_price_reanalysis": true,
+    "requires_tax_and_transaction_cost_review": true
+  }
+}
