@@ -7,6 +7,7 @@ on:
       - '.github/workflows/stock-watch-diagnostic.yml'
       - 'skills/investment-agent/stock_watch_runner.py'
       - 'skills/investment-agent/household_runtime.py'
+      - 'skills/investment-agent/earnings_assessment.py'
       - 'skills/investment-agent/jpx_trade_date.py'
       - 'skills/investment-agent/daily_stock_check_v3.py'
       - 'skills/investment-agent/stock_fetcher.py'
@@ -16,14 +17,13 @@ on:
       - 'skills/investment-agent/purchase_authority.py'
       - 'skills/investment-agent/config/portfolio_policy.json'
       - 'skills/investment-agent/config/stock_watch_universe.json'
+      - 'skills/investment-agent/config/earnings_assessments_2026.json'
       - 'skills/investment-agent/config/strategies/HOS_2026_FINAL_AGGRESSIVE_V2.json'
       - 'skills/investment-agent/config/strategy_household_overrides_2026-08-12.json'
       - 'outputs/stock-watch-retry-trigger.txt'
   schedule:
-    # Evening checks, roughly 21:07 / 21:27 JST on weekdays.
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
-    # Morning recovery checks, roughly 07:07 / 07:27 / 07:47 JST.
     - cron: '7 22 * * 0-4'
     - cron: '27 22 * * 0-4'
     - cron: '47 22 * * 0-4'
