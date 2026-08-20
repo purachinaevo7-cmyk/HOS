@@ -1,12 +1,13 @@
 """Reliable scheduled runner for HOS Stock Watch V3.
 
 This is the only production entrypoint. It fixes the trade date before invoking
-V3, applies the private household profile and audited funding rules, emits one
-Discord report, and records a machine-readable heartbeat.
+V3, applies the private household profile, audited funding rules and verified
+post-earnings assessments, emits one Discord report, and records a heartbeat.
 """
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from datetime import datetime
 import json
 import os
@@ -17,6 +18,7 @@ import daily_stock_check as legacy
 import daily_stock_check_v3 as v3
 import discord_report
 import stock_fetcher
+from earnings_assessment import apply_earnings_assessments, load_assessment_book
 from household_runtime import (
     apply_household_funding_gates,
     apply_strategy_overrides,
@@ -33,6 +35,7 @@ ROOT_DIR = BASE_DIR.parents[1]
 DATA_DIR = BASE_DIR / "data" / "daily_prices"
 DIAGNOSTIC_PATH = ROOT_DIR / "outputs" / "stock-watch-diagnostic.json"
 OVERRIDE_PATH = BASE_DIR / "config" / "strategy_household_overrides_2026-08-12.json"
+EARNINGS_PATH = BASE_DIR / "config" / "earnings_assessments_2026.json"
 
 PURCHASE_CONFIGURATION = [
     "HOS_MAHO_BUYING_POWER_JPY",
@@ -57,6 +60,9 @@ HOUSEHOLD_BLOCK_LABELS = {
     "HIRO_COMPLETION_TRANSFER_REQUIRED": "補完資金の入金待ち",
     "HIRO_TAXABLE_GIFTS_YTD_REQUIRED": "課税対象贈与累計未設定",
     "GIFT_TAX_REVIEW_REQUIRED": "贈与税確認",
+    "EARNINGS_AUDIT_REQUIRED": "HOS決算監査待ち",
+    "EARNINGS_NEUTRAL": "決算様子見",
+    "EARNINGS_NEGATIVE": "決算悪化・購入停止",
 }
 
 
@@ -65,21 +71,52 @@ def _install_calendar_guard() -> None:
     stock_fetcher._is_jpx_session = is_jpx_cash_session
 
 
+def _postprocess_earnings_blocks(signals, strategy):
+    """Translate the generic earnings gate into the audited assessment state.
+
+    The base planner still owns the purchase authority. This layer can only keep
+    or add blocks; it never creates an executable signal by itself.
+    """
+    lookup = {}
+    for account_name, account in strategy.get("accounts", {}).items():
+        for order in account.get("orders", []):
+            lookup[(str(account_name), str(order.get("ticker")))] = order
+
+    result = []
+    for signal in signals:
+        order = lookup.get((str(getattr(signal, "account", "")), str(getattr(signal, "ticker", ""))), {})
+        review_state = str(order.get("earnings_review_status") or "")
+        blocks = list(getattr(signal, "blocks", []) or [])
+        if "EARNINGS_REVIEW_REQUIRED" in blocks:
+            blocks = [b for b in blocks if b != "EARNINGS_REVIEW_REQUIRED"]
+            if review_state == "NEGATIVE":
+                blocks.append("EARNINGS_NEGATIVE")
+            elif review_state == "NEUTRAL":
+                blocks.append("EARNINGS_NEUTRAL")
+            else:
+                blocks.append("EARNINGS_AUDIT_REQUIRED")
+        result.append(replace(signal, blocks=sorted(set(blocks))))
+    return result
+
+
 def _install_household_runtime(profile: dict) -> None:
     base_load_strategy = v3.load_strategy
     base_strategy_watchlist = v3.strategy_watchlist
     base_evaluate_strategy = v3.evaluate_strategy
     base_render_v3 = v3._render_v3
     base_progress_lines = discord_report._progress_lines
+    earnings_book = load_assessment_book(EARNINGS_PATH)
 
     def load_strategy_with_overrides(path):
-        return apply_strategy_overrides(base_load_strategy(path), OVERRIDE_PATH)
+        strategy = apply_strategy_overrides(base_load_strategy(path), OVERRIDE_PATH)
+        return apply_earnings_assessments(strategy, earnings_book)
 
     def strategy_watchlist_with_private(strategy):
         return v3.merge_watchlists(base_strategy_watchlist(strategy), private_jp_watchlist(profile))
 
     def evaluate_strategy_with_household_gates(strategy, japanese_prices, policy=None, env=None):
         signals = base_evaluate_strategy(strategy, japanese_prices, policy=policy, env=env)
+        signals = _postprocess_earnings_blocks(signals, strategy)
         return apply_household_funding_gates(signals, strategy, env=env)
 
     def render_with_asset_snapshot(universe, policy, strategy, result, mode, data_dir):
@@ -177,10 +214,9 @@ def _write_diagnostic(*, slot: str, mode: str, trade_date, delivery_confirmed: b
         "progress_status": "complete" if not missing_progress else "incomplete",
         "missing_progress_inputs": missing_progress,
         "private_profile_loaded": bool(os.getenv("HOS_PRIVATE_PROFILE_JSON", "").strip()),
+        "earnings_assessment_book": str(EARNINGS_PATH.relative_to(ROOT_DIR)),
         "confirmed_invested_assets_jpy": os.getenv("HOS_CONFIRMED_INVESTED_ASSETS_JPY") or None,
-        "financial_assets_missing_items": [
-            item for item in os.getenv("HOS_FINANCIAL_ASSETS_MISSING_ITEMS", "").split(",") if item
-        ],
+        "financial_assets_missing_items": [item for item in os.getenv("HOS_FINANCIAL_ASSETS_MISSING_ITEMS", "").split(",") if item],
         "current_household_cash_jpy": os.getenv("HOS_CURRENT_HOUSEHOLD_CASH_JPY") or None,
         "protected_cash_floor_jpy": os.getenv("HOS_PROTECTED_CASH_FLOOR_JPY") or None,
         "hiro_taxable_gifts_ytd_jpy": os.getenv("HOS_HIRO_TAXABLE_GIFTS_YTD_JPY") or None,
@@ -220,13 +256,7 @@ def run(mode: str, force: bool = False) -> int:
     except Exception as exc:
         notify_error = f"{type(exc).__name__}: {exc}"
 
-    diagnostic = _write_diagnostic(
-        slot=slot,
-        mode=mode,
-        trade_date=trade_date,
-        delivery_confirmed=delivered,
-        notify_error=notify_error,
-    )
+    diagnostic = _write_diagnostic(slot=slot, mode=mode, trade_date=trade_date, delivery_confirmed=delivered, notify_error=notify_error)
     print(json.dumps(diagnostic, ensure_ascii=False))
     if not delivered:
         raise RuntimeError(notify_error or "Discord delivery failed")
