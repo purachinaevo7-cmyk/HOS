@@ -105,8 +105,21 @@ def assess_snapshot(ticker: str, snapshot: Mapping[str, Any] | None, *, as_of: d
         missing.append("REVIEW_EXPIRY_MISSING")
     elif today >= expiry:
         missing.append("REVIEW_EXPIRED_FOR_NEXT_EARNINGS")
+
+    # A previously healthy quarter must not remain a green light immediately
+    # before the next results. HOS defaults to a one-calendar-day freeze; a
+    # ticker can specify a larger window when announcement timing is uncertain.
+    next_report = _d(snapshot.get("next_report_date"))
+    freeze_days = int(snapshot.get("pre_earnings_freeze_days") or 1)
+    if next_report is not None:
+        days_until = (next_report - today).days
+        if 0 <= days_until <= freeze_days:
+            missing.append("NEXT_EARNINGS_IMMINENT")
+        elif days_until < 0:
+            missing.append("NEXT_EARNINGS_ALREADY_DUE")
+
     if missing:
-        return EarningsAssessment(ticker, NEEDS_DATA, RECOMMENDATION[NEEDS_DATA], None, period, report_date, expires_on, verified, missing, hard_flags)
+        return EarningsAssessment(ticker, NEEDS_DATA, RECOMMENDATION[NEEDS_DATA], None, period, report_date, expires_on, verified, sorted(set(missing)), hard_flags)
 
     hard_hit = sorted(set(hard_flags) & HARD_NEGATIVE_FLAGS)
     if hard_hit:
