@@ -51,9 +51,14 @@ def test_household_overrides_fix_hiro_quantities_and_block_new_positions():
     assert hiro["8593"]["existing_position_completion"] is True
 
 
-def test_private_profile_hydrates_safe_defaults_without_overwriting_explicit_env():
+def test_private_profile_hydrates_bank_cash_from_verified_cash_balances_only():
     profile = {
-        "buying_power": {"hiro_jpy": 0, "maho_jpy": 0},
+        "balances": [
+            {"id": "hiro_cash", "category": "cash", "value_jpy": 0, "verified": True},
+            {"id": "maho_cash", "category": "cash", "value_jpy": 10000000, "verified": True},
+            {"id": "funds", "category": "investment_fund", "value_jpy": 7900000, "verified": True},
+        ],
+        "buying_power": {"hiro_jpy": 0, "maho_jpy": 15000000},
         "cash_policy": {"current_household_cash_jpy": 25000000, "protected_cash_floor_jpy": 10000000},
         "budgets": {"target_investment_to_2027_03_jpy": 8500000, "hiro_strategy_budget_jpy": 3200000},
         "transfers": {"hiro_taxable_gifts_ytd_jpy": 0, "hiro_gift_tax_reviewed": False},
@@ -61,10 +66,22 @@ def test_private_profile_hydrates_safe_defaults_without_overwriting_explicit_env
     env = {"HOS_HIRO_BUYING_POWER_JPY": "123"}
     hydrate_environment(profile, env)
     assert env["HOS_HIRO_BUYING_POWER_JPY"] == "123"
-    assert env["HOS_MAHO_BUYING_POWER_JPY"] == "0"
-    assert env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] == "25000000"
+    assert env["HOS_MAHO_BUYING_POWER_JPY"] == "15000000"
+    # The legacy private-profile field says 25m, but bank cash is only the
+    # verified 10m cash balance. Buying power is not silently added again.
+    assert env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] == "10000000.0"
     assert env["HOS_PROTECTED_CASH_FLOOR_JPY"] == "10000000"
     assert env["HOS_HIRO_TAXABLE_GIFTS_YTD_JPY"] == "0"
+
+
+def test_explicit_household_cash_secret_is_not_overwritten():
+    profile = {
+        "balances": [{"id": "maho_cash", "category": "cash", "value_jpy": 10000000, "verified": True}],
+        "cash_policy": {"protected_cash_floor_jpy": 10000000},
+    }
+    env = {"HOS_CURRENT_HOUSEHOLD_CASH_JPY": "12000000"}
+    hydrate_environment(profile, env)
+    assert env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] == "12000000"
 
 
 def _mhcc_first_signal(env):
@@ -103,9 +120,17 @@ def test_hiro_completion_stops_above_gift_tax_guard_until_reviewed():
     assert "GIFT_TAX_REVIEW_REQUIRED" not in signal.blocks
 
 
-def test_cash_floor_blocks_order_even_when_broker_buying_power_exists():
+def test_cash_floor_blocks_when_verified_bank_cash_is_below_floor():
     env = base_env()
-    env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] = "10050000"
+    env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] = "9999999"
     signal = _mhcc_first_signal(env)
     assert signal.actionability == "DRAFT"
     assert "PROTECTED_CASH_FLOOR_BREACH" in signal.blocks
+
+
+def test_cash_at_floor_does_not_double_count_order_against_bank_cash():
+    env = base_env()
+    env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] = "10000000"
+    env["HOS_HIRO_BUYING_POWER_JPY"] = "1000000"
+    signal = _mhcc_first_signal(env)
+    assert "PROTECTED_CASH_FLOOR_BREACH" not in signal.blocks
