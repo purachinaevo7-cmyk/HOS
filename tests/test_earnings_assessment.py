@@ -52,6 +52,25 @@ def test_expired_review_returns_to_needs_data():
     assert "REVIEW_EXPIRED_FOR_NEXT_EARNINGS" in result.reasons
 
 
+def test_pre_earnings_freeze_relocks_healthy_old_review():
+    snapshot = good_snapshot(next_report_date="2026-08-26", pre_earnings_freeze_days=1)
+    before = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 24))
+    frozen = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 25))
+    due = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 26))
+    assert before.state == POSITIVE
+    assert frozen.state == NEEDS_DATA
+    assert "NEXT_EARNINGS_IMMINENT" in frozen.reasons
+    assert due.state == NEEDS_DATA
+    assert "NEXT_EARNINGS_IMMINENT" in due.reasons
+
+
+def test_old_review_stays_locked_after_next_report_is_due():
+    snapshot = good_snapshot(next_report_date="2026-08-26")
+    result = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 27))
+    assert result.state == NEEDS_DATA
+    assert "NEXT_EARNINGS_ALREADY_DUE" in result.reasons
+
+
 def test_unverified_source_never_clears_review():
     result = assess_snapshot("TEST", good_snapshot(source_verified=False), as_of=date(2026, 8, 21))
     assert result.state == NEEDS_DATA
