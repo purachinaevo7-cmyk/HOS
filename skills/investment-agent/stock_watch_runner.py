@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 from datetime import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -36,6 +37,7 @@ DATA_DIR = BASE_DIR / "data" / "daily_prices"
 DIAGNOSTIC_PATH = ROOT_DIR / "outputs" / "stock-watch-diagnostic.json"
 OVERRIDE_PATH = BASE_DIR / "config" / "strategy_household_overrides_2026-08-12.json"
 EARNINGS_PATH = BASE_DIR / "config" / "earnings_assessments_2026.json"
+STRATEGY_PATH = BASE_DIR / "config" / "strategies" / "HOS_2026_FINAL_AGGRESSIVE_V2.json"
 
 PURCHASE_CONFIGURATION = [
     "HOS_MAHO_BUYING_POWER_JPY",
@@ -69,6 +71,30 @@ HOUSEHOLD_BLOCK_LABELS = {
 def _install_calendar_guard() -> None:
     legacy._is_jpx_session = is_jpx_cash_session
     stock_fetcher._is_jpx_session = is_jpx_cash_session
+
+
+def _public_decision_fingerprint() -> str:
+    """Hash only public decision code/config so deployments are self-testing.
+
+    Private-profile secret content is deliberately excluded from the public
+    heartbeat fingerprint. Secret changes can still be verified with --force.
+    """
+    digest = hashlib.sha256()
+    for path in (
+        Path(__file__),
+        BASE_DIR / "earnings_assessment.py",
+        BASE_DIR / "household_runtime.py",
+        BASE_DIR / "strategy_plan.py",
+        EARNINGS_PATH,
+        OVERRIDE_PATH,
+        STRATEGY_PATH,
+    ):
+        try:
+            digest.update(str(path.relative_to(ROOT_DIR)).encode("utf-8"))
+            digest.update(path.read_bytes())
+        except OSError:
+            digest.update(f"MISSING:{path}".encode("utf-8"))
+    return digest.hexdigest()[:16]
 
 
 def _postprocess_earnings_blocks(signals, strategy):
@@ -164,10 +190,11 @@ def _load_json(path: Path) -> dict:
         return {}
 
 
-def _already_complete(slot: str) -> bool:
+def _already_complete(slot: str, fingerprint: str) -> bool:
     current = _load_json(DIAGNOSTIC_PATH)
     return (
         current.get("slot") == slot
+        and current.get("decision_fingerprint") == fingerprint
         and current.get("status") == "success"
         and current.get("market_data_status") == "complete"
         and int(current.get("market_missing_count", 1)) == 0
@@ -179,7 +206,7 @@ def _missing_purchase_configuration() -> list[str]:
     return [name for name in PURCHASE_CONFIGURATION if not os.getenv(name, "").strip()]
 
 
-def _write_diagnostic(*, slot: str, mode: str, trade_date, delivery_confirmed: bool, notify_error: str | None = None) -> dict:
+def _write_diagnostic(*, slot: str, mode: str, trade_date, decision_fingerprint: str, delivery_confirmed: bool, notify_error: str | None = None) -> dict:
     daily_path = DATA_DIR / f"{trade_date.isoformat()}.json"
     daily = _load_json(daily_path)
     prices = daily.get("prices") or []
@@ -200,6 +227,7 @@ def _write_diagnostic(*, slot: str, mode: str, trade_date, delivery_confirmed: b
     payload = {
         "slot": slot,
         "mode": mode,
+        "decision_fingerprint": decision_fingerprint,
         "checked_at": datetime.now(ZoneInfo("UTC")).isoformat(),
         "status": status,
         "discord_delivery_confirmed": delivery_confirmed,
@@ -237,11 +265,13 @@ def run(mode: str, force: bool = False) -> int:
     now_jst = datetime.now(ZoneInfo("Asia/Tokyo"))
     trade_date = latest_finished_jpx_cash_session(now_jst)
     slot = f"{trade_date.isoformat()}-{mode}"
+    fingerprint = _public_decision_fingerprint()
     print(f"Stock Watch production runner: JST={now_jst.isoformat()} trade_date={trade_date} mode={mode} slot={slot}")
     print(f"Private household profile loaded: {bool(profile)}")
+    print(f"Decision fingerprint: {fingerprint}")
 
-    if not force and _already_complete(slot):
-        print("Already completed successfully with complete market data; duplicate Discord notification skipped.")
+    if not force and _already_complete(slot, fingerprint):
+        print("Already completed successfully with the same decision fingerprint; duplicate Discord notification skipped.")
         return 0
 
     report = v3.run(mode=mode, trade_date=trade_date)
@@ -256,7 +286,14 @@ def run(mode: str, force: bool = False) -> int:
     except Exception as exc:
         notify_error = f"{type(exc).__name__}: {exc}"
 
-    diagnostic = _write_diagnostic(slot=slot, mode=mode, trade_date=trade_date, delivery_confirmed=delivered, notify_error=notify_error)
+    diagnostic = _write_diagnostic(
+        slot=slot,
+        mode=mode,
+        trade_date=trade_date,
+        decision_fingerprint=fingerprint,
+        delivery_confirmed=delivered,
+        notify_error=notify_error,
+    )
     print(json.dumps(diagnostic, ensure_ascii=False))
     if not delivered:
         raise RuntimeError(notify_error or "Discord delivery failed")
