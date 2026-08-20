@@ -74,11 +74,7 @@ def _install_calendar_guard() -> None:
 
 
 def _public_decision_fingerprint() -> str:
-    """Hash only public decision code/config so deployments are self-testing.
-
-    Private-profile secret content is deliberately excluded from the public
-    heartbeat fingerprint. Secret changes can still be verified with --force.
-    """
+    """Hash only public decision code/config so deployments are self-testing."""
     digest = hashlib.sha256()
     for path in (
         Path(__file__),
@@ -95,6 +91,50 @@ def _public_decision_fingerprint() -> str:
         except OSError:
             digest.update(f"MISSING:{path}".encode("utf-8"))
     return digest.hexdigest()[:16]
+
+
+def _annotate_live_household_targets(strategy: dict, profile: dict) -> dict:
+    """Feed real household holdings into projected concentration checks.
+
+    Strategy targets are account-specific in several places, while the 5% risk
+    warning is a household rule. This layer converts account targets to a live
+    household post-completion share count without changing the actual order size.
+    Explicit audited household targets (for example Bandai 300 shares) win.
+    """
+    household: dict[str, int] = {}
+    by_owner: dict[tuple[str, str], int] = {}
+    for holding in profile.get("holdings", []) if isinstance(profile, dict) else []:
+        if not holding.get("verified", True):
+            continue
+        ticker = str(holding.get("ticker") or "")
+        if not ticker:
+            continue
+        try:
+            shares = int(float(holding.get("shares") or 0))
+        except (TypeError, ValueError):
+            continue
+        owner = str(holding.get("owner") or "")
+        household[ticker] = household.get(ticker, 0) + shares
+        by_owner[(owner, ticker)] = by_owner.get((owner, ticker), 0) + shares
+
+    for account_name, account in strategy.get("accounts", {}).items():
+        for order in account.get("orders", []):
+            ticker = str(order.get("ticker") or "")
+            existing_household = household.get(ticker, 0)
+            existing_account = by_owner.get((str(account_name), ticker), 0)
+            order["household_existing_shares_live"] = existing_household
+            if order.get("household_target_after_completion") is not None:
+                continue
+            if order.get("target_additional_shares") is not None:
+                target = existing_household + int(order["target_additional_shares"])
+            elif order.get("target_total_shares") is not None:
+                target = existing_household - existing_account + int(order["target_total_shares"])
+            elif order.get("target_shares") is not None:
+                target = existing_household - existing_account + int(order["target_shares"])
+            else:
+                continue
+            order["household_target_after_completion"] = max(0, target)
+    return strategy
 
 
 def _postprocess_earnings_blocks(signals, strategy):
@@ -135,17 +175,27 @@ def _install_household_runtime(profile: dict) -> None:
 
     def load_strategy_with_overrides(path):
         strategy = apply_strategy_overrides(base_load_strategy(path), OVERRIDE_PATH)
+        strategy = _annotate_live_household_targets(strategy, profile)
         return apply_earnings_assessments(strategy, earnings_book)
 
     def strategy_watchlist_with_private(strategy):
         return v3.merge_watchlists(base_strategy_watchlist(strategy), private_jp_watchlist(profile))
 
     def evaluate_strategy_with_household_gates(strategy, japanese_prices, policy=None, env=None):
-        signals = base_evaluate_strategy(strategy, japanese_prices, policy=policy, env=env)
+        # Asset valuation must happen BEFORE the planner evaluates concentration.
+        # Previously the Discord progress showed ~42.7m while concentration could
+        # still use the stale 25.27m policy number. That is now explicitly fixed.
+        snapshot = publish_runtime_asset_snapshot(profile, japanese_prices)
+        effective_policy = dict(policy or {})
+        live_assets = snapshot.get("current_financial_assets_jpy") or snapshot.get("confirmed_partial_jpy")
+        if live_assets is not None:
+            effective_policy["current_financial_assets"] = float(live_assets)
+        signals = base_evaluate_strategy(strategy, japanese_prices, policy=effective_policy, env=env)
         signals = _postprocess_earnings_blocks(signals, strategy)
         return apply_household_funding_gates(signals, strategy, env=env)
 
     def render_with_asset_snapshot(universe, policy, strategy, result, mode, data_dir):
+        # Re-publish after fetch/render as an idempotent final snapshot.
         publish_runtime_asset_snapshot(profile, result.prices)
         return base_render_v3(universe, policy, strategy, result, mode, data_dir)
 
