@@ -1,8 +1,9 @@
 """Private household runtime integration for HOS Stock Watch.
 
-Sensitive balances and full holdings are read from the HOS_PRIVATE_PROFILE_JSON
-GitHub Actions secret. The public repository contains only code/schema, never the
-household's exact private profile.
+Sensitive balances and full holdings are read from HOS_PRIVATE_PROFILE_JSON.
+Bank cash, broker buying power, and strategy budgets are deliberately separate:
+using the same yen twice would make the safety gates decorative, which is not a
+feature anyone needs from household finance software.
 """
 from __future__ import annotations
 
@@ -28,7 +29,6 @@ ENV_PATHS = {
     "HOS_MAHO_2026_STOCK_CAP_JPY": ("budgets", "maho_2026_stock_cap_jpy"),
     "HOS_MAHO_STRATEGY_BUDGET_JPY": ("budgets", "maho_strategy_budget_jpy"),
     "HOS_HIRO_STRATEGY_BUDGET_JPY": ("budgets", "hiro_strategy_budget_jpy"),
-    "HOS_CURRENT_HOUSEHOLD_CASH_JPY": ("cash_policy", "current_household_cash_jpy"),
     "HOS_PROTECTED_CASH_FLOOR_JPY": ("cash_policy", "protected_cash_floor_jpy"),
     "HOS_HIRO_TAXABLE_GIFTS_YTD_JPY": ("transfers", "hiro_taxable_gifts_ytd_jpy"),
     "HOS_HIRO_GIFT_TAX_REVIEWED": ("transfers", "hiro_gift_tax_reviewed"),
@@ -61,6 +61,19 @@ def _bool(value: Any) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _verified_cash_total(profile: Mapping[str, Any]) -> float | None:
+    values: list[float] = []
+    for balance in profile.get("balances", []) if isinstance(profile, Mapping) else []:
+        if str(balance.get("category") or "").lower() != "cash":
+            continue
+        if not balance.get("verified"):
+            continue
+        value = _finite_number(balance.get("value_jpy"))
+        if value is not None:
+            values.append(value)
+    return sum(values) if values else None
+
+
 def load_private_profile(env: Mapping[str, str] | None = None) -> dict[str, Any]:
     source = env if env is not None else os.environ
     raw = str(source.get("HOS_PRIVATE_PROFILE_JSON", "") or "").strip()
@@ -84,8 +97,16 @@ def hydrate_environment(profile: Mapping[str, Any], env: dict[str, str] | None =
         if value is None:
             continue
         target[env_key] = "true" if value is True else "false" if value is False else str(value)
-    # Preserve compatibility with the old household budget gate. The new
-    # current-cash/protected-floor gate below is authoritative.
+
+    # Current household cash means verified bank/cash balances only. Broker
+    # buying power is a separate gate and must never be added to this value.
+    if not str(target.get("HOS_CURRENT_HOUSEHOLD_CASH_JPY", "") or "").strip():
+        cash_total = _verified_cash_total(profile)
+        if cash_total is not None:
+            target["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] = str(cash_total)
+
+    # Compatibility for the older strategy planner. This is a strategy budget
+    # envelope, not a statement of bank cash.
     if not str(target.get("HOS_HOUSEHOLD_AVAILABLE_CASH_JPY", "") or "").strip():
         value = _nested(profile, ("budgets", "target_investment_to_2027_03_jpy"))
         if value is not None:
@@ -153,11 +174,7 @@ def _order_lookup(strategy: Mapping[str, Any]) -> dict[tuple[str, str], Mapping[
     return result
 
 
-def apply_household_funding_gates(
-    signals: list[Any],
-    strategy: Mapping[str, Any],
-    env: Mapping[str, str] | None = None,
-) -> list[Any]:
+def apply_household_funding_gates(signals: list[Any], strategy: Mapping[str, Any], env: Mapping[str, str] | None = None) -> list[Any]:
     source = env if env is not None else os.environ
     funding = strategy.get("funding", {})
     cash_key = str(funding.get("current_household_cash_jpy_env") or "HOS_CURRENT_HOUSEHOLD_CASH_JPY")
@@ -183,9 +200,10 @@ def apply_household_funding_gates(
             blocks.append("HOUSEHOLD_CASH_REQUIRED")
         if protected_floor is None:
             blocks.append("PROTECTED_CASH_FLOOR_REQUIRED")
-        if cash_total is not None and protected_floor is not None and amount_jpy is not None:
-            if cash_total - amount_jpy < protected_floor:
-                blocks.append("PROTECTED_CASH_FLOOR_BREACH")
+        # Buying power pays for ordinary purchases. Verified household cash is
+        # protected separately and only needs to remain at/above its floor.
+        if cash_total is not None and protected_floor is not None and cash_total < protected_floor:
+            blocks.append("PROTECTED_CASH_FLOOR_BREACH")
 
         order = order_lookup.get((str(getattr(signal, "account", "")), str(getattr(signal, "ticker", ""))), {})
         if str(order.get("funding_source") or "") == FUNDING_EXCEPTION:
@@ -214,13 +232,7 @@ def apply_household_funding_gates(
             status = "BLOCKED_AT_LIMIT"
             purchase_flag = "REVIEW_REQUIRED"
             actionability = "DRAFT"
-        updated.append(replace(
-            signal,
-            status=status,
-            purchase_flag=purchase_flag,
-            actionability=actionability,
-            blocks=blocks,
-        ))
+        updated.append(replace(signal, status=status, purchase_flag=purchase_flag, actionability=actionability, blocks=blocks))
     return updated
 
 
@@ -263,11 +275,7 @@ def _fetch_usd_jpy(default: float) -> float:
     return default
 
 
-def publish_runtime_asset_snapshot(
-    profile: Mapping[str, Any],
-    japanese_prices: list[PriceRecord],
-    env: dict[str, str] | None = None,
-) -> dict[str, Any]:
+def publish_runtime_asset_snapshot(profile: Mapping[str, Any], japanese_prices: list[PriceRecord], env: dict[str, str] | None = None) -> dict[str, Any]:
     target = env if env is not None else os.environ
     if not profile:
         return {"complete": False, "confirmed_partial_jpy": None, "missing": ["PRIVATE_PROFILE"]}
