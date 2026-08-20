@@ -14,6 +14,9 @@ from earnings_assessment import (
     apply_earnings_assessments,
     assess_snapshot,
 )
+from stock_analyzer import PriceRecord
+from stock_watch_runner import _postprocess_earnings_blocks
+from strategy_plan import evaluate_strategy
 
 
 def good_snapshot(**overrides):
@@ -102,3 +105,67 @@ def test_strategy_is_enriched_but_original_fy_decision_is_preserved():
     assert order["earnings_reviewed_ok"] is True
     assert order["earnings_review_status"] == POSITIVE
     assert strategy["accounts"]["maho"]["orders"][0].get("earnings_reviewed_ok") is None
+
+
+def planner_strategy(snapshot):
+    base = {
+        "strategy_id": "TEST",
+        "status": "ACTIVE",
+        "household_goal": {"max_single_ticker_weight_warning": 0.05},
+        "funding": {},
+        "accounts": {
+            "maho": {
+                "target_budget_jpy_env": "ACCOUNT_BUDGET",
+                "buying_power_jpy_env": "BUYING_POWER",
+                "orders": [
+                    {
+                        "ticker": "TEST",
+                        "name": "Test Co",
+                        "market": "JP",
+                        "currency": "JPY",
+                        "purpose": "test",
+                        "fy2026_decision": "BUY_2026_CORE",
+                        "purchase_class": "CORE_DIVIDEND",
+                        "execution_priority": 1,
+                        "completed_step_ids": [],
+                        "order_steps": [{"step_id": "TEST-1", "shares": 10, "limit_price": 100}],
+                        "target_shares": 10,
+                        "earnings_wait": True,
+                        "final_ceiling": 110,
+                    }
+                ],
+            }
+        },
+    }
+    return apply_earnings_assessments(base, {"reviews": {"TEST": snapshot}}, as_of=date(2026, 8, 21))
+
+
+def planner_signal(strategy):
+    env = {"ACCOUNT_BUDGET": "100000", "BUYING_POWER": "100000"}
+    price = PriceRecord("TEST", "Test Co", 100, 101, date.today(), "mock", "medium")
+    return evaluate_strategy(strategy, [price], env=env)[0]
+
+
+def test_positive_earnings_can_clear_only_the_earnings_gate():
+    strategy = planner_strategy(good_snapshot())
+    signal = planner_signal(strategy)
+    assert strategy["accounts"]["maho"]["orders"][0]["earnings_review_status"] == POSITIVE
+    assert "EARNINGS_REVIEW_REQUIRED" not in signal.blocks
+    assert signal.purchase_flag == "PURCHASE_READY"
+
+
+def test_negative_earnings_is_translated_to_explicit_purchase_stop():
+    strategy = planner_strategy(good_snapshot(dividend_status="LOWERED"))
+    signal = planner_signal(strategy)
+    assert "EARNINGS_REVIEW_REQUIRED" in signal.blocks
+    processed = _postprocess_earnings_blocks([signal], strategy)[0]
+    assert "EARNINGS_REVIEW_REQUIRED" not in processed.blocks
+    assert "EARNINGS_NEGATIVE" in processed.blocks
+    assert processed.purchase_flag == "REVIEW_REQUIRED"
+
+
+def test_missing_ir_data_is_translated_to_hos_audit_wait():
+    strategy = planner_strategy(good_snapshot(revenue_yoy_pct=None, primary_profit_yoy_pct=None, net_income_yoy_pct=None, full_year_profit_progress_pct=None))
+    signal = planner_signal(strategy)
+    processed = _postprocess_earnings_blocks([signal], strategy)[0]
+    assert "EARNINGS_AUDIT_REQUIRED" in processed.blocks
