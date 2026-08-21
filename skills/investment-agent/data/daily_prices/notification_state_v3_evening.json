@@ -2,235 +2,235 @@
   "7203": {
     "status": "HOLD",
     "actionability": "FACTS_REQUIRED",
-    "close": 3066.0,
-    "limit_price": 3050.0
+    "close": 3132.0,
+    "limit_price": 3115.0
   },
   "6758": {
     "status": "HOLD",
     "actionability": "FACTS_REQUIRED",
-    "close": 3777.0,
-    "limit_price": 3755.0
+    "close": 3785.0,
+    "limit_price": 3765.0
   },
   "7751": {
     "status": "HOLD",
     "actionability": "FACTS_REQUIRED",
-    "close": 4515.0,
-    "limit_price": 4465.0
+    "close": 4593.0,
+    "limit_price": 4545.0
   },
   "9432": {
     "status": "HOLD",
     "actionability": "FACTS_REQUIRED",
-    "close": 161.39999389648438,
-    "limit_price": 160.0
+    "close": 166.10000610351562,
+    "limit_price": 165.0
   },
   "1605": {
     "status": "HOLD",
     "actionability": "FACTS_REQUIRED",
-    "close": 3869.0,
-    "limit_price": 3810.0
+    "close": 3954.0,
+    "limit_price": 3890.0
   },
   "8593": {
     "status": "HOLD",
     "actionability": "FACTS_REQUIRED",
-    "close": 1388.5,
-    "limit_price": 1374.0
-  },
-  "7974": {
-    "status": "HOLD",
-    "actionability": "FACTS_REQUIRED",
-    "close": 8781.0,
-    "limit_price": 8730.0
+    "close": 1395.0,
+    "limit_price": 1381.0
   },
   "5713": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 10630.0,
-    "limit_price": 10470.0
+    "close": 10760.0,
+    "limit_price": 10590.0
   },
   "5711": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 5345.0,
-    "limit_price": 5290.0
+    "close": 5565.0,
+    "limit_price": 5500.0
   },
   "2768": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 5524.0,
-    "limit_price": 5460.0
+    "close": 5624.0,
+    "limit_price": 5560.0
   },
   "7456": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 6650.0,
-    "limit_price": 6580.0
+    "close": 6800.0,
+    "limit_price": 6730.0
   },
   "4063": {
-    "status": "NO_ALERT",
+    "status": "WATCH",
     "actionability": "FACTS_REQUIRED",
-    "close": 6161.0,
-    "limit_price": 6130.0
+    "close": 6051.0,
+    "limit_price": 6020.0
   },
   "6981": {
     "status": "WATCH",
     "actionability": "FACTS_REQUIRED",
-    "close": 7205.0,
-    "limit_price": 7160.0
+    "close": 7091.0,
+    "limit_price": 7050.0
   },
   "8001": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 2004.0,
-    "limit_price": 1993.0
+    "close": 2080.0,
+    "limit_price": 2069.0
   },
   "8002": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 4856.0,
-    "limit_price": 4830.0
+    "close": 4893.0,
+    "limit_price": 4865.0
   },
   "7832": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 5554.0,
-    "limit_price": 5490.0
+    "close": 5484.0,
+    "limit_price": 5420.0
   },
   "9697": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 4190.0,
-    "limit_price": 4145.0
+    "close": 4130.0,
+    "limit_price": 4085.0
   },
   "9684": {
     "status": "NO_ALERT",
     "actionability": "WATCH_ONLY",
-    "close": 2947.0,
-    "limit_price": 2917.0
+    "close": 2917.0,
+    "limit_price": 2887.0
   },
   "5698": {
     "status": "NO_ALERT",
     "actionability": "WATCH_ONLY",
-    "close": 817.0,
-    "limit_price": 804.0
+    "close": 799.0,
+    "limit_price": 787.0
   },
   "9433": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 2861.0,
-    "limit_price": 2846.0
+    "close": 2915.5,
+    "limit_price": 2900.0
   },
   "9434": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 233.10000610351562,
-    "limit_price": 230.0
+    "close": 233.8000030517578,
+    "limit_price": 231.0
   },
   "8058": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 4696.0,
-    "limit_price": 4670.0
+    "close": 4794.0,
+    "limit_price": 4770.0
   },
   "8031": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 4774.0,
-    "limit_price": 4750.0
+    "close": 4899.0,
+    "limit_price": 4870.0
   },
   "8316": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 6546.0,
-    "limit_price": 6510.0
+    "close": 6606.0,
+    "limit_price": 6570.0
   },
   "8306": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 3464.0,
-    "limit_price": 3445.0
+    "close": 3508.0,
+    "limit_price": 3490.0
   },
   "8766": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 7233.0,
-    "limit_price": 7190.0
+    "close": 7347.0,
+    "limit_price": 7310.0
   },
   "8591": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 6021.0,
-    "limit_price": 5960.0
+    "close": 6115.0,
+    "limit_price": 6050.0
   },
   "8424": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 4352.0,
-    "limit_price": 4305.0
+    "close": 4386.0,
+    "limit_price": 4340.0
   },
   "6501": {
-    "status": "NO_ALERT",
+    "status": "WATCH",
     "actionability": "FACTS_REQUIRED",
-    "close": 5263.0,
-    "limit_price": 5230.0
+    "close": 5196.0,
+    "limit_price": 5170.0
   },
   "6503": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 5655.0,
-    "limit_price": 5620.0
+    "close": 5602.0,
+    "limit_price": 5570.0
   },
   "6762": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 3011.0,
-    "limit_price": 2995.0
+    "close": 3041.0,
+    "limit_price": 3025.0
+  },
+  "6971": {
+    "status": "NO_ALERT",
+    "actionability": "FACTS_REQUIRED",
+    "close": 3608.0,
+    "limit_price": 3585.0
   },
   "7735": {
     "status": "NO_ALERT",
     "actionability": "WATCH_ONLY",
-    "close": 13080.0,
-    "limit_price": 12880.0
+    "close": 12970.0,
+    "limit_price": 12770.0
   },
   "6857": {
     "status": "NO_ALERT",
     "actionability": "WATCH_ONLY",
-    "close": 35360.0,
-    "limit_price": 34800.0
+    "close": 35900.0,
+    "limit_price": 35350.0
   },
   "4452": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 3553.0,
-    "limit_price": 3515.0
+    "close": 3556.0,
+    "limit_price": 3520.0
   },
   "4502": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 5825.0,
-    "limit_price": 5760.0
+    "close": 5764.0,
+    "limit_price": 5700.0
   },
   "2914": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 6870.0,
-    "limit_price": 6800.0
+    "close": 6980.0,
+    "limit_price": 6910.0
   },
   "1928": {
     "status": "NO_ALERT",
     "actionability": "FACTS_REQUIRED",
-    "close": 3437.0,
-    "limit_price": 3400.0
+    "close": 3471.0,
+    "limit_price": 3435.0
   },
   "6098": {
-    "status": "NO_ALERT",
+    "status": "WATCH",
     "actionability": "FACTS_REQUIRED",
-    "close": 16145.0,
-    "limit_price": 16060.0
+    "close": 15900.0,
+    "limit_price": 15820.0
   },
   "9983": {
-    "status": "NO_ALERT",
+    "status": "WATCH",
     "actionability": "WATCH_ONLY",
-    "close": 76280.0,
-    "limit_price": 75100.0
+    "close": 73510.0,
+    "limit_price": 72400.0
   }
 }
