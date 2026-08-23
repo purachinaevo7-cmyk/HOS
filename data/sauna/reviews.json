@@ -1,7 +1,29 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-16T08:25:56.833120+00:00",
+  "updated_at": "2026-08-23T11:28:17.211279+00:00",
   "reviews": [
+    {
+      "id": "sauna-20260823-319b37ab5a",
+      "facility": "パビーラ御殿場",
+      "visited_at": null,
+      "score": 3,
+      "catchcopy": "緩いけど、最後の思い出。富士山だけは文句なし。",
+      "sauna": "設備は新しい。遠赤外線ヒーターに三方を囲まれるタイプ。スイッチを入れても表示は70℃ほどで、体感は60℃程度とかなり緩め。",
+      "cold_bath": "なし。クールダウンはシャワーのみ。",
+      "rest": "ベンチあり。富士山が見えるのは絶景。",
+      "flow": "",
+      "crowd": "",
+      "drawbacks": "サウナの温度がかなり低く、水風呂もないため、サウナ目的としては物足りない。",
+      "crowd_time": "",
+      "memo": "富士山を見ながらの外気浴が一番の思い出。",
+      "tags": [
+        "外気浴"
+      ],
+      "detail_level": "detailed",
+      "source": "github-issues",
+      "logged_at": "2026-08-23T11:28:17.211279+00:00",
+      "review_hash": "319b37ab5a57f43082d7dcdf523ae44d89665bd0ee38d5a5d96a7ab9ee65f578"
+    },
     {
       "id": "sauna-20260816-a89c9747f6",
       "facility": "毎日サウナ東京",
