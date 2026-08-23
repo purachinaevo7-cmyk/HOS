@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-23T11:28:17.211830+00:00",
-  "review_count": 30,
-  "facility_count": 27,
-  "average_score": 7.27,
+  "generated_at": "2026-08-23T11:31:46.515400+00:00",
+  "review_count": 31,
+  "facility_count": 28,
+  "average_score": 7.26,
   "score_9_or_more": 8,
   "rankings": [
     {
@@ -177,6 +177,18 @@
       "visits": 1,
       "latest_visit": null,
       "tags": []
+    },
+    {
+      "facility": "天然温泉ざぶーん",
+      "average_score": 7.0,
+      "latest_score": 7,
+      "visits": 1,
+      "latest_visit": null,
+      "tags": [
+        "ロウリュ",
+        "外気浴",
+        "高温"
+      ]
     },
     {
       "facility": "星野温泉",
