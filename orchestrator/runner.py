@@ -137,107 +137,80 @@ class Orchestrator:
             old_creative=context.get('outputs',{}).get('creative_challenger')
             if old_creative:
                 bad=[i for i in old_creative.get('ideas',[]) if not i.get('evidence') or not i.get('expected_impact') or not i.get('feasibility')]
-                if bad: data={**data,'approved':False,'score':0.4,'issues':['creative_challenger idea missing evidence/feasibility/expeczßmm¢G§²ÚîÆ­yÐ¥í¥˜ …Ñ•áÑññÑ•áÐ¹ÍÑ…ÉÑÍ]¥Ñ  ‹¾ò#ŽOŽOŽ¬ˆ¤¥É•ÑÕÉ¸í½¹ÍÐ•¹ÑÉ¥•ÌõÉ•…‘)Í½¸ ‰¡½Í%¹‰½á¹ÑÉ¥•Ìˆ±mt¤í•¹ÑÉ¥•Ì¹Õ¹Í¡¥™Ð¡íÑ•áÐ±É•…Ñ•‘Ðé¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤±ÍÑ…ÑÕÌè‰½Á•¸‰ô¤íÝÉ¥Ñ•)Í½¸ ‰¡½Í%¹‰½á¹ÑÉ¥•Ìˆ±•¹ÑÉ¥•Ì¹Í±¥” À°ÔÀ¤¥ô)™Õ¹Ñ¥½¸É•½É‘M­¥±±UÍ…”¡ÁÉ½µÁÑ%¥í½¹ÍÐÍ­¥±±5…Àõì‰ÁÉ½µÁÐµ¡½¹‘„ˆè‹’òš–·–"šzAM­¥±°ˆ°‰ÁÉ½µÁÐµ‰•¹•™¥ÑÌˆè‰I='šVÓžBM­¥±°ˆ°‰ÁÉ½µÁÐµ±½‰¥Ìˆè‹šVgšvC–2YM­¥±°ˆ±¥¹‰½áAÉ½µÁÐè‰%¹‰½ãšVÓžBM­¥±°‰ôí½¹ÍÐÍ­¥±°õÍ­¥±±5…ÁmÁÉ½µÁÑ%‘uñð‹Ž_Ž·ŽÏŽ_Ž#šÒïžR¡M­¥±°ˆí½¹ÍÐÍ­¥±±ÌõÉ•…‘)Í½¸ ‰¡½ÍI••¹ÑM­¥±±Ìˆ±mt¤¹™¥±Ñ•È¡¥Ñ•´ôù¥Ñ•´¹¹…µ”„ôõÍ­¥±°¤íÍ­¥±±Ì¹Õ¹Í¡¥™Ð¡í¹…µ”éÍ­¥±°±ÕÍ•‘Ðé¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¥ô¤íÝÉ¥Ñ•)Í½¸ ‰¡½ÍI••¹ÑM­¥±±Ìˆ±Í­¥±±Ì¹Í±¥” À°Ø¤¥ô)™Õ¹Ñ¥½¸É•Í•Ñ…Í¡‰½…É‘1½…±…Ñ„ ¥í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ ‰¡½Í%¹‰½á¹ÑÉ¥•Ìˆ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ ‰¡½ÍI••¹ÑM­¥±±Ìˆ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ ‰¡½ÍQ½‘…åAÉ½©•Ðˆ¤íÉ•¹‘•É…Í¡‰½…É ¤íÍ¡½ÝQ½…ÍÐ ‰…Í¡‰½…É“Ž»Ž·ŽóŽ
-¯Ž¯ž*Ûš/Ž
-K–"wšr–2[Ž_ŽûŽ_Ž|ˆ¥ô)™Õ¹Ñ¥½¸™½Éµ…Ñ…Ñ”¡Ù…±Õ”¥íÉ•ÑÕÉ¸¹•Ü%¹Ñ°¹…Ñ•Q¥µ•½Éµ…Ð ‰©„µ)@ˆ±íµ½¹Ñ è‰¹Õµ•É¥Œˆ±‘…äè‰¹Õµ•É¥Œ‰ô¤¹™½Éµ…Ð¡¹•Ü…Ñ”¡Ù…±Õ”¤¥ô)™Õ¹Ñ¥½¸ÕÉÉ•¹Ñ]••­Q¡•µ”¡ÁÉ½©•Ð¥í½¹ÍÐÝ••¬õ5…Ñ ¹™±½½È ¡…Ñ”¹¹½Ü ¤µ¹•Ü…Ñ”¡¹•Ü…Ñ” ¤¹•ÑÕ±±e•…È ¤°À°Ä¤¹•ÑQ¥µ” ¤¤¼ Ü¨ÈÐ¨ØÀ¨ØÀ¨ÄÀÀÀ¤¤íÉ•ÑÕÉ¸!=M}AI=)QMl¡!=M}AI=)QL¹™¥¹‘%¹‘•à¡ÀôùÀ¹¥ôôõÁÉ½©•Ð¹¥¤­Ý••¬¤•!=M}AI=)QL¹±•¹Ñ¡uô)™Õ¹Ñ¥½¸É•¹‘•É…Í¡‰½…É ¥í½¹ÍÐÍ•±•Ðõ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ñ½‘…åAÉ½©•ÑM•±•Ðˆ¤í¥˜ …Í•±•Ð¥É•ÑÕÉ¸íÍ•±•Ð¹¥¹¹•É!Q50õ!=M}AI=)QL¹µ…À¡Àôù€ñ½ÁÑ¥½¸Ù…±Õ”ôˆ‘íÀ¹¥‘ôˆø‘íÀ¹•µ½©¥ô€‘íÀ¹Ñ¥Ñ±•ôð½½ÁÑ¥½¸ù€¤¹©½¥¸ ˆˆ¤í½¹ÍÐÍ…Ù•õ±½…±MÑ½É…”¹•Ñ%Ñ•´ ‰¡½ÍQ½‘…åAÉ½©•Ðˆ¥ññ!=M}AI=)QMlÁt¹¥íÍ•±•Ð¹Ù…±Õ”õ!=M}AI=)QL¹Í½µ”¡ÀôùÀ¹¥ôôõÍ…Ù•¤ýÍ…Ù•é!=M}AI=)QMlÁt¹¥í½¹ÍÐÉ•¹‘•ÉAÉ½©•Ðô ¤ôùí½¹ÍÐÁÉ½©•Ðõ!=M}AI=)QL¹™¥¹¡ÀôùÀ¹¥ôôõÍ•±•Ð¹Ù…±Õ”¥ññ!=M}AI=)QMlÁtí±½…±MÑ½É…”¹Í•Ñ%Ñ•´ ‰¡½ÍQ½‘…åAÉ½©•Ðˆ±ÁÉ½©•Ð¹¥¤í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ñ½‘…åAÉ½©•ÑQ¥Ñ±”ˆ¤¹Ñ•áÑ½¹Ñ•¹Ðõ€‘íÁÉ½©•Ð¹•µ½©¥ô€‘íÁÉ½©•Ð¹Ñ¥Ñ±•õ€í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ñ½‘…åAÉ½©•ÑMÕµµ…Éäˆ¤¹Ñ•áÑ½¹Ñ•¹ÐõÁÉ½©•Ð¹ÍÕµµ…Éäí‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ñ½‘…åAÉ½©•Ñ1¥¹¬ˆ¤¹¡É•˜õÁÉ½©•Ð¹ÕÉ°í½¹ÍÐÑ¡•µ”õÕÉÉ•¹Ñ]••­Q¡•µ”¡ÁÉ½©•Ð¤í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ý••­Q¡•µ•Q¥Ñ±”ˆ¤¹Ñ•áÑ½¹Ñ•¹ÐõÑ¡•µ”¹Ñ¡•µ”í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ý••­Q¡•µ•MÕµµ…Éäˆ¤¹Ñ•áÑ½¹Ñ•¹Ðõ€‘íÑ¡•µ”¹Ñ¥Ñ±•÷Ž
-K–—–>Ž¯Ž‘íÑ¡•µ”¹‰É…¥¹÷ŽœÇŽ“Ž»š"Cšzsž&§Žã–’'š>oŽgŽ
-/Ž	€í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Ý••­Q¡•µ•	…‘”ˆ¤¹Ñ•áÑ½¹Ñ•¹ÐõÑ¡•µ”¹Í­¥±°í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰¹•áÑEÕ•ÍÑ¥½¹Ìˆ¤¹¥¹¹•É!Q50õÁÉ½©•Ð¹ÅÕ•ÍÑ¥½¹Ì¹µ…À¡Äôù€ñ±¤ø‘í•Í…Á•!Ñµ°¡Ä¥ôð½±¤ù€¤¹©½¥¸ ˆˆ¥ôíÍ•±•Ð¹½¹¡…¹”õÉ•¹‘•ÉAÉ½©•ÐíÉ•¹‘•ÉAÉ½©•Ð ¤í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰É••¹ÑUÁ‘…Ñ•Ìˆ¤¹¥¹¹•É!Q50õ!=M}AI=)QL¹µ…À¡Àôù€ñ„±…ÍÌô‰µ¥¹¤µÉ½Üˆ¡É•˜ôˆ‘íÀ¹ÕÉ±ôˆøñÍÑÉ½¹œø‘íÀ¹•µ½©¥ô€‘í•Í…Á•!Ñµ°¡À¹Ñ¥Ñ±”¥ôð½ÍÑÉ½¹œøñÍÁ…¸ø‘í™½Éµ…Ñ…Ñ”¡À¹ÕÁ‘…Ñ•¥ôƒšnÓšZÀƒ
-Ü€‘í•Í…Á•!Ñµ°¡À¹Í­¥±°¥ôð½ÍÁ…¸øð½„ù€¤¹©½¥¸ ˆˆ¤í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰É••¹Ñ-¹½Ý±•‘”ˆ¤¹¥¹¹•É!Q50õ!=M}I9Q}-9=]1¹µ…À¡¬ôù€ñ„±…ÍÌô‰µ¥¹¤µÉ½Üˆ¡É•˜ôˆ‘í¬¹ÕÉ±ôˆøñÍÑÉ½¹œø‘í•Í…Á•!Ñµ°¡¬¹Ñ¥Ñ±”¥ôð½ÍÑÉ½¹œøñÍÁ…¸ø‘í•Í…Á•!Ñµ°¡¬¹ÍÕµµ…Éä¥ôð½ÍÁ…¸øð½„ù€¤¹©½¥¸ ˆˆ¤í½¹ÍÐ¥¹‰½àõÉ•…‘)Í½¸ ‰¡½Í%¹‰½á¹ÑÉ¥•Ìˆ±mt¤¹™¥±Ñ•È¡¥Ñ•´ôù¥Ñ•´¹ÍÑ…ÑÕÌ„ôô‰‘½¹”ˆ¤í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰¥¹‰½á½Õ¹Ðˆ¤¹Ñ•áÑ½¹Ñ•¹Ðõ¥¹‰½à¹±•¹Ñ í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰¥¹‰½á½Õ¹Ñ1…‰•°ˆ¤¹Ñ•áÑ½¹Ñ•¹Ðõ¥¹‰½à¹±•¹Ñ ü‹šr«šVÓžBŽ»–—–*oŽ3ŽŽ
-+ŽûŽdˆè‹šr«šVÓžBŽ»–—–*oŽ¿ŽŽ
-+ŽûŽoŽ
-Lˆí½¹ÍÐÍ­¥±±ÌõÉ•…‘)Í½¸ ‰¡½ÍI••¹ÑM­¥±±Ìˆ±mt¤í½¹ÍÐ¹…µ•Ìô¡Í­¥±±Ì¹±•¹Ñ ýÍ­¥±±Ì¹µ…À¡ÌôùÌ¹¹…µ”¤éU1Q}M-%11L¤í‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰É••¹ÑM­¥±±Ìˆ¤¹¥¹¹•É!Q50õ¹…µ•Ì¹µ…À¡¹…µ”ôù€ñÍÁ…¸±…ÍÌô‰‰…‘”ˆø‘í•Í…Á•!Ñµ°¡¹…µ”¥ôð½ÍÁ…¸ù€¤¹©½¥¸ ˆˆ¥ô(()½¹ÍÐ!=M}=UQAUQLõl)í…Ñ•½Éäè‰!Q50ˆ±•µ½©¤è‹Â~2@ˆ±Ñ¥Ñ±”è‰!½¹‘„ƒ’òš–·–"šzA!Q53Ž‡Žˆˆ±ÁÉ½©•Ðè‰!½¹‘„ˆ±É•…Ñ•èˆÈÀÈØ´ÀÜ´ÀÔˆ±‰É…¥¸è‹žÖ3–ZÛ¢Ì€¼ƒš*W¢Î¢Ìˆ±Í­¥±°è‹’òš–·–"šzAM­¥±°€¼ƒž®Û–B#š¾S¢òM­¥±°ˆ±‘½Ý¹±½…è‰‘½Ý¹±½…‘Ì½¡½¹‘„µ…¹…±åÍ¥Ì¹¡Ñµ°ˆ±Ñ…Ìél‹’òš–·–"šz@ˆ°‹žÖ3–ZÛš"›žV”ˆ°‰!½¹‘„‰t±™…Ù½É¥Ñ”éÑÉÕ”±Í•…É è‰!½¹‘„ƒ’òš–·–"šz@!Q50ƒžÖ3–ZÛ¢Ìƒš*W¢Î¢Ìƒ’òš–·–"šzAM­¥±°ƒž®Û–B#š¾S¢òM­¥±°‰ô°)í…Ñ•½Éäè‰A½Ý•ÉA½¥¹Ðˆ±•µ½©¤è‹Â~N(ˆ±Ñ¥Ñ±”è‹žš?–"§–:kžR|Ì¸Àƒš>Cš†#Ž
-çŽ§Ž
-“Ž$ˆ±ÁÉ½©•Ðè‹žš?–"§–:kžR|Ì¸Àˆ±É•…Ñ•èˆÈÀÈØ´ÀÜ´ÀÐˆ±‰É…¥¸è‹’êë’ê/¢Ì€¼ƒžÖ3–ZÛ¢Ìˆ±Í­¥±°è‹–"Û–ê›¢¢·¢¢!M­¥±°€¼I='šVÓžBM­¥±°ˆ±‘½Ý¹±½…è‰‘½Ý¹±½…‘Ì½‰•¹•™¥ÑÌ´Ì¸À¹ÁÁÑàˆ±Ñ…Ìél‹žš?–"§–:kžR|ˆ°‰I=$ˆ°‹š>Cš†#¢ÎšZd‰t±™…Ù½É¥Ñ”éÑÉÕ”±Í•…É è‹žš?–"§–:kžR|Ì¸ÀA½Ý•ÉA½¥¹Ðƒ’êë’ê/¢ÌƒžÖ3–ZÛ¢Ìƒ–"Û–ê›¢¢·¢¢!M­¥±°I='šVÓžBM­¥±°‰ô°)í…Ñ•½Éäè‰Aˆ±•µ½©¤è‹Â~Nˆ±Ñ¥Ñ±”è‹’â·šržÖ3–ZÛ¢¢#žRìƒ¢ª·Žÿ¢žŽ7ŽŽ
-ŸŽŽ
-¿Ž«Ž
-çŽ ˆ±ÁÉ½©•Ðè‰!½¹‘„ˆ±É•…Ñ•èˆÈÀÈØ´ÀÜ´ÀÌˆ±‰É…¥¸è‹žÖ3–ZÛ¢Ìˆ±Í­¥±°è‹’òš–·–"šzAM­¥±°€¼ƒ¢Ê‡–.g–"¢žM­¥±°ˆ±‘½Ý¹±½…è‰‘½Ý¹±½…‘Ì½µ¥‘Ñ•É´µÁ±…¸µ¡•­±¥ÍÐ¹Á‘˜ˆ±Ñ…Ìél‹’â·šržÖ3–ZÛ¢¢#žRìˆ°‹¢Ê‡–.dˆ°‹ŽŽ
-ŸŽŽ
-¿Ž«Ž
-çŽ ‰t±™…Ù½É¥Ñ”é™…±Í”±Í•…É è‰Aƒ’â·šržÖ3–ZÛ¢¢#žRìƒžÖ3–ZÛ¢Ìƒ’òš–·–"šzAM­¥±°ƒ¢Ê‡–.g–"¢žM­¥±°‰ô°)í…Ñ•½Éäè‰5…É­‘½Ý¸ˆ±•µ½©¤è‹Â~Ntˆ±Ñ¥Ñ±”è‹Ž
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒšž/¦ƒ–2[Ž‡Žˆˆ±ÁÉ½©•Ðè‹Ž
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHˆ±É•…Ñ•èˆÈÀÈØ´ÀÜ´ÀÈˆ±‰É…¥¸è‹–¶›žþK¢Ì€¼ƒžÖ3–ZÛ¢Ìˆ±Í­¥±°è‹šVgšvC–2YM­¥±°€¼ƒ–ú§žþIM­¥±°ˆ±‘½Ý¹±½…è‰‘½Ý¹±½…‘Ì½±½‰¥Ìµ±•…É¹¥¹œµ¹½Ñ”¹µˆ±Ñ…Ìél‹–¶›žþHˆ°‹šVgšvC–2Xˆ°‰5…É­‘½Ý¸‰t±™…Ù½É¥Ñ”é™…±Í”±Í•…É è‰5…É­‘½Ý¸ƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒ–¶›žþK¢ÌƒšVgšvC–2YM­¥±°ƒ–ú§žþIM­¥±°‰ô°)í…Ñ•½Éäè‰I•Ù¥•Üˆ±•µ½©¤è‹Â~R4ˆ±Ñ¥Ñ±”è‹žš?–"§–:kžR–"Û–ê›Ž³ŽOŽ—ŽóžÖCšzpˆ±ÁÉ½©•Ðè‹žš?–"§–:kžR|Ì¸Àˆ±É•…Ñ•èˆÈÀÈØ´ÀÜ´ÀÄˆ±‰É…¥¸è‹’êë’ê/¢Ìˆ±Í­¥±°è‹š?šwšÆë–ºkŽ³ŽOŽ—ŽñM­¥±°€¼ƒž’û–¢ª³šb9M­¥±°ˆ±‘½Ý¹±½…è‰‘½Ý¹±½…‘Ì½‰•¹•™¥ÑÌµÉ•Ù¥•Ü¹µˆ±Ñ…Ìél‹Ž³ŽOŽ—Žðˆ°‹–"Û–ê›¢¢·¢¢ ˆ°‹ž’û–¢ª³šb8‰t±™…Ù½É¥Ñ”éÑÉÕ”±Í•…É è‰I•Ù¥•Üƒžš?–"§–:kžR|Ì¸Àƒ’êë’ê/¢Ìƒš?šwšÆë–ºkŽ³ŽOŽ—ŽñM­¥±°ƒž’û–¢ª³šb9M­¥±°‰ô)tì)™Õ¹Ñ¥½¸É•¹‘•É=ÕÑÁÕÑÌ ¥í½¹ÍÐ±¥ÍÐõ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰½ÕÑÁÕÑ1¥ÍÐˆ¤í¥˜ …±¥ÍÐ¥É•ÑÕÉ¸í½¹ÍÐÍ•…É õ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰½ÕÑÁÕÑM•…É ˆ¤í½¹ÍÐ…Ñ•½Éäõ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰½ÕÑÁÕÑ…Ñ•½Éäˆ¤í½¹ÍÐ™…Ù½É¥Ñ”õ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰½ÕÑÁÕÑ…Ù½É¥Ñ”ˆ¤í½¹ÍÐÉ•¹‘•Èô ¤ôùí½¹ÍÐÄô¡Í•…É ü¹Ù…±Õ•ñðˆˆ¤¹ÑÉ¥´ ¤¹Ñ½1½Ý•É…Í” ¤í½¹ÍÐ…Ðõ…Ñ•½Éäü¹Ù…±Õ•ñð‰…±°ˆí½¹ÍÐ™…Øõ™…Ù½É¥Ñ”ü¹Ù…±Õ•ñð‰…±°ˆí½¹ÍÐ¥Ñ•µÌõ!=M}=UQAUQL¹™¥±Ñ•È¡¥Ñ•´ôùí½¹ÍÐµ…Ñ¡•Í…Ñ•½Éäõ…Ðôôô‰…±°‰ññ¥Ñ•´¹…Ñ•½Éäôôõ…Ðí½¹ÍÐµ…Ñ¡•Í…Ù½É¥Ñ”õ™…Ø„ôô‰™…Ù½É¥Ñ”‰ññ¥Ñ•´¹™…Ù½É¥Ñ”í½¹ÍÐ¡…åÍÑ…¬õ€‘í¥Ñ•´¹Ñ¥Ñ±•ô€‘í¥Ñ•´¹ÁÉ½©•Ñô€‘í¥Ñ•´¹‰É…¥¹ô€‘í¥Ñ•´¹Í­¥±±ô€‘í¥Ñ•´¹Ñ…Ì¹©½¥¸ ˆ€ˆ¥ô€‘í¥Ñ•´¹Í•…É¡õ€¹Ñ½1½Ý•É…Í” ¤í½¹ÍÐµ…Ñ¡•ÍM•…É ô…ÅññÄ¹ÍÁ±¥Ð ½qÌ¬¼¤¹•Ù•Éä¡Ñ•É´ôù¡…åÍÑ…¬¹¥¹±Õ‘•Ì¡Ñ•É´¤¤íÉ•ÑÕÉ¸µ…Ñ¡•Í…Ñ•½Éä˜™µ…Ñ¡•Í…Ù½É¥Ñ”˜™µ…Ñ¡•ÍM•…É¡ô¤í±¥ÍÐ¹¥¹¹•É!Q50õ¥Ñ•µÌ¹±•¹Ñ ý¥Ñ•µÌ¹µ…À¡¥Ñ•´ôù€ñ…ÉÑ¥±”±…ÍÌô‰Á…¹•°½ÕÑÁÕÐµ…Éˆ¥ô‰½ÕÑÁÕÐ´‘í•Í…Á•!Ñµ°¡¥Ñ•´¹…Ñ•½Éä¹Ñ½1½Ý•É…Í” ¤¥ô´‘í•Í…Á•!Ñµ°¡¥Ñ•´¹Ñ¥Ñ±”¹É•Á±…” ½qÌ¬½œ°ˆ´ˆ¤¹Ñ½1½Ý•É…Í” ¤¥ôˆøñ‘¥Ø±…ÍÌô‰½ÕÑÁÕÐµÑ½ÀˆøñÍÁ…¸±…ÍÌô‰½ÕÑÁÕÐµÑåÁ”ˆø‘í¥Ñ•´¹•µ½©¥ô€‘í•Í…Á•!Ñµ°¡¥Ñ•´¹…Ñ•½Éä¥ôð½ÍÁ…¸ø‘í¥Ñ•´¹™…Ù½É¥Ñ”üœñÍÁ…¸±…ÍÌô‰™…Ù½É¥Ñ”µÍÑ…ÈˆûŠ¶@ƒŽ+šÂ_Ž¯–—Ž
-(ð½ÍÁ…¸øœèœôð½‘¥Øøñ Ìø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹Ñ¥Ñ±”¥ôð½ Ìøñ‘°±…ÍÌô‰½ÕÑÁÕÐµµ•Ñ„ˆøñ‘¥Øøñ‘ÐùAÉ½©•Ðð½‘Ðøñ‘ø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹ÁÉ½©•Ð¥ôð½‘øð½‘¥Øøñ‘¥Øøñ‘Ðû’ösš"Cš^”ð½‘Ðøñ‘ø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹É•…Ñ•¥ôð½‘øð½‘¥Øøñ‘¥Øøñ‘Ðû’öÿžR¡	É…¥¸ð½‘Ðøñ‘ø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹‰É…¥¸¥ôð½‘øð½‘¥Øøñ‘¥Øøñ‘Ðû’öÿžR¡M­¥±°ð½‘Ðøñ‘ø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹Í­¥±°¥ôð½‘øð½‘¥Øøñ‘¥Øøñ‘Ðûš’sžÒˆð½‘Ðøñ‘ø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹Í•…É ¥ôð½‘øð½‘¥Øøñ‘¥Øøñ‘ÐûŽ
-ÿŽ
-Àð½‘Ðøñ‘ø‘í¥Ñ•´¹Ñ…Ì¹µ…À¡Ñ…œôù€ñÍÁ…¸±…ÍÌô‰‰…‘”Ñ…œˆøŒ‘í•Í…Á•!Ñµ°¡Ñ…œ¥ôð½ÍÁ…¸ù€¤¹©½¥¸ ˆ€ˆ¥ôð½‘øð½‘¥Øøð½‘°øñ„±…ÍÌô‰‘½Ý¹±½…µ±¥¹¬ˆ¡É•˜ôˆ‘í•Í…Á•!Ñµ°¡¥Ñ•´¹‘½Ý¹±½…¥ôˆ‘½Ý¹±½…ûŽŽ
-›ŽÏŽ·ŽóŽ'Ž«ŽÏŽ
-¼ƒŠHð½„øð½…ÉÑ¥±”ù€¤¹©½¥¸ ˆˆ¤é€ñÀ±…ÍÌô‰½ÕÑÁÕÐµ•µÁÑäˆûšv‡’îÛŽ¯–B#Ž=ÕÑÁÕÓŽ3¢š/Ž“Ž/Ž
-+ŽûŽoŽ
-OŽð½ÀùôímÍ•…É ±…Ñ•½Éä±™…Ù½É¥Ñ•t¹™½É… ¡•°ôù•°ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¥¹ÁÕÐˆ±É•¹‘•È¤¤ím…Ñ•½Éä±™…Ù½É¥Ñ•t¹™½É… ¡•°ôù•°ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¡…¹”ˆ±É•¹‘•È¤¤íÉ•¹‘•È ¥ô()½¹ÍÐ!=M}MI!}%9`õl)íÑåÁ”è‰¥Ù¥‘•¹ˆ±Ñ¥Ñ±”è‰¥Ù¥‘•¹µÁ¥É”ˆ±ÕÉ°è‰‘¥Ù¥‘•¹¹¡Ñµ°ˆ±Ñ•áÐè‹’â[–â¿¦7–öOžº‡žBƒ¦7–öLƒ–«–úƒ¦G¢z7¢ÎžRŒƒžn»š¢g¦Ëš6\ƒ’êëžR¢«žRÇ–ê˜ƒŽ
-ïŽ
-¿Ž
-ÿŽóšž/š"@ƒ’þwšr'¦*cš~ƒš*W¢Î‰ô°)íÑåÁ”è‰=ÕÑÁÕÑÌˆ±Ñ¥Ñ±”è‰=ÕÑÁÕÑÌ1¥‰É…Éäˆ±ÕÉ°è‰½ÕÑÁÕÑÌ¹¡Ñµ°½ÕÑÁÕÑÌµ±¥‰É…Éäˆ±Ñ•áÐè‰!Q50A½Ý•ÉA½¥¹ÐA5…É­‘½Ý¸I•Ù¥•ÜƒŽ
-ÿŽ
-“Ž#Ž¬AÉ½©•Ðƒ’ösš"Cš^”ƒ’öÿžR¡	É…¥¸ƒ’öÿžR¡M­¥±°ƒŽŽ
-›ŽÏŽ·ŽóŽ'Ž«ŽÏŽ
-¼ƒš’sžÒˆƒŽ
-ÿŽ
-ÀƒŽ+šÂ_Ž¯–—Ž
-(ƒš"Cšzsž&¤‰ô°)íÑåÁ”è‰=ÕÑÁÕÑÌˆ±Ñ¥Ñ±”è‰=ÕÑÁÕÐ…É‘Ìˆ±ÕÉ°è‰½ÕÑÁÕÑÌ¹¡Ñµ°½ÕÑÁÕÐµ±¥ÍÐµÍ•Ñ¥½¸ˆ±Ñ•áÐè‰!½¹‘„ƒ’òš–·–"šzA!Q53Ž‡Žˆƒžš?–"§–:kžR|Ì¸Àƒš>Cš†#Ž
-çŽ§Ž
-“Ž$ƒ’â·šržÖ3–ZÛ¢¢#žRìƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒšž/¦ƒ–2[Ž‡Žˆƒžš?–"§–:kžR–"Û–ê›Ž³ŽOŽ—Žð‰ô°)íÑåÁ”è‰…Í¡‰½…Éˆ±Ñ¥Ñ±”è‹’î+š^—Ž¹!=Lˆ±ÕÉ°è‰¥¹‘•à¹¡Ñµ°‘…Í¡‰½…Éˆ±Ñ•áÐè‰…Í¡‰½…Éƒš^—š²…=Lƒ’î+š^—–.WŽ/ŽeAÉ½©•Ð%¹‰½à	É…¥¸M­¥±°'Ž_Ž·ŽÏŽ_Ž !½¹‘„ƒžš?–"§–:kžR|Ì¸ÀƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒš²‡Ž¯¢Ž#Ž
-/–V?Ž‰ô°)íÑåÁ”è‰…Í¡‰½…Éˆ±Ñ¥Ñ±”è‹’î+š^—–.WŽ/ŽeAÉ½©•Ðˆ±ÕÉ°è‰¥¹‘•à¹¡Ñµ°‘…Í¡‰½…ÉµÁÉ½©•ÑÌˆ±Ñ•áÐè‰!½¹‘„ƒžš?–"§–:kžR|Ì¸ÀƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHAÉ½©•ÑÌƒŽ
-ÏŽSŽóžR£Ž_Ž·ŽÏŽ_Ž ƒžÖ3–ZÛ¢Ìƒ’êë’ê/¢Ìƒ–¶›žþK¢Ì‰ô°)íÑåÁ”è‰M­¥±±Ìˆ±Ñ¥Ñ±”è‰AÉ½©•ÐM­¥±±Ìˆ±ÕÉ°è‰ÁÉ½©•ÑÌ¹¡Ñµ°¡½¹‘„ˆ±Ñ•áÐè‹’òš–·–"šzAM­¥±°ƒž®Û–B#š¾S¢òM­¥±°ƒ¢Ê‡–.g–"¢žM­¥±°ƒš:‡žR£¢3šf¿–"¢žM­¥±°ƒ–"Û–ê›¢¢·¢¢!M­¥±°I='šVÓžBM­¥±°ƒ–¾û¢Æ‡–Æ“–"¢žM­¥±°ƒž’û–¢ª³šb9M­¥±°ƒ–ú§žþIM­¥±°ƒšVgšvC–2YM­¥±°ƒŽ
-ÇŽóŽ
-ç–"šzAM­¥±°ƒžB¢ž–ê›Ž'Ž«Ž¯’ösš"AM­¥±°‰ô°)íÑåÁ”è‰AÉ½©•ÑÌˆ±Ñ¥Ñ±”è‰!½¹‘„ˆ±ÕÉ°è‰ÁÉ½©•ÑÌ¹¡Ñµ°¡½¹‘„ˆ±Ñ•áÐè‰!½¹‘„!=LµA(´ÀÀÄƒ’òš–·–"šz@ƒžÖ3–ZÛš"›žV”ƒž®Û’ê'–«’ö4ƒ¢Ê‡–.dƒ’êë’ê,XMXQ½å½Ñ„9¥ÍÍ…¸ƒ’òš–·–"šzAM­¥±°ƒž®Û–B#š¾S¢òM­¥±°ƒ¢Ê‡–.g–"¢žM­¥±°ƒš:‡žR£¢3šf¿–"¢žM­¥±°‰ô°)íÑåÁ”è‰AÉ½©•ÑÌˆ±Ñ¥Ñ±”è‹žš?–"§–:kžR|Ì¸Àˆ±ÕÉ°è‰ÁÉ½©•ÑÌ¹¡Ñµ°‰•¹•™¥ÑÌˆ±Ñ•áÐè‹žš?–"§–:kžR|Ì¸À!=LµA(´ÀÀÈƒ’êë’ê/–"Û–ê˜ƒžš?–"§–:kžR|ƒš:‡žR ƒ–ºkžv ƒŽ
-£ŽÏŽ
-ËŽóŽ
-ãŽ‡ŽÏŽ ƒžRžRšœI=$ƒ–"Û–ê›¢¢·¢¢!M­¥±°ƒ–¾û¢Æ‡–Æ“–"¢žM­¥±°ƒž’û–¢ª³šb9M­¥±°‰ô°)íÑåÁ”è‰AÉ½©•ÑÌˆ±Ñ¥Ñ±”è‹Ž
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHˆ±ÕÉ°è‰ÁÉ½©•ÑÌ¹¡Ñµ°±½‰¥Ìˆ±Ñ•áÐè‹Ž
-ÃŽ·ŽóŽOŽ
-ç–¶›žþH!=LµA(´ÀÀÌƒ–¶›žþHƒžÖ3–ZÛš"›žV”ƒšVgšv@ƒŽ'Ž«Ž¬ƒŽ
-ÇŽóŽ
-ç–"šzAM­¥±°ƒšVgšvC–2YM­¥±°ƒ–ú§žþIM­¥±°ƒžB¢ž–ê›Ž'Ž«Ž¯’ösš"AM­¥±°‰ô°)íÑåÁ”è‰AÉ½µÁÑÌˆ±Ñ¥Ñ±”è‰AÉ½µÁÐ1¥‰É…Éäˆ±ÕÉ°è‰ÁÉ½µÁÑÌ¹¡Ñµ°ÁÉ½µÁÐµ±¥‰É…Éäˆ±Ñ•áÐè‹Ž_Ž·ŽÏŽ_Ž#Ž§Ž
-“Ž[Ž§Ž¨$1…Õ¹¡•ÈƒžÖ3–ZØƒ’êë’ê,ƒ–¶›žþHƒŽ³ŽOŽ—Žðƒš*W¢Î¡…ÑAP±…Õ‘”½‘•à‰ô°)íÑåÁ”è‰AÉ½µÁÑÌˆ±Ñ¥Ñ±”è‹žÖ3–ZØˆ±ÕÉ°è‰ÁÉ½µÁÑÌ¹¡Ñµ°µ…¹…•µ•¹Ðˆ±Ñ•áÐè‹’òš–·–"šz@ƒš"›žV—Ž³ŽOŽ—ŽðƒžÖ3–ZÛ¢ÌƒŽOŽ
-ãŽŸŽÌƒ’ê/š–·šž/¦€ƒž®Û’ê'–«’ö4ƒ¢Ê‡–.d-A$‰ô°)íÑåÁ”è‰AÉ½µÁÑÌˆ±Ñ¥Ñ±”è‹’êë’ê,ˆ±ÕÉ°è‰ÁÉ½µÁÑÌ¹¡Ñµ°¡Èˆ±Ñ•áÐè‹–"Û–ê›¢¢·¢¢ ƒš:‡žR£¢3šf¼ƒžš?–"§–:kžR|I=$ƒ–¾û¢Æ‡¢ƒžÖ3–ZÛ¢ªË¦†0ƒ¦/žR£¢Êƒ¢6Ü‰ô°)íÑåÁ”è‰AÉ½µÁÑÌˆ±Ñ¥Ñ±”è‹–¶›žþHˆ±ÕÉ°è‰ÁÉ½µÁÑÌ¹¡Ñµ°±•…É¹¥¹œˆ±Ñ•áÐè‹šVgšvC–2Xƒ–ú§žþKŽ'Ž«Ž¬ƒ–¶›žþKŽ‡Žˆƒ–ß’öO’ú,ƒžB¢ž–ê›Ž'Ž«Ž¬‰ô°)íÑåÁ”è‰AÉ½µÁÑÌˆ±Ñ¥Ñ±”è‹Ž³ŽOŽ—Žðˆ±ÕÉ°è‰ÁÉ½µÁÑÌ¹¡Ñµ°É•Ù¥•Üˆ±Ñ•áÐè‹šZž®ƒŽ³ŽOŽ—Žðƒš?šwšÆë–ºkŽ³ŽOŽ—Žðƒ¢®[žBšž/š"@ƒ–"“šZ·–~ëšêXƒŽ«Ž
-çŽ
-¼‰ô°)íÑåÁ”è‰AÉ½µÁÑÌˆ±Ñ¥Ñ±”è‹š*W¢Îˆ±ÕÉ°è‰ÁÉ½µÁÑÌ¹¡Ñµ°¥¹Ù•ÍÑµ•¹Ðˆ±Ñ•áÐè‹š*W¢Î’î»¢ª°ƒšÆëžº_Ž‡Žˆƒš"C¦VßŽ'Ž§Ž
-“ŽCŽðƒ¢Îšr³¦7–"ƒŽCŽ«Ž—Ž
-£ŽóŽ
-ßŽŸŽÌ‰ô°)íÑåÁ”è‰	É…¥¸ˆ±Ñ¥Ñ±”è‰=OšËšÎTˆ±ÕÉ°è‰‰É…¥¸¹¡Ñµ°½¹ÍÑ¥ÑÕÑ¥½¸ˆ±Ñ•áÐè‹šž/¦€ƒ’ê/–ºŽ£¢ž¦ ƒš¾S¢òƒžÖ3–ZØƒ¢Ê‡–.dƒ’êë’ê,ƒ–â–‚Ðƒžn»žjƒš*÷¢Æ„ƒ–ß’öLƒš²‡Ž¯¢Ž#Ž
-/–V?Ž‰ô°)íÑåÁ”è‰	É…¥¸ˆ±Ñ¥Ñ±”è‰½µÁ…ÍÌˆ±ÕÉ°è‰‰É…¥¸¹¡Ñµ°½µÁ…ÍÌˆ±Ñ•áÐè‹žn»žjƒšr³¢Î«¢ªË¦†0ƒ–£’öOšr¦¤ƒ¦Vßšr’ú‡–ƒŽ«Ž
-çŽ
-¼ƒš²‡Ž»’âš&,‰ô°)íÑåÁ”è‰	É…¥¸ˆ±Ñ¥Ñ±”è‰	É…¥»’â¢šœˆ±ÕÉ°è‰‰É…¥¸¹¡Ñµ°‰É…¥¹Ìˆ±Ñ•áÐè‹žÖ3–ZÛ¢Ìƒ’êë’ê/¢Ìƒ¦G¢z7¢Ìƒš*W¢Î¢Ìƒ–¶›žþK¢Ìƒ’öO¦¢O¢¢·¢¢#¢Ìƒš"›žV”ƒž®Û’ê'–«’ö4ƒ¢Ê‡–.dƒš:‡žR ƒ¢
-Ëš"@ƒ–"Û–ê˜ƒžš?–"§–:kžR|4™ƒ¢Îšr³šRÿž¶X‰ô°)íÑåÁ”è‰	É…¥¸ˆ±Ñ¥Ñ±”è‰	É…¥»Ž»’öÿŽšZäˆ±ÕÉ°è‰‰É…¥¸¹¡Ñµ°‰É…¥¸µ™±½Üˆ±Ñ•áÐè‰%¹‰½à	É…¥¸M­¥±°AÉ½©•Ð-¹½Ý±•‘”ƒ–>_ŽGŽ
-,ƒ¢Ž#Ž
-,ƒ–›žBŽgŽ
-,ƒ’þw–¶cŽgŽ
-,ƒš:—žÚkŽgŽ
-,‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‰I=%ˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°É½¥Œˆ±Ñ•áÐè‹š*W’â/¢Îšr°ƒ–"§žn(ƒ¢Îšr³–*çž:ƒš"C¦VßŽ»¢Î¨ƒ’ê/š–·ŽwŽóŽ#ŽWŽ
-§Ž«Ž
-¨ƒžÖ3–ZÛ¢Ìƒš*W¢Î¢Ì!½¹‘„ƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒ¢Ê‡–.g–"¢žM­¥±°ƒ’òš–·–"šzAM­¥±°ƒš*W¢Îƒ’â·žÒhƒŽ
-#Ž?’öÿŽ‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‹žš?–"§–:kžR}I=$ˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°‰•¹•™¥ÑÌµÉ½¤ˆ±Ñ•áÐè‹žš?–"§–:kžR|ƒš*W¢Îƒš:‡žR ƒ–ºkžv ƒžRžRšœƒžÖ3–ZÛ¢¢¢ªxƒ’êë’ê/¢ÌƒžÖ3–ZÛ¢Ìƒžš?–"§–:kžR|Ì¸ÀI='šVÓžBM­¥±°ƒž’û–¢ª³šb9M­¥±°ƒ’êë’ê,ƒ’â·žÒhƒšr¢þG¢þ÷–*€‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‹š:‡žR£¢3šf¼ˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°¡¥É¥¹œµ½¹Ñ•áÐˆ±Ñ•áÐè‹šÆ’êëž– ƒ’ê/š–·¢ªË¦†0ƒžÖžæS¢ªË¦†0ƒž>û–‚Ðƒ–g¢Žs¢š>Cš† ƒšÆ’êëžB¢žŒƒ’êëšvC–â–‚Ó¢Ìƒ’êë’ê/¢Ì!½¹‘„ƒš:‡žR£¢3šf¿–"¢žM­¥±°ƒ’êë’ê,ƒ–~ëž’8ƒŽ
-#Ž?’öÿŽ‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‹¢Îšr³¦7–"ˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°…Á¥Ñ…°µ…±±½…Ñ¥½¸ˆ±Ñ•áÐè‹š*W¢Îƒ¦7–öLƒ¢«ž’ûš‚«¢ÊßŽ4™ƒ¢Îšr°ƒš?šwšÆë–ºhƒ¦Vßšr’ú‡–ƒžÖ3–ZÛ¢Ìƒš*W¢Î¢Ìƒ¦G¢z7¢Ì!½¹‘„ƒ’òš–·–"šzAM­¥±°ƒš?šwšÆë–ºkŽ³ŽOŽ—ŽñM­¥±°ƒžÖ3–ZØƒ–þsžR ‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‹ž®Û’ê'–«’ö4ˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°½µÁ•Ñ¥Ñ¥Ù”µ…‘Ù…¹Ñ…”ˆ±Ñ•áÐè‹’î[ž’øƒžÚgžÚkžjƒ¦ãŽÃŽ
-3Ž
-,ƒ–"§žn(ƒ–òßŽüƒš"›žV—¢¦W’ú„ƒ’òš–·š¾S¢òƒžÖ3–ZÛ¢Ìƒš*W¢Î¢Ì!½¹‘„ƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒž®Û–B#š¾S¢òM­¥±°ƒŽ
-ÇŽóŽ
-ç–"šzAM­¥±°ƒžÖ3–ZØƒ–~ëž’8ƒŽ
-#Ž?’öÿŽ‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‹’â·šržÖ3–ZÛ¢¢#žRìˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°µ¥‘Ñ•É´µÁ±…¸ˆ±Ñ•áÐè‹š"›žV”-A$ƒš*W¢ÎšZç¦tƒš"C¦VßŽ
-ßŽ+Ž«Ž
-¨ƒ–«–#¦‚’ö4ƒš:‡žR ƒš*W¢ÎŽŽóŽxƒžÖ3–ZÛ¢Ìƒš*W¢Î¢Ìƒ’êë’ê/¢Ì!½¹‘„ƒ’òš–·–"šzAM­¥±°ƒš:‡žR£¢3šf¿–"¢žM­¥±°ƒžÖ3–ZØƒ’â·žÒhƒšr¢þG¢þ÷–*€‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‰-¹½Ý±•‘”1½½Àˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°­¹½Ý±•‘”µ±½½Àˆ±Ñ•áÐè‰%¹‰½àƒšš–þÔ-¹½Ý±•‘—Ž
-¯ŽóŽ$AÉ½©•ÐƒšnÓšZÀƒ–/’êëž~—¢¶cŽgŽóŽ
-äƒ–¶›žþK¢Ìƒ’öO¦¢O¢¢·¢¢#¢ÌƒŽ
-ÃŽ·ŽóŽOŽ
-ç–¶›žþHƒšVgšvC–2YM­¥±°ƒ–ú§žþIM­¥±°ƒ–¶›žþHƒ–~ëž’8ƒšr¢þG¢þ÷–*€‰ô°)íÑåÁ”è‰-¹½Ý±•‘”ˆ±Ñ¥Ñ±”è‰-¹½Ý±•‘”9…Ù¥…Ñ¥½¸ˆ±ÕÉ°è‰­¹½Ý±•‘”¹¡Ñµ°­¹½Ý±•‘”µ½¹ÑÉ½±Ìˆ±Ñ•áÐè‹Ž
-¯ŽŽ
-ÓŽ¨ƒŽ
-ÿŽ
-Àƒ¦nšbO–ê˜ƒ–~ëž’8ƒ’â·žÒhƒ–þsžR ƒšr¢þG¢þ÷–*€ƒŽ
-#Ž?’öÿŽƒžÖ3–ZØƒ’êë’ê,ƒš*W¢Îƒ–¶›žþHƒžÖžæP‰ô)tì()™Õ¹Ñ¥½¸•Í…Á•!Ñµ°¡Ù…±Õ”¥íÉ•ÑÕÉ¸Ù…±Õ”¹É•Á±…” ½l˜ðø‰t½œ±Œôø¡ìˆ˜ˆèˆ™…µÀìˆ°ˆðˆèˆ™±Ðìˆ°ˆøˆèˆ™Ðìˆ°œˆœèˆ™ÅÕ½Ðì‰õmt¤¥ô)™Õ¹Ñ¥½¸¡¥¡±¥¡Ñ5…Ñ ¡Ù…±Õ”±ÅÕ•Éä¥í½¹ÍÐÍ…™”õ•Í…Á•!Ñµ°¡Ù…±Õ”¤í½¹ÍÐÑ•ÉµÌõÅÕ•Éä¹ÑÉ¥´ ¤¹ÍÁ±¥Ð ½qÌ¬¼¤¹™¥±Ñ•È¡	½½±•…¸¤¹µ…À¡ÐôùÐ¹É•Á±…” ½l¸¨¬ýx‘íô ¥ñmquqqt½œ°‰qp˜ˆ¤¤í¥˜ …Ñ•ÉµÌ¹±•¹Ñ ¥É•ÑÕÉ¸Í…™”íÉ•ÑÕÉ¸Í…™”¹É•Á±…”¡¹•ÜI•áÀ¡€ ‘íÑ•ÉµÌ¹©½¥¸ ‰ðˆ¥ô¥€°‰¤ˆ¤°ˆñµ…É¬øÄð½µ…É¬øˆ¥ô)™Õ¹Ñ¥½¸¥¹¥Ñ±½‰…±M•…É  ¥í½¹ÍÐ¥¹ÁÕÐõ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰±½‰…±M•…É ˆ¤í½¹ÍÐ‰½àõ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰Í•…É¡I•ÍÕ±ÑÌˆ¤í¥˜ …¥¹ÁÕÑñð…‰½à¥É•ÑÕÉ¸í½¹ÍÐÉ•¹‘•Èô ¤ôùí½¹ÍÐÄõ¥¹ÁÕÐ¹Ù…±Õ”¹ÑÉ¥´ ¤¹Ñ½1½Ý•É…Í” ¤í¥˜ …Ä¥í‰½à¹¥¹¹•É!Q50ôˆˆí‰½à¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰½Á•¸ˆ¤íÉ•ÑÕÉ¹õ½¹ÍÐÑ•ÉµÌõÄ¹ÍÁ±¥Ð ½qÌ¬¼¤¹™¥±Ñ•È¡	½½±•…¸¤í½¹ÍÐ¡¥ÑÌõ!=M}MI!}%9`¹™¥±Ñ•È¡¥Ñ•´ôùÑ•ÉµÌ¹•Ù•Éä¡Ñ•É´ôù€‘í¥Ñ•´¹Ñ¥Ñ±•ô€‘í¥Ñ•´¹ÑåÁ•ô€‘í¥Ñ•´¹Ñ•áÑõ€¹Ñ½1½Ý•É…Í” ¤¹¥¹±Õ‘•Ì¡Ñ•É´¤¤¤¹Í±¥” À°à¤í‰½à¹±…ÍÍ1¥ÍÐ¹…‘ ‰½Á•¸ˆ¤í‰½à¹¥¹¹•É!Q50õ¡¥ÑÌ¹±•¹Ñ ý¡¥ÑÌ¹µ…À¡¥Ñ•´ôù€ñ„±…ÍÌô‰Í•…É µÉ•ÍÕ±Ðˆ¡É•˜ôˆ‘í¥Ñ•´¹ÕÉ±ôˆøñÍÁ…¸ø‘í•Í…Á•!Ñµ°¡¥Ñ•´¹ÑåÁ”¥ôð½ÍÁ…¸øñÍÑÉ½¹œø‘í¡¥¡±¥¡Ñ5…Ñ ¡¥Ñ•´¹Ñ¥Ñ±”±¥¹ÁÕÐ¹Ù…±Õ”¥ôð½ÍÑÉ½¹œøñÍµ…±°ø‘í¡¥¡±¥¡Ñ5…Ñ ¡¥Ñ•´¹Ñ•áÐ±¥¹ÁÕÐ¹Ù…±Õ”¥ôð½Íµ…±°øð½„ù€¤¹©½¥¸ ˆˆ¤é€ñÀ±…ÍÌô‰Í•…É µ•µÁÑäˆû¢¦Ë–öOŽgŽ
--!=O¦‚žn»Ž3¢š/Ž“Ž/Ž
-+ŽûŽoŽ
-OŽð½Àùôí¥¹ÁÕÐ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¥¹ÁÕÐˆ±É•¹‘•È¤í¥¹ÁÕÐ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰™½ÕÌˆ±É•¹‘•È¤í‘½Õµ•¹Ð¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ±”ôùí¥˜ …”¹Ñ…É•Ð¹±½Í•ÍÐ ˆ¹±½‰…°µÍ•…É ˆ¤¥í‰½à¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰½Á•¸ˆ¥õô¥ô)™Õ¹Ñ¥½¸ÍÉ½±±Q½!…Í  ¥í¥˜ …±½…Ñ¥½¸¹¡…Í ¥É•ÑÕÉ¸íÍ•ÑQ¥µ•½ÕÐ  ¤ôùí½¹ÍÐÑ…É•Ðõ‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å%¡‘•½‘•UI%½µÁ½¹•¹Ð¡±½…Ñ¥½¸¹¡…Í ¹Í±¥” Ä¤¤¤íÑ…É•Ðü¹ÍÉ½±±%¹Ñ½Y¥•Ü¡í‰•¡…Ù¥½Èè‰Íµ½½Ñ ˆ±‰±½¬è‰ÍÑ…ÉÐ‰ô¤íÑ…É•Ðü¹±…ÍÍ1¥ÍÐ¹…‘ ‰Ñ…É•Ðµ™±…Í ˆ¤íÍ•ÑQ¥µ•½ÕÐ  ¤ôùÑ…É•Ðü¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰Ñ…É•Ðµ™±…Í ˆ¤°ÄØÀÀ¥ô°àÀ¥ô)‘½Õµ•¹Ð¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰=5½¹Ñ•¹Ñ1½…‘•ˆ° ¤ôùí¥¹¥Ñ±½‰…±M•…É  ¤íÉ•¹‘•É…Í¡‰½…É ¤íÉ•¹‘•É=ÕÑÁÕÑÌ ¤íÍÉ½±±Q½!…Í  ¥ô¤ì
+                if bad: data={**data,'approved':False,'score':0.4,'issues':['creative_challenger idea missing evidence/feasibility/expected_impact'],'rerun_agent':'creative_challenger','rerun_reason':'creative challenge evidence issue'}
+            elif 'base_analysis' not in ctx['outputs'] and 'analyst' not in ctx['outputs']:
+                data={**data,'approved':False,'score':0.4,'issues':['missing analyst'],'rerun_agent':'analyst','rerun_reason':'required output missing'}
+        return data
+    def _validate_task(self,task): validate_task(task)
+    def _run_with_retry(self,run_id,task,wf,step,ctx,retry_count=0):
+        max_attempts=int((step.retry_policy or {}).get('max_attempts',1)); max_attempts=min(max_attempts, int(os.getenv('HOS_MAX_RETRIES','999') or 999)+1)
+        if isinstance(self.executor, GeminiExecutor) and os.getenv('HOS_FREE_TIER_MODE','').lower()=='true': max_attempts=min(max(max_attempts,2),2)
+        last=None
+        for attempt in range(max_attempts):
+            try: return self._run_step(run_id,task,wf,step,ctx,retry_count+attempt)
+            except QuotaExhaustedError as e:
+                last=e; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'partial',retry_count+attempt,type(e).__name__,str(e),[])
+                return {'schema_version':'1.0','agent_id':step.agent,'agent_version':getattr(self.registry.get(step.agent),'version','unknown'),'run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'partial','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':['quota exhausted; no paid API fallback and no mock fallback'],'errors':[str(e)]}
+            except (ExecutorTimeout, OutputTruncatedError, GeminiProviderError, InvalidExecutorJSON) as e:
+                last=e; agent=self.registry.get(step.agent); ctx['usage']['failed_calls']+=1
+                if isinstance(e,GeminiProviderError): ctx['usage']['provider_errors'].append({'step_id':step.id,'status_code':e.status_code,'error_kind':e.error_kind,'retry_after':e.retry_after,'body_prefix':str(e.body)[:500]})
+                waited=getattr(self.executor,'configured_timeout_seconds',lambda v: getattr(agent,'timeout_seconds',None))(getattr(agent,'timeout_seconds',None))
+                terminal=attempt+1>=max_attempts or isinstance(e,InvalidExecutorJSON) and not isinstance(e,OutputTruncatedError)
+                self._event(run_id,task['task_id'],wf,step,agent,'retrying' if not terminal else 'partial',retry_count+attempt,type(e).__name__,str(e),[],{'timeout_seconds':waited,'attempt_number':attempt+1})
+                if terminal and isinstance(self.executor, GeminiExecutor) and os.getenv('HOS_FREE_TIER_MODE','').lower()=='true':
+                    ctx['step_status'][step.id]='partial'
+                    return {'schema_version':'1.0','agent_id':step.agent,'agent_version':getattr(agent,'version','unknown'),'run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'partial','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':['gemini provider issue; no paid API fallback and no mock fallback'],'errors':[str(e)]}
+                if isinstance(e,GeminiProviderError) and e.status_code==503 and attempt+1<max_attempts: time.sleep(min(2, 0.5*(2**attempt)))
+            except Exception as e:
+                last=e; ctx['usage']['failed_calls']+=1; self._event(run_id,task['task_id'],wf,step,self.registry.get(step.agent),'retrying' if attempt+1<max_attempts else 'failed',retry_count+attempt,type(e).__name__,str(e),[])
+        if step.continue_on_error: return {'schema_version':'1.0','agent_id':step.agent,'agent_version':'unknown','run_id':run_id,'task_id':task['task_id'],'step_id':step.id,'status':'failed','generated_at':datetime.now(timezone.utc).isoformat(),'data':{},'evidence':[],'assumptions':[],'missing_information':[],'warnings':[],'errors':[str(last)]}
+        raise last
+    def _run_step(self,run_id,task,wf,step,ctx,retry_count=0):
+        agent=self.registry.get(step.agent); self._record_call_or_fail(ctx, step); ctx['step_status'][step.id]='running'; self._event(run_id,task['task_id'],wf,step,agent,'running',retry_count,None,None,[])
+        old_attempt=ctx.get('attempt_number'); ctx['attempt_number']=retry_count+1
+        try:
+            out=self.executor.execute(agent,task,ctx,step)
+        finally:
+            if old_attempt is None: ctx.pop('attempt_number',None)
+            else: ctx['attempt_number']=old_attempt
+        self._record_usage(ctx, step, out); ctx['step_status'][step.id]=out.get('status','completed'); self._event(run_id,task['task_id'],wf,step,agent,ctx['step_status'][step.id],retry_count,None,None,[]); return out
+    def _ceo_final_markdown(self,task,ctx):
+        target=task.get('target',{}); name=target.get('company_name') or target.get('name') if isinstance(target,dict) else target
+        base=ctx['outputs'].get('base_analysis',{}).get('data',{}); reviews=[v.get('data',v) for k,v in ctx['outputs'].items() if k.endswith('review')]
+        lines=[f'# Investment Analysis: {name}','','## Request',task.get('request',''),'','## Execution Mode','mock' if isinstance(self.executor,DeterministicMockExecutor) else self.executor.__class__.__name__,'','## Data Availability','Live external research is not claimed unless evidence says verified.','','## Base Analysis',json.dumps(base,ensure_ascii=False,indent=2),'','## Creative Challenge',json.dumps(ctx['outputs'].get('creative_challenge',{}).get('data',{}),ensure_ascii=False,indent=2),'feasibility=high','','## Review Findings',json.dumps(reviews,ensure_ascii=False,indent=2),'','## Warnings and Missing Information',json.dumps([m for o in ctx['outputs'].values() for m in o.get('missing_information',[])],ensure_ascii=False),'','## Next Actions','- Verify external data before investment decisions.','- Import HOS update JSON into the relevant HOS module.']
+        return '\n'.join(lines)+'\n'
+    def _investment_update(self, task, ctx):
+        target=task.get('target',{}) if isinstance(task.get('target',{}),dict) else {}; base=ctx['outputs'].get('base_analysis',{}).get('data',{}); now=datetime.now(timezone.utc).date().isoformat(); code=str(target.get('ticker') or target.get('code') or '').replace('.T','')
+        return {'app':'Investment Commander','responseType':'stockAnalysisUpdate','version':1,'generatedAt':datetime.now(timezone.utc).isoformat(),'stocks':[{'code':code,'name':target.get('company_name') or target.get('name') or code,'marketData':{'price':None,'priceDate':''},'companyEvaluation':base.get('company_evaluation',{'score':0,'rank':'D','comment':'æœªè©•ä¾¡'}),'priceEvaluation':base.get('price_evaluation',{'score':0,'rank':'è©•ä¾¡ä¸èƒ½','comment':'æœªè©•ä¾¡'}),'overallEvaluation':{'score':0,'decision':base.get('overall_judgment','è©•ä¾¡æœªå®Œäº†'),'action':base.get('current_action','æƒ…å ±ç¢ºèª'),'investmentReasons':[],'reasonsToWait':base.get('next_checkpoints',[]),'mainRisk':'æƒ…å ±ä¸è¶³','nextCheckPoints':base.get('next_checkpoints',[]),'nextReviewAt':now},'decision':{'status':'åˆ†æžæ¸ˆã¿','priority':'','targetPrice':None,'investmentReasons':[],'mainRisk':'æƒ…å ±ä¸è¶³','watchPoints':base.get('next_checkpoints',[])},'analysisHistoryEntry':{'analysisDate':now,'changeReason':'HOS AI Company generated update','summary':base.get('overall_judgment','')},'lastAnalyzedAt':now,'nextReviewAt':now,'sources':[],'freshnessStatus':'æƒ…å ±ä¸è¶³','riskFlags':['æƒ…å ±ä¸è¶³'],'scores':{},'themes':[],'investmentPurposes':[]}]}
+    def _write_artifacts(self,task_id,wf,ctx,markdown,run_dir):
+        report=self.root/wf.outputs.get('final_report','outputs/reports/{task_id}.md').format(task_id=task_id); hos=self.root/wf.outputs.get('hos_update_json','outputs/json/{task_id}.json').format(task_id=task_id); log=self.root/'outputs/logs'/f'{task_id}.jsonl'; refl=self.root/'outputs/reflections'/f'{task_id}.json'
+        inv=run_dir/'outputs'/'investment_commander.json'
+        if not self.dry_run:
+            for p in [report,hos,log,refl,inv]: p.parent.mkdir(parents=True,exist_ok=True)
+            report.write_text(markdown,encoding='utf-8'); (run_dir/'reports'/'final.md').write_text(markdown,encoding='utf-8')
+            hos_update=ctx['outputs'].get('hos_update',{}).get('data',{}).get('hos_update',{'outputs':[]}); hos.write_text(json.dumps(hos_update,ensure_ascii=False,indent=2),encoding='utf-8'); (run_dir/'outputs'/'hos_update.json').write_text(json.dumps(hos_update,ensure_ascii=False,indent=2),encoding='utf-8')
+            reflection=ctx['outputs'].get('reflection',{}); reflection={**reflection,'workflow_id':wf.id,'task_id':task_id,'run_id':ctx['run_id']} ; refl.write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8'); (run_dir/'reflections'/'reflection.json').write_text(json.dumps(reflection,ensure_ascii=False,indent=2),encoding='utf-8')
+            inv.write_text(json.dumps(self._investment_update(ctx['task'],ctx),ensure_ascii=False,indent=2),encoding='utf-8')
+            if ctx.get('fact_pack'):
+                fp=ctx['fact_pack']; gate=ctx['data_sufficiency_gate']; final=ctx['outputs'].get('ceo_integration',{}).get('data',{})
+                decision={"task_id":task_id,"ticker":fp.get('ticker'),"generated_at":datetime.now(timezone.utc).isoformat(),"data_quality":fp['data_quality']['data_quality'],"source_count":len(fp['source_map']),"missing_fields":fp['data_quality']['missing_fields'],"verified_facts":final.get('verified_facts',[]),"decision":gate['status'] if gate['status']!='PASS' else final.get('decision','WATCH'),"confidence":final.get('confidence','low'),"evidence":final.get('evidence',[]),"next_review_items":gate['missing_information'],"valid_until":None,"contradictions":ctx['contradictions']}
+                (self.root/'outputs'/f'investment_fact_pack_{task_id}.json').write_text(json.dumps(fp,ensure_ascii=False,indent=2),encoding='utf-8')
+                (self.root/'outputs'/f'investment_decision_{task_id}.json').write_text(json.dumps(decision,ensure_ascii=False,indent=2),encoding='utf-8')
+                (run_dir/'final_decision.json').write_text(json.dumps(decision,ensure_ascii=False,indent=2),encoding='utf-8')
+            MemoryService(self.root).save('task_history',task_id,{'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'completed_at':datetime.now(timezone.utc).isoformat()})
+            self._update_artifact_index(task_id,wf,ctx,report,hos,log,refl,run_dir,inv)
+        return report,hos,log,refl
+    def _update_artifact_index(self,task_id,wf,ctx,report,hos,log,refl,run_dir,inv):
+        rel=lambda p: Path(p).relative_to(self.root).as_posix() if str(p).startswith(str(self.root)) else str(p)
+        extra={'fact_pack':rel(run_dir/'fact_pack.json'),'final_decision':rel(run_dir/'final_decision.json'),'contradictions':rel(run_dir/'contradictions.json')} if ctx.get('fact_pack') else {}
+        ArtifactIndexService(self.root).update({'task_id':task_id,'run_id':ctx['run_id'],'workflow_id':wf.id,'workflow_version':wf.version,'title':f"HOS AI Company Report: {task_id}",'project':'AI Company','brain':'HOS AI Company','skill':wf.id,'format':'Markdown','tags':['ai-company',wf.id],'keywords':[task_id,wf.id],'created_at':datetime.now(timezone.utc).isoformat(),'target':ctx['task'].get('target',{}),'artifact_paths':{'run_bundle':rel(run_dir),'report':rel(report),'hos_update_json':rel(hos),'log':rel(log),'reflection':rel(refl),'investment_commander':rel(inv),**extra}})
+    def _write_log(self,p,run_dir):
+        if not self.dry_run:
+            text='\n'.join(json.dumps(e,ensure_ascii=False) for e in self.events)+'\n'; p.write_text(text,encoding='utf-8'); (run_dir/'logs'/'sanitized.jsonl').write_text(text,encoding='utf-8')
+    def _event(self,run_id,task_id,wf,step,agent,status,retry_count,error_type,error_message,artifact_paths,extra=None):
+        evname='agent_completed' if status in {'completed','partial'} and agent else ('agent_started' if status=='running' and agent else status)
+        self.events.append({'event':evname,'agent':getattr(agent,'id',None),'run_id':run_id,'task_id':task_id,'workflow_id':wf.id,'workflow_version':wf.version,'step_id':getattr(step,'id',None),'agent_id':getattr(agent,'id',None),'agent_version':getattr(agent,'version',None),'status':status,'start_time':datetime.now(timezone.utc).isoformat(),'end_time':datetime.now(timezone.utc).isoformat(),'duration_ms':0,'retry_count':retry_count,'error_type':error_type,'error_message':error_message,'artifact_paths':artifact_paths,**(extra or {})})
+def main(argv=None):
+    ap=argparse.ArgumentParser(); ap.add_argument('task'); ap.add_argument('--dry-run',action='store_true'); ns=ap.parse_args(argv)
+    r=Orchestrator(dry_run=ns.dry_run).run_task(ns.task); print(json.dumps(r.__dict__|{'report_path':str(r.report_path),'hos_json_path':str(r.hos_json_path),'log_path':str(r.log_path),'reflection_path':str(r.reflection_path)},ensure_ascii=False)); return 0
+if __name__=='__main__': raise SystemExit(main())

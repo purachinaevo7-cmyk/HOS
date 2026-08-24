@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HOS Private Profile",
+  "type": "object",
+  "required": ["version", "goals", "accounts", "balances", "holdings", "cash_policy", "budgets", "strategy"],
+  "properties": {
+    "version": {"const": 2},
+    "profile_kind": {"type": "string"},
+    "notification_revision": {"type": "string", "maxLength": 64},
+    "as_of": {"type": "string", "format": "date"},
+    "goals": {
+      "type": "object",
+      "properties": {
+        "target_financial_assets_jpy": {"type": "number", "minimum": 0},
+        "target_annual_dividend_jpy": {"type": "number", "minimum": 0},
+        "target_age": {"type": "number", "minimum": 0},
+        "target_date": {"type": "string", "format": "date"}
+      }
+    },
+    "accounts": {
+      "type": "object",
+      "propertyNames": {"pattern": "^member_[a-z0-9_]+$"},
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "display_name": {"type": "string", "minLength": 1},
+          "buying_power_jpy": {"type": "number", "minimum": 0},
+          "strategy_budget_jpy": {"type": "number", "minimum": 0},
+          "annual_stock_cap_jpy": {"type": "number", "minimum": 0},
+          "taxable_gifts_ytd_jpy": {"type": "number", "minimum": 0},
+          "gift_tax_reviewed": {"type": "boolean"}
+        }
+      }
+    },
+    "balances": {"type": "array"},
+    "holdings": {"type": "array"},
+    "cash_policy": {"type": "object"},
+    "budgets": {"type": "object"},
+    "progress": {"type": "object"},
+    "dividend_forecasts": {"type": "object"},
+    "fx_rates": {"type": "object"},
+    "earnings_ir_sources": {"type": ["object", "array"]},
+    "strategy": {
+      "type": "object",
+      "required": ["strategy_id", "status", "purchase_authority", "accounts"],
+      "properties": {
+        "accounts": {
+          "type": "object",
+          "propertyNames": {"pattern": "^member_[a-z0-9_]+$"}
+        }
+      }
+    },
+    "earnings_assessments": {"type": "object"},
+    "replacement_reviews": {"type": ["object", "array"]},
+    "simulation_assumptions": {"type": "object"},
+    "notification_state": {"type": "object"}
+  }
+}

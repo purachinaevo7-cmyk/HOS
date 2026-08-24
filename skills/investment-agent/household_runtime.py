@@ -333,4 +333,78 @@ def _fetch_us_prices(profile: Mapping[str, Any]) -> dict[str, float]:
 
 def _fetch_usd_jpy(default: float) -> float:
     try:
-        import yfinance as {{¶‰žËkºwµçw"æ÷B†öÆF–ærævWB‚'fW&–f–VB"ÂG'VR“ ¢Ö—76–æræVæB‚&†öÆF–ær"¢6öçF–çVP¢6†&W2Òöf–æ—FUöçVÖ&W"††öÆF–ærævWB‚'6†&W2"’¢F–6¶W"Ò7G"††öÆF–ærævWB‚'F–6¶W""’÷"""¢–b6†&W2—2æöæR÷"æ÷BF–6¶W# ¢Ö—76–æræVæB‚&†öÆF–ær"¢6öçF–çVP¢Ö&¶WBÒ7G"††öÆF–ærævWB‚&Ö&¶WB"Â$¥"’’çWW"‚¢–bÖ&¶WBÓÒ$¥# ¢&–6RÒ§öÖævWB‡F–6¶W"¢–b&–6R—2æöæS ¢Ö—76–æræVæB†b'&–6S§·F–6¶W'Ò"¢VÇ6S ¢F÷FÂ³Ò6†&W2¢&–6P¢VÆ–bÖ&¶WBÓÒ%U2# ¢&–6RÒW5öÖævWB‡F–6¶W"¢ÖçVÂÒöf–æ—FUöçVÖ&W"††öÆF–ærævWB‚&ÖçVÅ÷fÇVUö§’"’¢–b&–6R—2æ÷BæöæS ¢F÷FÂ³Ò6†&W2¢&–6R¢g€¢VÆ–bÖçVÂ—2æ÷BæöæS ¢F÷FÂ³ÒÖçVÀ¢VÇ6S ¢Ö—76–æræVæB†b'&–6S§·F–6¶W'Ò"¢VÇ6S ¢ÖçVÂÒöf–æ—FUöçVÖ&W"††öÆF–ærævWB‚&ÖçVÅ÷fÇVUö§’"’¢–bÖçVÂ—2æöæS ¢Ö—76–æræVæB†b'&–6S§·F–6¶W'Ò"¢VÇ6S ¢F÷FÂ³ÒÖçVÀ ¢F&vWE²$„õ5ô4ôäd•$ÔTEô”ådU5DTEô54UE5ô¥’%ÒÒb'·F÷FÃ¢ãgÒ ¢F&vWE²$„õ5ôd”ää4”Åô54UE5ôÔ•54”äuô•DTÕ2%ÒÒ"Â"æ¦ö–â†Ö—76–ær¢–bæ÷BÖ—76–æræBæ÷B7G"‡F&vWBævWB‚$„õ5ô5U%$TåEôd”ää4”Åô54UE5ô¥’"Â""’÷"""’ç7G&—‚“ ¢F&vWE²$„õ5ô5U%$TåEôd”ää4”Åô54UE5ô¥’%ÒÒb'·F÷FÃ¢ãgÒ ¢&WGW&â°¢&6ö×ÆWFR#¢æ÷BÖ—76–ærÀ¢&6öæf—&ÖVE÷'F–Åö§’#¢&÷VæB‡F÷FÂÂ"’À¢&7W'&VçEöf–ææ6–Åö76WG5ö§’#¢&÷VæB‡F÷FÂÂ"’–bæ÷BÖ—76–ærVÇ6RæöæRÀ¢&Ö—76–ær#¢Ö—76–ærÀ¢Ð
+        import yfinance as yf
+        history = yf.Ticker("JPY=X").history(period="5d", auto_adjust=False).dropna(subset=["Close"])
+        if not history.empty:
+            value = float(history.iloc[-1]["Close"])
+            if math.isfinite(value) and value > 0:
+                return value
+    except Exception:
+        pass
+    return default
+
+
+def publish_runtime_asset_snapshot(profile: Mapping[str, Any], japanese_prices: list[PriceRecord], env: dict[str, str] | None = None) -> dict[str, Any]:
+    """Calculate live assets in memory; callers must not persist this payload."""
+    target = env if env is not None else os.environ
+    if not profile:
+        return {"complete": False, "confirmed_partial_jpy": None, "missing": ["PRIVATE_PROFILE"]}
+
+    total = 0.0
+    missing: list[str] = []
+    for balance in profile.get("balances", []):
+        if not isinstance(balance, Mapping) or not balance.get("include_in_financial_assets", True):
+            continue
+        value = _finite_number(balance.get("value_jpy"))
+        if not balance.get("verified") or value is None:
+            missing.append(str(balance.get("id") or "balance"))
+            continue
+        total += value
+
+    jp_map = {str(record.code): float(record.close) for record in japanese_prices}
+    us_map = _fetch_us_prices(profile)
+    planning_fx = _finite_number(target.get("HOS_USDJPY_PLANNING_RATE")) or 160.0
+    fx = _fetch_usd_jpy(planning_fx)
+    target["HOS_CURRENT_USDJPY_JPY"] = f"{fx:.4f}"
+    for holding in profile.get("holdings", []):
+        if not isinstance(holding, Mapping) or not holding.get("verified", True):
+            missing.append("holding")
+            continue
+        shares = _finite_number(holding.get("shares"))
+        ticker = str(holding.get("ticker") or "")
+        if shares is None or not ticker:
+            missing.append("holding")
+            continue
+        market = str(holding.get("market", "JP")).upper()
+        if market == "JP":
+            price = jp_map.get(ticker)
+            if price is None:
+                missing.append(f"price:{ticker}")
+            else:
+                total += shares * price
+        elif market == "US":
+            price = us_map.get(ticker)
+            manual = _finite_number(holding.get("manual_value_jpy"))
+            if price is not None:
+                total += shares * price * fx
+            elif manual is not None:
+                total += manual
+            else:
+                missing.append(f"price:{ticker}")
+        else:
+            manual = _finite_number(holding.get("manual_value_jpy"))
+            if manual is None:
+                missing.append(f"price:{ticker}")
+            else:
+                total += manual
+
+    target["HOS_CONFIRMED_INVESTED_ASSETS_JPY"] = f"{total:.0f}"
+    target["HOS_FINANCIAL_ASSETS_MISSING_ITEMS"] = ",".join(missing)
+    if not missing and not str(target.get("HOS_CURRENT_FINANCIAL_ASSETS_JPY", "") or "").strip():
+        target["HOS_CURRENT_FINANCIAL_ASSETS_JPY"] = f"{total:.0f}"
+    return {
+        "complete": not missing,
+        "confirmed_partial_jpy": round(total, 2),
+        "current_financial_assets_jpy": round(total, 2) if not missing else None,
+        "missing": missing,
+    }

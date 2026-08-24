@@ -101,15 +101,18 @@ def apply_private_budget(policy: dict[str, Any], env: Mapping[str, str] | None =
     """Overlay private account amounts without committing them to the repo."""
     source = env if env is not None else os.environ
     result = json.loads(json.dumps(policy))
-    result["execution_account"] = source.get("HOS_EXECUTION_ACCOUNT") or result.get("execution_account") or "maho"
+    execution_account = source.get("HOS_EXECUTION_ACCOUNT") or result.get("execution_account") or "member_a"
+    result["execution_account"] = execution_account
     keys = {
-        "HOS_MAHO_BUYING_POWER_JPY": "current_cash_balance",
         "HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY": "monthly_individual_stock_budget",
         "HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY": "annual_individual_stock_budget",
     }
     for env_key, policy_key in keys.items():
         if source.get(env_key) not in (None, ""):
             result[policy_key] = _number(source[env_key])
+    account_key = f"HOS_ACCOUNT_{str(execution_account).upper()}_BUYING_POWER_JPY"
+    if source.get(account_key) not in (None, ""):
+        result["current_cash_balance"] = _number(source[account_key])
     planning = result.setdefault("order_planning", {})
     if source.get("HOS_MAX_SINGLE_ORDER_JPY") not in (None, ""):
         planning["max_single_order_amount"] = _number(source["HOS_MAX_SINGLE_ORDER_JPY"])
@@ -322,7 +325,7 @@ def decide(
             data_quality="ok" if not blocks else "partial",
             hard_blocks=sorted(blocks),
             reasons=reasons,
-            execution_account=str(policy.get("execution_account") or "maho"),
+            execution_account=str(policy.get("execution_account") or "member_a"),
             order_type="指値（当日限り）" if limit_1 is not None else None,
             order_valid_for_session=order_session.isoformat() if limit_1 is not None else None,
             valid_until=deadline,
@@ -336,7 +339,7 @@ def decide(
                 "決算・適時開示・ニュースで投資前提が崩れた場合",
                 f"寄前気配が前日終値比+{float(policy.get('order_planning', {}).get('cancel_if_open_gap_up_percent', 3.0)):.1f}%以上の場合",
                 "株価対象日がずれた場合",
-                "まほ口座の買付余力または保有上限を超える場合",
+                "対象口座の買付余力または保有上限を超える場合",
                 "期限を過ぎた場合は翌営業日の終値で再計算",
             ],
             generated_at=now,
@@ -434,18 +437,6 @@ def write_outputs(decisions: list[OrderDecision], universe: list[dict[str, Any]]
     output_dir.joinpath("watchlist_review.json").write_text(
         json.dumps(watchlist_review(universe), ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    output_dir.joinpath("portfolio_goal_progress.json").write_text(
-        json.dumps({
-            "current_financial_assets": policy.get("current_financial_assets"),
-            "target_financial_assets": policy.get("target_asset_value_at_age_60"),
-            "target_annual_dividend": policy.get("target_annual_dividend"),
-            "execution_account": policy.get("execution_account"),
-            "missing_private_inputs": [key for key in [
-                "current_cash_balance", "monthly_individual_stock_budget", "annual_individual_stock_budget"
-            ] if policy.get(key) is None],
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        }, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
 
 
 def _yen(value: float | None) -> str:
@@ -455,7 +446,7 @@ def _yen(value: float | None) -> str:
 def _label(actionability: str) -> str:
     return {
         "READY": "✅ 発注条件クリア",
-        "BUDGET_REQUIRED": "🛑 まほ口座予算が未設定",
+        "BUDGET_REQUIRED": "🛑 対象口座予算が未設定",
         "FACTS_REQUIRED": "🛑 決算・評価・ニュース未確認",
         "BUDGET_AND_FACTS_REQUIRED": "🛑 予算と決算・評価・ニュース未確認",
         "POSITION_LIMIT": "🛑 保有上限に抵触",
@@ -484,7 +475,7 @@ def render_notification(
     lines = [
         f"📊 株式監視V3｜{date_label}｜{mode_label}",
         f"発注可 {sum(row.actionability == 'READY' for row in all_decisions)}｜要確認 {sum(row.status in {'BUY_CANDIDATE', 'REVIEW_REQUIRED'} for row in all_decisions)}｜接近 {sum(row.status == 'WATCH' for row in all_decisions)}｜異常 {sum(row.status == 'DATA_ERROR' for row in all_decisions)}",
-        f"口座: {next((row.execution_account for row in all_decisions), 'maho')}｜成行禁止｜期限超過は再計算",
+        f"口座: {next((row.execution_account for row in all_decisions), 'member_a')}｜成行禁止｜期限超過は再計算",
     ]
     rank = {"READY": 0, "BUDGET_REQUIRED": 1, "FACTS_REQUIRED": 1, "BUDGET_AND_FACTS_REQUIRED": 1, "POSITION_LIMIT": 2, "DAILY_ORDER_LIMIT": 2, "WAIT": 3, "WATCH_ONLY": 4, "DATA_ERROR": 5}
     important.sort(key=lambda row: (rank.get(row.actionability, 9), row.priority, row.change_percent if row.change_percent is not None else 999))
@@ -507,5 +498,5 @@ def render_notification(
             lines.append(f"⚠️ {prefix}{row.ticker} {row.company_name}｜データ取得異常｜発注禁止")
     if len(important) > 5:
         lines.append(f"ほか {len(important) - 5}件はJSON/GitHub Summary参照")
-    lines.append("結論: まほ口座用の注文案。READY以外は発注せず、朝に決算・適時開示・ニュースを確認。HOSは実発注しません。")
+    lines.append("結論: 登録戦略用の注文案。READY以外は発注せず、朝に決算・適時開示・ニュースを確認。HOSは実発注しません。")
     return "\n".join(lines)[:1_980]

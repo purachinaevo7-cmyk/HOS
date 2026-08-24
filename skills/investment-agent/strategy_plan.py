@@ -268,11 +268,12 @@ def evaluate_strategy(
     policy = policy or {}
     financial_assets = float(policy.get("current_financial_assets") or strategy.get("household_goal", {}).get("current_financial_assets_jpy") or 0)
     concentration_limit = float(strategy.get("household_goal", {}).get("max_single_ticker_weight_warning", 0.05))
+    concentration_hard_limit = float(strategy.get("household_goal", {}).get("max_single_ticker_weight_hard", concentration_limit))
+    registered_authority = str(strategy.get("purchase_authority", {}).get("mode") or "").upper() == "REGISTERED_STRATEGY_ONLY"
 
     household_cash = _env_number(strategy.get("funding", {}).get("available_investment_cash_jpy_env"), source)
     household_target = _env_number(strategy.get("funding", {}).get("target_investment_to_2027_03_jpy_env"), source)
     household_reserve = _env_number(strategy.get("funding", {}).get("reserve_after_execution_jpy_env"), source)
-    maho_cap = _env_number(strategy.get("funding", {}).get("maho_2026_individual_stock_cap_jpy_env"), source)
     account_spend = {
         name: _completed_spend(strategy, account, source)
         for name, account in strategy.get("accounts", {}).items()
@@ -282,6 +283,7 @@ def evaluate_strategy(
     for account_name, account in strategy.get("accounts", {}).items():
         account_budget = _env_number(account.get("target_budget_jpy_env"), source)
         buying_power = _env_number(account.get("buying_power_jpy_env"), source)
+        annual_stock_cap = _env_number(account.get("annual_stock_cap_jpy_env"), source)
         for order in account.get("orders", []):
             ticker = str(order["ticker"])
             market = str(order.get("market", "JP")).upper()
@@ -333,8 +335,8 @@ def evaluate_strategy(
                             blocks.append("HOUSEHOLD_TARGET_BUDGET_EXCEEDED")
                         if household_cash is not None and household_reserve is not None and next_household_spend > household_cash - household_reserve:
                             blocks.append("HOUSEHOLD_RESERVE_BREACH")
-                        if account_name == "maho" and maho_cap is not None and next_account_spend > maho_cap:
-                            blocks.append("MAHO_2026_CAP_EXCEEDED")
+                        if annual_stock_cap is not None and next_account_spend > annual_stock_cap:
+                            blocks.append("ACCOUNT_ANNUAL_STOCK_CAP_EXCEEDED")
                     if order.get("earnings_wait") and not order.get("earnings_reviewed_ok"):
                         blocks.append("EARNINGS_REVIEW_REQUIRED")
                     if order.get("conditional") and not order.get("condition_verified"):
@@ -352,8 +354,15 @@ def evaluate_strategy(
                         target_shares = order.get("household_target_after_completion") or order.get("target_shares") or order.get("target_total_shares")
                         if target_shares is not None:
                             projected_weight = float(target_shares) * current_price / financial_assets
-                            if projected_weight > concentration_limit:
+                            if projected_weight > concentration_hard_limit:
+                                blocks.append(f"CONCENTRATION_HARD_LIMIT:{projected_weight:.2%}")
+                            elif projected_weight > concentration_limit:
                                 warnings.append(f"CONCENTRATION_WARNING:{projected_weight:.2%}")
+                    elif registered_authority:
+                        # A private registered strategy requires a complete,
+                        # current household asset denominator. A partial tally
+                        # cannot be used to clear this safety gate.
+                        blocks.append("CONCENTRATION_AUDIT_REQUIRED")
 
                     if current_price is None:
                         distance = None
@@ -429,7 +438,7 @@ def evaluate_strategy(
     ready_indices = [index for index, signal in enumerate(signals) if signal.actionability == "READY"]
     ready_indices.sort(key=lambda index: (
         signals[index].execution_priority,
-        1 if signals[index].account == "hiro" else 0,
+        signals[index].account,
         signals[index].distance_to_limit_percent if signals[index].distance_to_limit_percent is not None else 999,
         signals[index].ticker,
     ))
