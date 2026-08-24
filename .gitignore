@@ -1,3 +1,34 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Credentials and household data. Private Profile values belong only in an
+# Actions Secret or a local ignored file supplied at runtime.
+.env
+.env.*
+!.env.example
+.private/
+private_profile*.json
+!skills/investment-agent/config/private_profile.example.json
+!schemas/private_profile.schema.json
+
+# Runtime artifacts can contain a private strategy, holdings, or progress.
+runs/
+outputs/
+logs/stock-watch.log
+hos-run-result.json
+outputs/stock-watch-*.json
+outputs/stock_watch_*.json
+outputs/strategy_order_plan.json
+outputs/portfolio_goal_progress.json
+outputs/watchlist_review.json
+outputs/index.json
+outputs/json/
+outputs/logs/
+outputs/memory/
+outputs/reflections/
+outputs/reports/
+outputs/investment_*_*.json
+cache/
+tasks/working/
+skills/investment-agent/data/daily_prices/notification_state_v3_*.json

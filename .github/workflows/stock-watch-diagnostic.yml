@@ -5,22 +5,10 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stock-watch-diagnostic.yml'
-      - 'skills/investment-agent/stock_watch_runner.py'
-      - 'skills/investment-agent/household_runtime.py'
-      - 'skills/investment-agent/earnings_assessment.py'
-      - 'skills/investment-agent/jpx_trade_date.py'
-      - 'skills/investment-agent/daily_stock_check_v3.py'
-      - 'skills/investment-agent/stock_fetcher.py'
-      - 'skills/investment-agent/discord_report.py'
-      - 'skills/investment-agent/progress_notification.py'
-      - 'skills/investment-agent/strategy_plan.py'
-      - 'skills/investment-agent/purchase_authority.py'
+      - 'skills/investment-agent/**/*.py'
       - 'skills/investment-agent/config/portfolio_policy.json'
-      - 'skills/investment-agent/config/stock_watch_universe.json'
-      - 'skills/investment-agent/config/earnings_assessments_2026.json'
-      - 'skills/investment-agent/config/strategies/HOS_2026_FINAL_AGGRESSIVE_V2.json'
-      - 'skills/investment-agent/config/strategy_household_overrides_2026-08-12.json'
-      - 'outputs/stock-watch-retry-trigger.txt'
+      - 'skills/investment-agent/config/**/*.example.json'
+      - 'schemas/private_profile.schema.json'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
@@ -34,17 +22,15 @@ on:
         required: false
         default: 'morning-retry'
         type: choice
-        options:
-          - morning-retry
-          - evening
+        options: [morning-retry, evening]
       force:
-        description: 'Send again even if the same trade-date slot already succeeded'
+        description: 'Send again even if the trade-date slot already succeeded'
         required: false
         default: false
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: stock-watch-active
@@ -57,27 +43,8 @@ jobs:
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       HOS_PRIVATE_PROFILE_JSON: ${{ secrets.HOS_PRIVATE_PROFILE_JSON }}
-      HOS_EXECUTION_ACCOUNT: maho
-      HOS_MAHO_BUYING_POWER_JPY: ${{ secrets.HOS_MAHO_BUYING_POWER_JPY }}
-      HOS_HIRO_BUYING_POWER_JPY: ${{ secrets.HOS_HIRO_BUYING_POWER_JPY }}
-      HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY: ${{ secrets.HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY }}
-      HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY: ${{ secrets.HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY }}
-      HOS_MAX_SINGLE_ORDER_JPY: ${{ secrets.HOS_MAX_SINGLE_ORDER_JPY }}
-      HOS_ALLOW_ODD_LOT: true
-      HOS_STRATEGY_MAX_DAILY_ORDERS: 1
-      HOS_USDJPY_PLANNING_RATE: 160
-      HOS_CURRENT_FINANCIAL_ASSETS_JPY: ${{ secrets.HOS_CURRENT_FINANCIAL_ASSETS_JPY }}
-      HOS_CURRENT_ANNUAL_DIVIDEND_JPY: ${{ secrets.HOS_CURRENT_ANNUAL_DIVIDEND_JPY }}
-      HOS_CURRENT_HOUSEHOLD_CASH_JPY: ${{ secrets.HOS_CURRENT_HOUSEHOLD_CASH_JPY }}
-      HOS_PROTECTED_CASH_FLOOR_JPY: ${{ secrets.HOS_PROTECTED_CASH_FLOOR_JPY }}
-      HOS_HIRO_TAXABLE_GIFTS_YTD_JPY: ${{ secrets.HOS_HIRO_TAXABLE_GIFTS_YTD_JPY }}
-      HOS_HIRO_GIFT_TAX_REVIEWED: ${{ secrets.HOS_HIRO_GIFT_TAX_REVIEWED }}
-      HOS_HOUSEHOLD_AVAILABLE_CASH_JPY: ${{ secrets.HOS_HOUSEHOLD_AVAILABLE_CASH_JPY }}
-      HOS_TARGET_INVESTMENT_TO_2027_03_JPY: ${{ secrets.HOS_TARGET_INVESTMENT_TO_2027_03_JPY }}
-      HOS_RESERVE_AFTER_EXECUTION_JPY: ${{ secrets.HOS_RESERVE_AFTER_EXECUTION_JPY }}
-      HOS_MAHO_2026_STOCK_CAP_JPY: ${{ secrets.HOS_MAHO_2026_STOCK_CAP_JPY }}
-      HOS_MAHO_STRATEGY_BUDGET_JPY: ${{ secrets.HOS_MAHO_STRATEGY_BUDGET_JPY }}
-      HOS_HIRO_STRATEGY_BUDGET_JPY: ${{ secrets.HOS_HIRO_STRATEGY_BUDGET_JPY }}
+      HOS_STRATEGY_MAX_DAILY_ORDERS: '1'
+      HOS_USDJPY_PLANNING_RATE: '160'
 
     steps:
       - name: Checkout
@@ -103,8 +70,7 @@ jobs:
             if [ "$hour" -lt 12 ]; then mode='morning-retry'; else mode='evening'; fi
             force='false'
           else
-            schedule='${{ github.event.schedule }}'
-            case "$schedule" in
+            case '${{ github.event.schedule }}' in
               '7 22 * * 0-4'|'27 22 * * 0-4'|'47 22 * * 0-4') mode='morning-retry' ;;
               *) mode='evening' ;;
             esac
@@ -113,38 +79,42 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "force=$force" >> "$GITHUB_OUTPUT"
 
-      - name: Validate Discord webhook
+      - name: Validate private delivery configuration
+        shell: bash
         run: |
-          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-            echo "::error::DISCORD_WEBHOOK_URL secret is not configured"
-            exit 1
-          fi
+          test -n "$DISCORD_WEBHOOK_URL" || { echo '::error::DISCORD_WEBHOOK_URL is not configured'; exit 1; }
+          test -n "$HOS_PRIVATE_PROFILE_JSON" || { echo '::error::HOS_PRIVATE_PROFILE_JSON is not configured; purchase authority will remain fail-closed'; exit 1; }
+
+      - name: Restore value-free duplicate guard
+        uses: actions/cache/restore@v4
+        with:
+          path: outputs/stock-watch-diagnostic.json
+          key: stock-watch-diagnostic-${{ github.run_id }}
+          restore-keys: stock-watch-diagnostic-
 
       - name: Run Stock Watch V3
         shell: bash
         run: |
           mkdir -p logs outputs
           args=(--mode '${{ steps.mode.outputs.mode }}')
-          if [ '${{ steps.mode.outputs.force }}' = 'true' ]; then
-            args+=(--force)
+          if [ '${{ steps.mode.outputs.force }}' = 'true' ]; then args+=(--force); fi
+          if ! python skills/investment-agent/stock_watch_runner.py "${args[@]}" > logs/stock-watch.log 2>&1; then
+            echo '::error::Stock Watch failed. Private run output was intentionally withheld from public logs.'
+            exit 1
           fi
-          set -o pipefail
-          python skills/investment-agent/stock_watch_runner.py "${args[@]}" 2>&1 | tee logs/stock-watch.log
 
-      - name: Persist heartbeat and daily market data
+      - name: Publish public-safe heartbeat
         if: always()
         shell: bash
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add outputs/stock-watch-diagnostic.json 2>/dev/null || true
-          git add skills/investment-agent/data/daily_prices/*.json 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo 'No Stock Watch runtime change to commit'
-            exit 0
+          if [ -f outputs/stock-watch-diagnostic.json ]; then
+            python -m json.tool outputs/stock-watch-diagnostic.json >/dev/null
           fi
-          git commit -m "Record Stock Watch runtime result"
-          git reset --hard HEAD
-          git clean -fd
-          git pull --rebase origin main
-          git push
+          echo 'Stock Watch runtime artifacts are intentionally not committed or uploaded.'
+
+      - name: Save value-free duplicate guard
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: outputs/stock-watch-diagnostic.json
+          key: stock-watch-diagnostic-${{ github.run_id }}

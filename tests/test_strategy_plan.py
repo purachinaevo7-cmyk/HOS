@@ -7,11 +7,7 @@ BASE = ROOT / "skills" / "investment-agent"
 sys.path.insert(0, str(BASE))
 
 from stock_analyzer import PriceRecord
-from strategy_plan import evaluate_strategy, load_strategy, merge_watchlists, strategy_watchlist
-
-
-def registered_strategy():
-    return load_strategy(BASE / "config" / "strategies" / "HOS_2026_FINAL_AGGRESSIVE_V2.json")
+from strategy_plan import evaluate_strategy, merge_watchlists, strategy_watchlist
 
 
 def base_order(ticker, name, steps, **extra):
@@ -40,19 +36,20 @@ def env_values():
 
 
 def test_registered_strategy_and_unique_japanese_watchlist():
-    strategy = registered_strategy()
-    assert strategy["strategy_id"] == "HOS_2026_FINAL_AGGRESSIVE_V2"
+    strategy = {
+        "strategy_id": "TEST_REGISTERED_STRATEGY",
+        "status": "ACTIVE",
+        "accounts": {
+            "member_a": {"orders": [base_order("1111", "Example A", [{"step_id": "1111-1", "shares": 1, "limit_price": 100}])]},
+            "member_b": {"orders": [base_order("1111", "Example A", [{"step_id": "1111-1", "shares": 1, "limit_price": 100}]), base_order("2222", "Example B", [{"step_id": "2222-1", "shares": 1, "limit_price": 100}])]},
+        },
+    }
     assert strategy["status"] == "ACTIVE"
-    bandai = next(order for order in strategy["accounts"]["maho"]["orders"] if order["ticker"] == "7832")
-    assert bandai["target_shares"] == 200
-    assert bandai["household_target_after_completion"] == 300
     watchlist = strategy_watchlist(strategy)
     codes = [row["code"] for row in watchlist]
-    assert "4262" in codes
-    assert "2340" in codes
-    assert codes.count("8316") == 1
-    merged = merge_watchlists([{"code": "8316", "name": "SMFG", "volatility": "large"}], watchlist)
-    assert [row["code"] for row in merged].count("8316") == 1
+    assert codes == ["1111", "2222"]
+    merged = merge_watchlists([{"code": "1111", "name": "Example A", "volatility": "large"}], watchlist)
+    assert [row["code"] for row in merged].count("1111") == 1
 
 
 def test_limit_reached_is_purchase_ready_only_with_all_gates():
@@ -60,7 +57,7 @@ def test_limit_reached_is_purchase_ready_only_with_all_gates():
         "strategy_id": "TEST",
         "status": "ACTIVE",
         "accounts": {
-            "maho": {
+            "member_b": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [base_order("2340", "極楽湯HD", [{"step_id": "2340-1", "shares": 100, "limit_price": 510}])],
@@ -80,7 +77,7 @@ def test_earnings_wait_blocks_even_when_limit_is_reached():
         "strategy_id": "TEST",
         "status": "ACTIVE",
         "accounts": {
-            "hiro": {
+            "member_a": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [base_order(
@@ -103,7 +100,7 @@ def test_inactive_strategy_blocks_a_reached_order():
         "strategy_id": "TEST",
         "status": "ACTIVE_PENDING_REVALIDATION",
         "accounts": {
-            "maho": {
+            "member_b": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [base_order("2340", "極楽湯HD", [{"step_id": "2340-1", "shares": 100, "limit_price": 510}])],
@@ -121,7 +118,7 @@ def test_only_first_incomplete_step_can_be_ready():
         "strategy_id": "TEST",
         "status": "ACTIVE",
         "accounts": {
-            "maho": {
+            "member_b": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [base_order("7832", "バンダイナムコHD", [
@@ -144,7 +141,7 @@ def test_deferred_fy_decision_never_becomes_ready():
         "strategy_id": "TEST",
         "status": "ACTIVE",
         "accounts": {
-            "maho": {
+            "member_b": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [deferred],
@@ -162,7 +159,7 @@ def test_missing_hos_holding_blocks_dynamic_jt_share_rule():
         "strategy_id": "TEST",
         "status": "ACTIVE",
         "accounts": {
-            "hiro": {
+            "member_a": {
                 "target_budget_jpy_env": "TEST_BUDGET",
                 "buying_power_jpy_env": "TEST_BUYING_POWER",
                 "orders": [base_order(
@@ -179,3 +176,29 @@ def test_missing_hos_holding_blocks_dynamic_jt_share_rule():
     assert signal.status == "BLOCKED_AT_LIMIT"
     assert signal.shares is None
     assert "HOLDING_DATA_REQUIRED" in signal.blocks
+
+
+def test_registered_strategy_requires_complete_concentration_audit():
+    strategy = {
+        "strategy_id": "TEST", "status": "ACTIVE",
+        "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY"},
+        "household_goal": {"max_single_ticker_weight_hard": 0.10},
+        "accounts": {"member_a": {"target_budget_jpy_env": "TEST_BUDGET", "buying_power_jpy_env": "TEST_BUYING_POWER", "orders": [base_order("1111", "Example", [{"step_id": "1111-1", "shares": 10, "limit_price": 100}], target_shares=10)]}},
+    }
+    price = PriceRecord("1111", "Example", 100, 101, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], env=env_values())[0]
+    assert signal.actionability == "DRAFT"
+    assert "CONCENTRATION_AUDIT_REQUIRED" in signal.blocks
+
+
+def test_hard_concentration_limit_blocks_purchase_ready():
+    strategy = {
+        "strategy_id": "TEST", "status": "ACTIVE",
+        "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY"},
+        "household_goal": {"max_single_ticker_weight_hard": 0.10},
+        "accounts": {"member_a": {"target_budget_jpy_env": "TEST_BUDGET", "buying_power_jpy_env": "TEST_BUYING_POWER", "orders": [base_order("1111", "Example", [{"step_id": "1111-1", "shares": 20, "limit_price": 100}], target_shares=20)]}},
+    }
+    price = PriceRecord("1111", "Example", 100, 101, date.today(), "mock", "medium")
+    signal = evaluate_strategy(strategy, [price], policy={"current_financial_assets": 10_000}, env=env_values())[0]
+    assert signal.purchase_flag == "REVIEW_REQUIRED"
+    assert "CONCENTRATION_HARD_LIMIT:20.00%" in signal.blocks

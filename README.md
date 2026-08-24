@@ -34,7 +34,7 @@ Think First. Build Second.
 HOSは単なるチャットボットではなく、**HOS AI Company**という仮想企業として動作する個人OSです。
 
 ### Company Model
-- CEO（ひーちゃん）は、基本的に自ら専門作業を行わない。
+- HOS Orchestratorは、基本的に自ら専門作業を行わない。
 - CEOは、依頼整理、担当割当、品質判断、最終統合のみを担当する。
 - 各Agentは、明確に区切られた担当範囲を持つ独立した専門家として振る舞う。
 - Agentは、他Agentの担当範囲へ介入したり、他Agentの成果物を書き換えたりしない。
@@ -57,21 +57,15 @@ HOSは単なるチャットボットではなく、**HOS AI Company**という�
 
 ## GitHub Actions: Stock Watch
 
-`.github/workflows/stock-watch.yml` は、平日18:00頃（JST）に `skills/investment-agent/daily_stock_check.py` を実行するワークフローです。`workflow_dispatch` にも対応しているため、GitHub Actions画面から手動実行できます。
+`.github/workflows/stock-watch-diagnostic.yml` runs the production entrypoint
+`skills/investment-agent/stock_watch_runner.py`. It requires exactly two
+private delivery inputs: `DISCORD_WEBHOOK_URL` and
+`HOS_PRIVATE_PROFILE_JSON`. The latter contains all household targets,
+balances, holdings, strategy steps, and execution state.
 
-### セットアップ手順
-
-1. GitHubリポジトリの **Settings > Secrets and variables > Actions** を開きます。
-2. **New repository secret** から `DISCORD_WEBHOOK_URL` を追加し、DiscordのWebhook URLを登録します。
-3. `requirements.txt` に必要なPython依存関係が含まれていることを確認します。
-4. GitHubの **Actions > Stock Watch** を開き、必要に応じて **Run workflow** から手動実行します。
-
-### 実行内容
-
-- Python 3.12をセットアップします。
-- `requirements.txt` をインストールします。
-- `DISCORD_WEBHOOK_URL` を環境変数として渡し、`python skills/investment-agent/daily_stock_check.py` を実行します。
-- 実行ログは `logs/stock-watch.log` に保存し、ジョブの成功・失敗にかかわらず `stock-watch-logs` artifactとしてアップロードします。
+Public logs, GitHub Summary, artifacts, and commits contain only a value-free
+heartbeat. Details are rendered only to Discord. See
+[`docs/PRIVATE_PROFILE_SETUP.md`](docs/PRIVATE_PROFILE_SETUP.md).
 
 ## HOS v2 AI Company dry-run
 
@@ -114,19 +108,13 @@ Real AI execution uses `--executor openai` and requires `OPENAI_API_KEY`; it nev
 
 HOS AI Company can run against Google Gemini API without requiring OpenAI paid API usage. Use `--executor gemini`, set `GEMINI_API_KEY`, and prefer the 5-agent `investment_analysis_free` workflow for free-tier tests. Usage is written to `runs/<run_id>/usage.json`; quota exhaustion produces partial/failed results and never auto-switches to OpenAI or mock. See `docs/QUICKSTART_GEMINI_FREE.md`, `docs/SECURITY_AI_COMPANY.md`, and `docs/OPERATIONS_AI_COMPANY.md`.
 
-## Stock Watch V2
+## Stock Watch
 
-Stock Watch V2 converts the legacy daily drop/TOPIX comparison into a long-term buy-candidate monitor for the age-60 goal of ¥200,000,000 financial assets and ¥6,000,000 annual dividends. The runtime uses the existing free price/index fetchers and does not require paid AI APIs. Missing fundamentals, valuation, news, budget, or portfolio inputs are recorded as missing fields and block BUY decisions.
-
-Main configuration:
-
-- `skills/investment-agent/config/stock_watch_universe.json`: 40-symbol role-based universe, owned flags, limits, lots, and entry levels.
-- `skills/investment-agent/config/portfolio_policy.json`: goal, cash, budget, single-stock and sector limits, Discord thresholds.
-- `outputs/stock_watch_decisions.json`: per-symbol decision, score, hard blocks, freshness, and staged entry levels.
-- `outputs/stock_watch_summary.json`: status counts for Investment Commander.
-- `outputs/portfolio_goal_progress.json`: goal-progress bridge for Investment Commander / Dividend Empire.
-
-GitHub Pages settings edited in the browser are localStorage-only. To make them official for scheduled runs, copy the values into the JSON config files and commit them through a PR.
+Stock Watch is a long-term household portfolio monitor. Public configuration is
+non-actionable; the live strategy is private. Missing fundamentals, valuation,
+official-IR evidence, budget, cash-floor, holding reconciliation, or freshness
+data blocks purchases. `PURCHASE_READY` does not place an order, and HOS has no
+automatic buy or sell capability.
 
 ### Gemini structured-output smoke test
 
