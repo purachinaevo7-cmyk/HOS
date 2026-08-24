@@ -1,51 +1,121 @@
 {
   "version": 2,
-  "as_of": "YYYY-MM-DD",
+  "profile_kind": "example-only",
+  "notification_revision": "example-1",
+  "as_of": "2026-01-01",
+  "goals": {
+    "target_financial_assets_jpy": 10000000,
+    "target_annual_dividend_jpy": 300000,
+    "target_age": 60,
+    "target_date": "2045-12-31"
+  },
+  "accounts": {
+    "member_a": {
+      "display_name": "Member A",
+      "buying_power_jpy": 500000,
+      "strategy_budget_jpy": 500000,
+      "annual_stock_cap_jpy": 500000,
+      "taxable_gifts_ytd_jpy": 0,
+      "gift_tax_reviewed": false
+    },
+    "member_b": {
+      "display_name": "Member B",
+      "buying_power_jpy": 500000,
+      "strategy_budget_jpy": 500000,
+      "annual_stock_cap_jpy": 500000,
+      "taxable_gifts_ytd_jpy": 0,
+      "gift_tax_reviewed": false
+    }
+  },
   "balances": [
     {
-      "id": "maho_cash",
-      "owner": "maho",
+      "id": "member_a_cash",
+      "owner": "member_a",
       "category": "cash",
-      "value_jpy": null,
-      "verified": false,
+      "value_jpy": 1500000,
+      "verified": true,
       "include_in_financial_assets": true
     }
   ],
   "holdings": [
     {
-      "owner": "hiro",
-      "broker": "SBI証券",
+      "owner": "member_a",
+      "broker": "example_broker",
       "market": "JP",
+      "asset_type": "JP_STOCK",
       "ticker": "0000",
-      "name": "銘柄名",
-      "shares": 0,
-      "verified": true
+      "name": "Example Holding",
+      "shares": 100,
+      "verified": false
     }
   ],
   "cash_policy": {
-    "protected_cash_floor_jpy": 10000000,
-    "note": "current household cash is derived only from verified balances whose category is cash; broker buying power is never added here"
-  },
-  "buying_power": {
-    "maho_jpy": 0,
-    "hiro_jpy": 0,
-    "note": "actual broker buying power; separate from bank cash and financial-asset progress"
+    "protected_cash_floor_jpy": 1200000
   },
   "budgets": {
-    "monthly_stock_budget_remaining_jpy": 6000000,
-    "annual_stock_budget_remaining_jpy": 6000000,
-    "max_single_order_jpy": 2000000,
-    "target_investment_to_2027_03_jpy": 8500000,
-    "maho_2026_stock_cap_jpy": 6000000,
-    "maho_strategy_budget_jpy": 5300000,
-    "hiro_strategy_budget_jpy": 3200000
-  },
-  "transfers": {
-    "hiro_taxable_gifts_ytd_jpy": 0,
-    "hiro_gift_tax_reviewed": false,
-    "gift_tax_basic_deduction_jpy": 1100000
+    "monthly_stock_budget_remaining_jpy": 100000,
+    "annual_stock_budget_remaining_jpy": 500000,
+    "max_single_order_jpy": 100000,
+    "target_investment_jpy": 500000
   },
   "progress": {
-    "current_annual_dividend_jpy": null
-  }
+    "financial_assets_jpy": 2500000,
+    "financial_assets_verified": true
+  },
+  "dividend_forecasts": {
+    "0000": {
+      "source_type": "OFFICIAL_IR",
+      "source_verified": false,
+      "source_url": "https://example.invalid/ir",
+      "expires_on": "2026-12-31",
+      "currency": "JPY",
+      "ordinary_annual_per_share": null,
+      "special_annual_per_share": 0
+    }
+  },
+  "fx_rates": {},
+  "earnings_ir_sources": {
+    "0000": {
+      "url": "https://ir.example.invalid/earnings-normalized.json",
+      "official_host": "ir.example.invalid",
+      "official_source_verified": false,
+      "source_type": "OFFICIAL_IR"
+    }
+  },
+  "strategy": {
+    "strategy_id": "EXAMPLE_PRIVATE_STRATEGY",
+    "status": "DRAFT",
+    "purchase_authority": {
+      "mode": "REGISTERED_STRATEGY_ONLY",
+      "max_household_orders_per_day": 1,
+      "auto_order": false,
+      "auto_sell": false
+    },
+    "funding": {
+      "current_household_cash_jpy_env": "HOS_CURRENT_HOUSEHOLD_CASH_JPY",
+      "protected_cash_floor_jpy_env": "HOS_PROTECTED_CASH_FLOOR_JPY",
+      "target_investment_jpy_env": "HOS_TARGET_INVESTMENT_JPY",
+      "usd_jpy_planning_rate_env": "HOS_USDJPY_PLANNING_RATE"
+    },
+    "household_goal": {
+      "max_single_ticker_weight_warning": 0.05
+    },
+    "accounts": {
+      "member_a": {
+        "orders": []
+      },
+      "member_b": {
+        "orders": []
+      }
+    }
+  },
+  "earnings_assessments": {
+    "version": 1,
+    "reviews": {}
+  },
+  "replacement_reviews": {},
+  "simulation_assumptions": {
+    "annual_additional_investment_jpy": 300000
+  },
+  "notification_state": {}
 }

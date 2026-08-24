@@ -13,6 +13,7 @@ from typing import Any
 
 import daily_stock_check as legacy
 from discord_report import render_discord_report
+from household_runtime import account_env_key
 from notifier import ConsoleNotifier, DiscordNotifier, GitHubSummaryNotifier
 from purchase_authority import enforce_registered_strategy_only
 from stock_fetcher import FetchResult, fetch_market_data
@@ -36,7 +37,7 @@ from strategy_plan import (
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parents[1]
 DATA_DIR = BASE_DIR / "data" / "daily_prices"
-STRATEGY_PATH = BASE_DIR / "config" / "strategies" / "HOS_2026_FINAL_AGGRESSIVE_V2.json"
+STRATEGY_PATH = BASE_DIR / "config" / "strategies" / "strategy.example.json"
 EVENING = legacy.EVENING
 MORNING_RETRY = legacy.MORNING_RETRY
 
@@ -77,11 +78,10 @@ def _result_from_previous(previous: dict[str, Any], target_date: date) -> FetchR
 
 
 def _bind_private_account_secrets(strategy: dict[str, Any]) -> dict[str, Any]:
-    accounts = strategy.get("accounts", {})
-    if "maho" in accounts:
-        accounts["maho"]["buying_power_jpy_env"] = "HOS_MAHO_BUYING_POWER_JPY"
-    if "hiro" in accounts:
-        accounts["hiro"]["buying_power_jpy_env"] = "HOS_HIRO_BUYING_POWER_JPY"
+    for account_id, account in strategy.get("accounts", {}).items():
+        account["buying_power_jpy_env"] = account_env_key(str(account_id), "BUYING_POWER_JPY")
+        account["target_budget_jpy_env"] = account_env_key(str(account_id), "STRATEGY_BUDGET_JPY")
+        account["annual_stock_cap_jpy_env"] = account_env_key(str(account_id), "ANNUAL_STOCK_CAP_JPY")
     return strategy
 
 

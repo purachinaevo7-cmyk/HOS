@@ -106,7 +106,7 @@ def test_missing_operating_metrics_fail_closed():
 def test_strategy_is_enriched_but_original_fy_decision_is_preserved():
     strategy = {
         "accounts": {
-            "maho": {
+            "member_b": {
                 "orders": [
                     {
                         "ticker": "TEST",
@@ -119,11 +119,11 @@ def test_strategy_is_enriched_but_original_fy_decision_is_preserved():
     }
     book = {"reviews": {"TEST": good_snapshot()}}
     result = apply_earnings_assessments(strategy, book, as_of=date(2026, 8, 21))
-    order = result["accounts"]["maho"]["orders"][0]
+    order = result["accounts"]["member_b"]["orders"][0]
     assert order["fy2026_decision"] == "BUY_2026_CORE"
     assert order["earnings_reviewed_ok"] is True
     assert order["earnings_review_status"] == POSITIVE
-    assert strategy["accounts"]["maho"]["orders"][0].get("earnings_reviewed_ok") is None
+    assert strategy["accounts"]["member_b"]["orders"][0].get("earnings_reviewed_ok") is None
 
 
 def planner_strategy(snapshot):
@@ -133,7 +133,7 @@ def planner_strategy(snapshot):
         "household_goal": {"max_single_ticker_weight_warning": 0.05},
         "funding": {},
         "accounts": {
-            "maho": {
+            "member_b": {
                 "target_budget_jpy_env": "ACCOUNT_BUDGET",
                 "buying_power_jpy_env": "BUYING_POWER",
                 "orders": [
@@ -168,7 +168,7 @@ def planner_signal(strategy):
 def test_positive_earnings_can_clear_only_the_earnings_gate():
     strategy = planner_strategy(good_snapshot())
     signal = planner_signal(strategy)
-    assert strategy["accounts"]["maho"]["orders"][0]["earnings_review_status"] == POSITIVE
+    assert strategy["accounts"]["member_b"]["orders"][0]["earnings_review_status"] == POSITIVE
     assert "EARNINGS_REVIEW_REQUIRED" not in signal.blocks
     assert signal.purchase_flag == "PURCHASE_READY"
 

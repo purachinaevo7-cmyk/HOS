@@ -9,7 +9,7 @@ const OVERALL_DECISIONS=['æœ€å„ªå…ˆã§èª¿æŸ»','è³¼å…¥å€™è£œ','æ¡ä»¶ä»˜ãè³¼å…¥
 const INVESTMENT_ACTIONS=['ä»Šã™ãèª¿æŸ»','è²·å€¤åˆ°é”æ™‚ã«å†ç¢ºèª','æ±ºç®—å¾Œã«å†è©•ä¾¡','æ ªä¾¡èª¿æ•´å¾…ã¡','ç¶™ç¶šä¿æœ‰','æ–°è¦è³¼å…¥ã¯è¦‹é€ã‚Š','æƒ…å ±ä¸è¶³ã®ãŸã‚ä¿ç•™'];
 const RISKS=['æ¥­ç¸¾æ‚ªåŒ–','æ¸›é…æ‡¸å¿µ','å„ªå¾…å»ƒæ­¢æ‡¸å¿µ','å‰²é«˜','æ™¯æ°—æ•æ„Ÿ','å•†å“å¸‚æ³ä¾å­˜','é‡‘åˆ©å½±éŸ¿','ç‚ºæ›¿å½±éŸ¿','è¦åˆ¶ãƒªã‚¹ã‚¯','ç«¶äº‰æ¿€åŒ–','è²¡å‹™æ‚ªåŒ–','ã‚¬ãƒãƒŠãƒ³ã‚¹æ‡¸å¿µ','æ ªä¾¡æ€¥é¨°å¾Œ','æƒ…å ±ä¸è¶³','æ±ºç®—ç¢ºèªå‰','ãƒ†ãƒ¼ãƒéç†±','æµå‹•æ€§ä½ã„','ãã®ä»–'];
 const SCORE_MAX={dividend:15,shareholderReturn:10,growth:15,financialHealth:15,valuation:15,competitiveAdvantage:10,theme:10,priceLevel:5,userFit:5};
-const SCORE_LABELS={dividend:'é…å½“é­…åŠ›',shareholderReturn:'å¢—é…ãƒ»é‚„å…ƒå§¿å‹¢',growth:'åˆ©ç›Šæˆé•·æ€§',financialHealth:'è²¡å‹™å¥å…¨æ€§',valuation:'å‰²å®‰åº¦',competitiveAdvantage:'ç«¶äº‰å„ªä½æ€§',theme:'æŠ•è³‡ãƒ†ãƒ¼ãƒ',priceLevel:'æ ªä¾¡æ°´æº–',userFit:'ã²ã‚ã¡ã‚ƒã‚“ã¨ã®ç›¸æ€§'};
+const SCORE_LABELS={dividend:'é…å½“é­…åŠ›',shareholderReturn:'å¢—é…ãƒ»é‚„å…ƒå§¿å‹¢',growth:'åˆ©ç›Šæˆé•·æ€§',financialHealth:'è²¡å‹™å¥å…¨æ€§',valuation:'å‰²å®‰åº¦',competitiveAdvantage:'ç«¶äº‰å„ªä½æ€§',theme:'æŠ•è³‡ãƒ†ãƒ¼ãƒ',priceLevel:'æ ªä¾¡æ°´æº–',userFit:'ä¸–å¸¯æ–¹é‡ã¨ã®é©åˆ'};
 function n(v){return v===''||v==null?null:Number(v)} function arr(v){return Array.isArray(v)?v:(v?String(v).split(/[;ã€|]/).map(s=>s.trim()).filter(Boolean):[])}
 function yen(v){return v==null||Number.isNaN(v)?'æœªå–å¾—':Number(v).toLocaleString('ja-JP')} function pct(v){return v==null||Number.isNaN(v)?'æœªå–å¾—':`${Number(v).toFixed(1)}%`} function txt(v){return v==null||v===''?'æœªå–å¾—':String(v)}
 function today(){return new Date().toISOString().slice(0,10)}
@@ -53,89 +53,221 @@ function loadStocks(){try{icLastLoadError=''; const raw=JSON.parse(localStorage.
 function upsertStocks(incoming,mode='update'){const stocks=loadStocks(); incoming.forEach(ns=>{if(!ns.code)return; const i=stocks.findIndex(s=>s.code===ns.code); if(i<0)stocks.push(ns); else if(mode==='history')stocks[i].analysisHistory=[...(stocks[i].analysisHistory||[]),...(ns.analysisHistory?.length?ns.analysisHistory:[{analysisDate:ns.lastAnalyzedAt||today(),title:'JSONè¿½åŠ åˆ†æ',summary:ns.decision.investmentReasons.join(' / '),hiScore:ns.hiScore,judgement:ns.judgement,currentPrice:ns.marketData.price,targetPrice:ns.decision.targetPrice,mainRisk:ns.decision.mainRisk}])]; else if(mode==='update')stocks[i]={...stocks[i],...ns,analysisHistory:[...(stocks[i].analysisHistory||[]),...(ns.analysisHistory||[])]};}); saveStocks(stocks); return stocks}
 function parseJsonInput(text){const ok=[],errors=[]; try{const root=JSON.parse(text); (Array.isArray(root)?root:(root.stocks||(root.code?[root]:[]))).forEach((x,i)=>{try{const s=normalizeStock(x); if(!s.code)throw Error('éŠ˜æŸ„ã‚³ãƒ¼ãƒ‰ãªã—'); ok.push(s)}catch(e){errors.push(`${i+1}: ${e.message}`)}})}catch(e){const chunks=text.split(/\n(?=\s*\{)/); chunks.forEach((c,i)=>{try{ok.push(normalizeStock(JSON.parse(c)))}catch(err){errors.push(`${i+1}: ä¸æ­£JSON`)}})} return {ok,errors}}
 function parseCSV(text){const lines=text.trim().split(/\r?\n/); const head=lines.shift().split(',').map(h=>h.trim()); const ok=[],errors=[]; lines.forEach((line,i)=>{try{const cols=line.split(','); const obj={}; head.forEach((h,j)=>obj[h]=cols[j]); const s=normalizeStock(obj); if(!s.code)throw Error('éŠ˜æŸ„ã‚³ãƒ¼ãƒ‰ãªã—'); ok.push(s)}catch(e){errors.push(`${i+2}: ${e.message}`)}}); return {ok,errors}}
-function toCSV(stocks){const head=['éŠ˜æŸ„ã‚³ãƒ¼ãƒ‰','éŠ˜æŸ„å','å¸‚å ´','æ¥­ç¨®','ç¾åœ¨æ ªä¾¡','æ ªä¾¡å¯¾è±¡æ—¥','å¸Œæœ›æ ªä¾¡','HIã‚¹ã‚³ã‚¢','åˆ¤å®š','ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹','è³¼å…¥å„ªå…ˆåº¦','é…å½“åˆ©å›ã‚Š','PER','PBR','ROE','æŠ•è³‡ãƒ†ãƒ¼ãƒ','ä¸»ãªæŠ•è³‡ç†ç”±','æœ€å¤§ã®ãƒªã‚¹ã‚¯','æœ€çµ‚åˆ†ææ—¥','æ¬¡å›è¦‹ç›´ã—æ—¥']; const rows=stocks.map(s=>[s.code,s.name,s.market,s.sector,s.marketData.price,s.marketData.priceDate,s.decision.targetPrice,s.hiScore,s.judgement,s.decision.status,s.decision.priority,s.marketData.dividendYield,s.marketData.per,s.marketData.pbr,s.marketData.roe,s.themes.join('|'),s.decision.investmentReasons.join('|'),s.decision.mainRisk,s.lastAnalyzedAt,s.nextReviewAt].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')); return [head.join(','),...rows].join('\n')}
-function filterStocks(stocks,f={}){return stocks.filter(s=>{const hay=`${s.code} ${s.name} ${s.sector} ${s.themes.join(' ')} ${s.investmentPurposes.join(' ')} ${s.riskFlags.join(' ')}`.toLowerCase(); if(f.q&&!hay.includes(f.q.toLowerCase()))return false; if(f.theme&&!s.themes.includes(f.theme))return false; if(f.status&&s.decision.status!==f.status)return false; if(f.risk&& !s.riskFlags.includes(f.risk))return false; if(f.purpose&&!s.investmentPurposes.includes(f.purpose))return false; if(f.companyRank&&s.companyEvaluation.rank!==f.companyRank)return false; if(f.priceRank&&s.priceEvaluation.rank!==f.priceRank)return false; if(f.overallDecision&&s.overallEvaluation.decision!==f.overallDecision)return false; if(f.minCompanyScore&&s.companyEvaluation.score<Number(f.minCompanyScore))return false; if(f.minPriceScore&&s.priceEvaluation.score<Number(f.minPriceScore))return false; if(f.minOverallScore&&s.overallEvaluation.score<Number(f.minOverallScore))return false; if(f.nextReviewBefore&&(!s.nextReviewAt||s.nextReviewAt>f.nextReviewBefore))return false; const d=analysisDiff(s); if(f.changed&&!d)return false; if(f.up&&(!d||d.hiScoreChange<=0))return false; if(f.down&&(!d||d.hiScoreChange>=0))return false; return true})}
-function rankStocks(stocks,key='hiScore'){return [...stocks].sort((a,b)=>{const val=s=>key==='targetDiffRate'?targetDiffRate(s):key==='priority'?({'é«˜':3,'ä¸­':2,'ä½':1}[s.decision.priority]||0):key.includes('.')?key.split('.').reduce((o,k)=>o?.[k],s):s[key]; return (val(b)??-999999)-(val(a)??-999999)})}
-function specialRanking(name,stocks){if(name==='ä¼šç¤¾è©•ä¾¡ãƒ©ãƒ³ã‚­ãƒ³ã‚°')return rankStocks(stocks,'companyEvaluation.score'); if(name==='æ ªä¾¡é­…åŠ›ãƒ©ãƒ³ã‚­ãƒ³ã‚°')return rankStocks(stocks,'priceEvaluation.score'); if(name==='ç·åˆå€™è£œãƒ©ãƒ³ã‚­ãƒ³ã‚°')return rankStocks(stocks,'overallEvaluation.score'); if(name==='è‰¯ã„ä¼šç¤¾ã ãŒè²·å€¤å¾…ã¡')return stocks.filter(s=>['S','A'].includes(s.companyEvaluation.rank)&&['ã‚„ã‚„å‰²é«˜','å‰²é«˜'].includes(s.priceEvaluation.rank)&&['è²·å€¤å¾…ã¡','æ±ºç®—ç¢ºèªå¾…ã¡'].includes(s.overallEvaluation.decision)); if(name==='ä¼šç¤¾ã¯æ™®é€šã ãŒæ ªä¾¡å¦™å‘³ã‚ã‚Š')return stocks.filter(s=>['B','C'].includes(s.companyEvaluation.rank)&&['å‰²å®‰','ã‚„ã‚„å‰²å®‰'].includes(s.priceEvaluation.rank)&&s.riskFlags.length).sort((a,b)=>(b.companyEvaluation.score+b.priceEvaluation.score/2)-(a.companyEvaluation.score+a.priceEvaluation.score/2)); return []}
-function preset(name,stocks){if(name==='ä»Šã™ãè¦‹ã‚‹')return stocks.filter(s=>['ä»Šé€±ã®å€™è£œ','æœ€å„ªå…ˆèª¿æŸ»'].includes(s.decision.status)||['å¸Œæœ›æ ªä¾¡åˆ°é”','ç›®å‰'].includes(targetStatus(s))||overdue(s)); if(name==='é…å½“å€™è£œ')return stocks.filter(s=>(s.investmentPurposes.includes('é…å½“')||s.investmentPurposes.includes('å¢—é…'))&&(s.scores.dividend>=10)&&!s.riskFlags.includes('æ¸›é…æ‡¸å¿µ')); if(name==='æˆé•·å€™è£œ')return stocks.filter(s=>(s.investmentPurposes.includes('æˆé•·')||s.investmentPurposes.includes('ãƒ†ãƒ¼ãƒæŠ•è³‡'))&&s.scores.growth>=10); if(name==='æš´è½æ‹¾ã„å€™è£œ')return stocks.filter(s=>s.investmentPurposes.includes('æš´è½æ‹¾ã„')&&(targetDiffRate(s)??99)<=10&&!s.riskFlags.includes('æ¥­ç¸¾æ‚ªåŒ–')); if(name==='å„ªå¾…å€™è£œ')return stocks.filter(s=>s.investmentPurposes.includes('å„ªå¾…')&&!s.riskFlags.includes('å„ªå¾…å»ƒæ­¢æ‡¸å¿µ')); if(name==='é•·æœŸä¿æœ‰å€™è£œ')return stocks.filter(s=>s.investmentPurposes.includes('é•·æœŸä¿æœ‰')&&s.scores.competitiveAdvantage>=7&&s.scores.financialHealth>=10); return stocks}
-function renderIC(){const root=document.getElementById('icApp'); if(!root)return; const stocks=loadStocks(); const params=new URLSearchParams(location.search); const selected=stocks.find(s=>s.code===params.get('stock')); const list=filterStocks(stocks,{q:document.getElementById('icSearch')?.value||'',theme:params.get('theme')||'',companyRank:document.getElementById('icCompanyRank')?.value||'',priceRank:document.getElementById('icPriceRank')?.value||'',overallDecision:document.getElementById('icOverallDecision')?.value||'',minCompanyScore:document.getElementById('icMinCompanyScore')?.value||'',minPriceScore:document.getElementById('icMinPriceScore')?.value||'',minOverallScore:document.getElementById('icMinOverallScore')?.value||'',nextReviewBefore:document.getElementById('icNextReviewBefore')?.value||'',changed:document.getElementById('icChanged')?.checked||false,up:document.getElementById('icUp')?.checked||false,down:document.getElementById('icDown')?.checked||false}); root.innerHTML=`<section class="ic-hero"><p class="eyebrow">Investment Commander</p><h2>ã²ã‚ã¡ã‚ƒã‚“æŠ•è³‡å‚è¬€</h2><p>ã²ãƒ¼ã¡ã‚ƒã‚“ãŒåˆ†æã—ãŸéŠ˜æŸ„ã ã‘ã‚’è“„ç©ã™ã‚‹ã€ã²ã‚ã¡ã‚ƒã‚“å°‚ç”¨æŠ•è³‡åˆ¤æ–­OS</p></section>${stocks.length?renderTop(stocks)+renderControls(list)+renderDetail(selected||list[0],stocks)+renderImport():renderEmpty()+renderImport()}<p class="ic-disclaimer">æœ¬æ©Ÿèƒ½ã¯ã€ChatGPTç­‰ã§åˆ†æã—ãŸæƒ…å ±ã‚’æ•´ç†ãƒ»è“„ç©ã™ã‚‹ãŸã‚ã®æŠ•è³‡åˆ¤æ–­æ”¯æ´ãƒ„ãƒ¼ãƒ«ã§ã™ã€‚è¡¨ç¤ºã•ã‚Œã‚‹ã‚¹ã‚³ã‚¢ã€ãƒ©ãƒ³ã‚­ãƒ³ã‚°ã€åˆ¤å®šã¯å°†æ¥ã®æ ªä¾¡ä¸Šæ˜‡ã‚„é…å½“ã‚’ä¿è¨¼ã™ã‚‹ã‚‚ã®ã§ã¯ã‚ã‚Šã¾ã›ã‚“ã€‚å®Ÿéš›ã®æŠ•è³‡åˆ¤æ–­ã§ã¯ã€æœ€æ–°ã®æ±ºç®—è³‡æ–™ã€é©æ™‚é–‹ç¤ºã€å¸‚å ´ç’°å¢ƒã€ä¼æ¥­å›ºæœ‰ã®ãƒªã‚¹ã‚¯ã‚’ç¢ºèªã—ã¦ãã ã•ã„ã€‚</p>`; bindIC()}
-function renderEmpty(){const err=icLastLoadError?`<p class="ic-risk">ä¿å­˜æ¸ˆã¿éŠ˜æŸ„ãƒ‡ãƒ¼ã‚¿ã®èª­è¾¼ã‚¨ãƒ©ãƒ¼: ${txt(icLastLoadError)}ã€‚localStorage ã® ${IC_KEY} ã¯å‰Šé™¤ã›ãšã€JSONãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ã¾ãŸã¯ãƒ–ãƒ©ã‚¦ã‚¶é–‹ç™ºè€…ãƒ„ãƒ¼ãƒ«ã§å†…å®¹ã‚’ç¢ºèªã—ã¦ãã ã•ã„ã€‚</p>`:`<p class="ic-risk">ç™»éŒ²éŠ˜æŸ„ãŒ0ä»¶ã§ã™ã€‚ä¿å­˜å…ˆã¯ãƒ–ãƒ©ã‚¦ã‚¶ localStorage ã® ${IC_KEY} ã§ã™ã€‚ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹ã¯ãšã®å ´åˆã¯ã€åˆ¥ãƒ–ãƒ©ã‚¦ã‚¶ãƒ»åˆ¥URLãƒ»ã‚·ãƒ¼ã‚¯ãƒ¬ãƒƒãƒˆãƒ¢ãƒ¼ãƒ‰ã§é–‹ã„ã¦ã„ãªã„ã‹ç¢ºèªã—ã¦ãã ã•ã„ã€‚</p>`; return `<section class="ic-panel"><h3>Investment Commanderã«è¡¨ç¤ºã§ãã‚‹éŠ˜æŸ„ãŒã‚ã‚Šã¾ã›ã‚“ã€‚</h3>${err}<p>ChatGPTãŒä½œæˆã—ãŸJSONã‚’èª­ã¿è¾¼ã‚€ã‹ã€éŠ˜æŸ„ã‚’æ‰‹å‹•ç™»éŒ²ã—ã¦ãã ã•ã„ã€‚</p><div class="ic-demo">ãƒ‡ãƒ¢: JSON/CSVå…¥åŠ›ã€ç°¡å˜ç™»éŒ²ã€HIã‚¹ã‚³ã‚¢ã€æ¯”è¼ƒã€ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ã‚’ã“ã®ç”»é¢ã§æ“ä½œã§ãã¾ã™ã€‚æ¶ç©ºã®æ ªä¾¡ãƒ‡ãƒ¼ã‚¿ã¯ç™»éŒ²ã—ã¦ã„ã¾ã›ã‚“ã€‚</div></section>`}
-function renderTop(stocks){const top=rankStocks(stocks,'hiScore').slice(0,3); const nearest=rankStocks(stocks,'targetDiffRate').reverse()[0]; const old=[...stocks].sort((a,b)=>String(a.lastAnalyzedAt).localeCompare(String(b.lastAnalyzedAt)))[0]; return `<section class="ic-panel"><h3>ä»Šé€±ã®3éŠ˜æŸ„</h3><div class="ic-cardgrid">${top.map((s,i)=>card(s,i+1)).join('')}</div></section>${renderRankings(stocks)}<section class="ic-panel"><h3>æ¬¡ã®ä¸€æ‰‹</h3><div class="ic-actions">${[['æœ€ã‚‚å„ªå…ˆåº¦ãŒé«˜ã„éŠ˜æŸ„',top[0],'HIã‚¹ã‚³ã‚¢ä¸Šä½'],['å¸Œæœ›æ ªä¾¡ã«æœ€ã‚‚è¿‘ã„éŠ˜æŸ„',nearest,'å·®ç‡ãŒå°ã•ã„'],['é…å½“è©•ä¾¡ãŒæœ€ã‚‚é«˜ã„éŠ˜æŸ„',rankStocks(stocks,'scores.dividend')[0],'é…å½“é­…åŠ›ã‚¹ã‚³ã‚¢ä¸Šä½'],['æˆé•·è©•ä¾¡ãŒæœ€ã‚‚é«˜ã„éŠ˜æŸ„',rankStocks(stocks,'scores.growth')[0],'åˆ©ç›Šæˆé•·æ€§ã‚¹ã‚³ã‚¢ä¸Šä½'],['ãƒªã‚¹ã‚¯ç¢ºèªãŒå¿…è¦ãªéŠ˜æŸ„',stocks.find(s=>s.riskFlags.length),'ãƒªã‚¹ã‚¯ãƒ•ãƒ©ã‚°ã‚ã‚Š'],['åˆ†ææ—¥ãŒå¤ã„éŠ˜æŸ„',old,'æœ€çµ‚åˆ†ææ—¥ãŒå¤ã„'],['æ¬¡å›è¦‹ç›´ã—æ—¥ã‚’éããŸéŠ˜æŸ„',stocks.find(s=>overdue(s)),'è¦‹ç›´ã—æœŸé™è¶…é']].map(a=>`<p><b>${a[0]}:</b> ${a[1]?`${a[1].code} ${a[1].name} â€” ${a[2]}`:'è©²å½“ãªã—'}</p>`).join('')}</div><h3>ãƒ†ãƒ¼ãƒåˆ¥ã‚·ãƒ§ãƒ¼ãƒˆã‚«ãƒƒãƒˆ</h3><div class="ic-themes">${THEMES.map(t=>`<a href="investment.html?theme=${encodeURIComponent(t)}">${t}</a>`).join('')}</div></section>`}
-function card(s,i){return `<article class="ic-stock"><b>${i?`#${i} `:''}${s.code} ${s.name}</b><span class="ic-score">ç·åˆ ${s.overallEvaluation.score} / HI ${s.hiScore}</span><div class="ic-evals"><span>ä¼šç¤¾è©•ä¾¡ï¼š${txt(s.companyEvaluation.rank)}</span><span>æ ªä¾¡è©•ä¾¡ï¼š${txt(s.priceEvaluation.rank)}</span><span>ç·åˆåˆ¤æ–­ï¼š${txt(s.overallEvaluation.decision)}</span></div><p>ç¾åœ¨æ ªä¾¡ï¼š${yen(s.marketData.price)} / å¸Œæœ›æ ªä¾¡ï¼š${yen(s.decision.targetPrice)} / å·®ç‡ï¼š${pct(targetDiffRate(s))}</p><p>ç†ç”±: ${txt(s.decision.investmentReasons[0])}</p><p>æœ€å¤§ãƒªã‚¹ã‚¯: ${txt(s.decision.mainRisk)}</p><p>æ¬¡å›è¦‹ç›´ã—æ—¥ ${txt(s.nextReviewAt)}</p>${s.riskFlags.length?`<p class="ic-risk">ãƒªã‚¹ã‚¯: ${s.riskFlags.join('ã€')}</p>`:''}<a href="investment.html?stock=${s.code}">è©³ç´°</a></article>`}
-function renderRankings(stocks){const names=['ä¼šç¤¾è©•ä¾¡ãƒ©ãƒ³ã‚­ãƒ³ã‚°','æ ªä¾¡é­…åŠ›ãƒ©ãƒ³ã‚­ãƒ³ã‚°','ç·åˆå€™è£œãƒ©ãƒ³ã‚­ãƒ³ã‚°','è‰¯ã„ä¼šç¤¾ã ãŒè²·å€¤å¾…ã¡','ä¼šç¤¾ã¯æ™®é€šã ãŒæ ªä¾¡å¦™å‘³ã‚ã‚Š']; return `<section class="ic-panel"><h3>è©•ä¾¡ãƒ©ãƒ³ã‚­ãƒ³ã‚°</h3><div class="ic-rankgrid">${names.map(n=>`<div><h4>${n}</h4>${specialRanking(n,stocks).slice(0,5).map((s,i)=>`<p><b>${i+1}. ${s.code} ${s.name}</b><br>ä¼šç¤¾ ${s.companyEvaluation.rank}(${s.companyEvaluation.score}) / æ ªä¾¡ ${s.priceEvaluation.rank}(${s.priceEvaluation.score}) / ç·åˆ ${s.overallEvaluation.score}</p>`).join('')||'<p>è©²å½“ãªã—</p>'}</div>`).join('')}</div></section>`}
-function renderControls(list){return `<section class="ic-panel"><h3>éŠ˜æŸ„ä¸€è¦§ãƒ»æ¤œç´¢</h3><div class="ic-filters"><input id="icSearch" class="filter-input" placeholder="éŠ˜æŸ„åãƒ»ã‚³ãƒ¼ãƒ‰ãƒ»æ¥­ç¨®ãƒ»ãƒ†ãƒ¼ãƒãƒ»ç›®çš„ãƒ»ãƒªã‚¹ã‚¯ã§æ¤œç´¢"><select id="icCompanyRank"><option value="">ä¼šç¤¾è©•ä¾¡ãƒ©ãƒ³ã‚¯</option>${COMPANY_RANKS.map(x=>`<option>${x}</option>`).join('')}</select><select id="icPriceRank"><option value="">æ ªä¾¡è©•ä¾¡</option>${PRICE_RANKS.map(x=>`<option>${x}</option>`).join('')}</select><select id="icOverallDecision"><option value="">ç·åˆåˆ¤æ–­</option>${OVERALL_DECISIONS.map(x=>`<option>${x}</option>`).join('')}</select><input id="icMinCompanyScore" type="number" min="0" max="100" placeholder="ä¼šç¤¾è©•ä¾¡ã‚¹ã‚³ã‚¢ä»¥ä¸Š"><input id="icMinPriceScore" type="number" min="0" max="100" placeholder="æ ªä¾¡è©•ä¾¡ã‚¹ã‚³ã‚¢ä»¥ä¸Š"><input id="icMinOverallScore" type="number" min="0" max="100" placeholder="ç·åˆã‚¹ã‚³ã‚¢ä»¥ä¸Š"><input id="icNextReviewBefore" type="date" title="æ¬¡å›è¦‹ç›´ã—æ—¥ä»¥å‰"></div><div class="ic-checks"><label><input id="icChanged" type="checkbox">è©•ä¾¡å¤‰æ›´ã‚ã‚Š</label><label><input id="icUp" type="checkbox">å‰å›ã‚ˆã‚Šè©•ä¾¡ä¸Šæ˜‡</label><label><input id="icDown" type="checkbox">å‰å›ã‚ˆã‚Šè©•ä¾¡ä½ä¸‹</label></div><button id="icCsvOut">CSVæ›¸ãå‡ºã—</button><div class="ic-list">${list.map(s=>card(s,'')).join('')}</div></section>`}
-function renderDetail(s,stocks){if(!s)return ''; const d=analysisDiff(s); const compare=['companyEvaluation.rank','priceEvaluation.rank','overallEvaluation.decision','marketData.price','decision.targetPrice','hiScore','marketData.dividendYield','marketData.per','marketData.pbr','marketData.roe','companyEvaluation.growth','companyEvaluation.financialHealth','companyEvaluation.competitiveAdvantage','decision.mainRisk','nextReviewAt']; return `<section class="ic-panel"><h3>éŠ˜æŸ„è©³ç´°: ${s.code} ${s.name}</h3><div class="ic-detail"><div class="mobile-first"><h4>ç·åˆåˆ¤æ–­</h4><p>${txt(s.overallEvaluation.decision)} / è¡Œå‹•: ${txt(s.overallEvaluation.action)} / ç·åˆ ${s.overallEvaluation.score}</p></div><div><h4>ä¼šç¤¾è©•ä¾¡</h4><p>${txt(s.companyEvaluation.rank)} (${s.companyEvaluation.score}) ${txt(s.companyEvaluation.comment)}</p></div><div><h4>æ ªä¾¡è©•ä¾¡</h4><p>${txt(s.priceEvaluation.rank)} (${s.priceEvaluation.score}) ${txt(s.priceEvaluation.comment)}</p><p>ç¾åœ¨ ${yen(s.marketData.price)} / å¸Œæœ› ${yen(s.decision.targetPrice)}</p></div><div><h4>æŠ•è³‡ç†ç”±ãƒ»ãƒªã‚¹ã‚¯</h4><p>ç†ç”±: ${s.decision.investmentReasons.join('ã€')||'æœªç™»éŒ²'}</p><p>æœ€å¤§ãƒªã‚¹ã‚¯: ${txt(s.decision.mainRisk)}</p><p>æ¬¡å›ç¢ºèª: ${s.decision.watchPoints.join('ã€')||'æœªç™»éŒ²'} / ${txt(s.nextReviewAt)}</p></div><div><h4>å¸‚å ´ãƒ‡ãƒ¼ã‚¿</h4><p>PER ${txt(s.marketData.per)} / PBR ${txt(s.marketData.pbr)} / ROE ${txt(s.marketData.roe)} / é…å½“ ${pct(s.marketData.dividendYield)} / ç¢ºèªæ—¥ ${txt(s.marketData.priceDate)}</p></div><div><h4>HIã‚¹ã‚³ã‚¢</h4>${Object.keys(SCORE_MAX).map(k=>`<label>${SCORE_LABELS[k]} ${s.scores[k]}/${SCORE_MAX[k]}<meter max="${SCORE_MAX[k]}" value="${s.scores[k]}"></meter></label>`).join('')}</div><div><h4>å‰å›æ¯”è¼ƒ</h4>${d?`<p>ä¼šç¤¾è©•ä¾¡: ${d.companyChange} / æ ªä¾¡è©•ä¾¡: ${d.priceChange} / ç·åˆåˆ¤æ–­: ${d.decisionChange}</p><p>HIã‚¹ã‚³ã‚¢å¤‰åŒ–: ${d.hiScoreChange} / å¸Œæœ›æ ªä¾¡å¤‰åŒ–: ${yen(d.targetPriceChange)}</p><p>å¤‰æ›´ç†ç”±: ${txt(d.changeReason)}</p>`:'<p>æ¯”è¼ƒã§ãã‚‹å‰å›åˆ†æãŒã‚ã‚Šã¾ã›ã‚“ã€‚</p>'}</div><div><h4>åˆ†æå±¥æ­´</h4>${latestHistory(s).map(h=>`<p><b>${txt(h.analysisDate)}</b> ${txt(h.overallDecision||h.title)} / ä¼šç¤¾ ${txt(h.companyRank)} / æ ªä¾¡ ${txt(h.priceRank)} / ${txt(h.changeReason||h.summary)}</p>`).join('')||'æœªç™»éŒ²'}</div></div><h4>2ã€œ5éŠ˜æŸ„æ¯”è¼ƒ</h4><div class="table-wrap"><table class="ic-table"><tr><th>é …ç›®</th>${stocks.slice(0,5).map(x=>`<th>${x.code}</th>`).join('')}</tr>${compare.map(k=>`<tr><td>${k}</td>${stocks.slice(0,5).map(x=>`<td>${txt(k.split('.').reduce((o,p)=>o?.[p],x))}</td>`).join('')}</tr>`).join('')}</table></div></section>`}
-function renderImport(){return `<section class="ic-panel"><h3>ç™»éŒ²ãƒ»å…¥åŠ›</h3><textarea id="icInput" class="inputbox" placeholder="JSONã¾ãŸã¯CSVã‚’è²¼ã‚Šä»˜ã‘"></textarea><div><button id="icJsonPreview">JSONãƒ—ãƒ¬ãƒ“ãƒ¥ãƒ¼</button><button id="icJsonImport">JSONç™»éŒ²</button><button id="icCsvImport">CSVç™»éŒ²</button><button id="icManual">ç°¡å˜ç™»éŒ²</button><button id="icBackup">JSONãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—</button><button id="icRestore">JSONå¾©å…ƒ</button><button id="icClear">å…¨ãƒ‡ãƒ¼ã‚¿å‰Šé™¤</button></div><pre id="icResult"></pre></section>`}
-function bindIC(){document.getElementById('icSearch')?.addEventListener('input',renderIC); ['icCompanyRank','icPriceRank','icOverallDecision','icMinCompanyScore','icMinPriceScore','icMinOverallScore','icNextReviewBefore','icChanged','icUp','icDown'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderIC)); document.getElementById('icJsonPreview')?.addEventListener('click',()=>{const r=parseJsonInput(document.getElementById('icInput').value); document.getElementById('icResult').textContent=`æ­£å¸¸ ${r.ok.length}ä»¶ / ã‚¨ãƒ©ãƒ¼ ${r.errors.join('; ')}`}); document.getElementById('icJsonImport')?.addEventListener('click',()=>{const r=parseJsonInput(document.getElementById('icInput').value); upsertStocks(r.ok,'update'); renderIC()}); document.getElementById('icCsvImport')?.addEventListener('click',()=>{const r=parseCSV(document.getElementById('icInput').value); upsertStocks(r.ok,'update'); renderIC()}); document.getElementById('icCsvOut')?.addEventListener('click',()=>{document.getElementById('icInput').value=toCSV(loadStocks())}); document.getElementById('icBackup')?.addEventListener('click',()=>{localStorage.setItem(IC_META_KEY,JSON.stringify({lastBackupAt:new Date().toISOString()})); document.getElementById('icInput').value=JSON.stringify({app:'Investment Commander',version:1,stocks:loadStocks()},null,2)}); document.getElementById('icRestore')?.addEventListener('click',()=>{const r=parseJsonInput(document.getElementById('icInput').value); const out=document.getElementById('icResult'); if(!r.ok.length){if(out)out.textContent=`å¾©å…ƒä¸­æ­¢: æ­£å¸¸ãƒ‡ãƒ¼ã‚¿0ä»¶ / ã‚¨ãƒ©ãƒ¼ ${r.errors.join('; ')||'å…¥åŠ›ãªã—'}`; return;} saveStocks(r.ok); localStorage.setItem(IC_META_KEY,JSON.stringify({lastRestoreAt:new Date().toISOString()})); renderIC()}); document.getElementById('icClear')?.addEventListener('click',()=>{if(typeof confirm==='function'&&!confirm('Investment Commanderã®ç™»éŒ²éŠ˜æŸ„ã‚’å…¨å‰Šé™¤ã—ã¾ã™ã€‚å…ˆã«JSONãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ã‚’å–å¾—ã—ã¦ãã ã•ã„ã€‚ç¶šè¡Œã—ã¾ã™ã‹ï¼Ÿ'))return; localStorage.removeItem(IC_KEY); renderIC()}); document.getElementById('icManual')?.addEventListener('click',()=>{const code=prompt('éŠ˜æŸ„ã‚³ãƒ¼ãƒ‰'); if(!code)return; upsertStocks([normalizeStock({code,name:prompt('éŠ˜æŸ„å')||'',marketData:{price:n(prompt('ç¾åœ¨æ ªä¾¡'))},decision:{targetPrice:n(prompt('å¸Œæœ›æ ªä¾¡')),investmentReasons:[prompt('ä¸»ãªæŠ•è³‡ç†ç”±')||''],mainRisk:prompt('æœ€å¤§ã®ãƒªã‚¹ã‚¯')||''},hiScore:n(prompt('HIã‚¹ã‚³ã‚¢')),lastAnalyzedAt:prompt('æœ€çµ‚åˆ†ææ—¥')||'',nextReviewAt:prompt('æ¬¡å›è¦‹ç›´ã—æ—¥')||''})]); renderIC()})}
-if(typeof document!=='undefined')document.addEventListener('DOMContentLoaded',renderIC); if(typeof module!=='undefined')module.exports={totalScore,autoDecision,targetDiff,targetDiffRate,targetStatus,overdue,normalizeStock,parseJsonInput,parseCSV,toCSV,filterStocks,rankStocks,preset,upsertStocks,loadStocks,saveStocks,IC_KEY,calcOverallScore,analysisDiff,specialRanking,COMPANY_RANKS,PRICE_RANKS,OVERALL_DECISIONS};
-
-// Freshness / ChatGPT reanalysis extension
-const IC_CANDIDATES_KEY='hosInvestmentCommander.reanalysisCandidates.v1';
-const IC_WEEKLY_KEY='hosInvestmentCommander.weeklyRecommendations.v1';
-const IC_WEEKLY_HISTORY_KEY='hosInvestmentCommander.weeklyRecommendationsHistory.v1';
-const IC_SETTINGS_KEY='hosInvestmentCommander.freshnessSettings.v1';
-const REVIEW_TRIGGERS=['æ¬¡å›æ±ºç®—','æ¥­ç¸¾äºˆæƒ³ä¿®æ­£','å¢—é…ãƒ»æ¸›é…','æ ªä¸»é‚„å…ƒæ–¹é‡å¤‰æ›´','æ ªä¾¡10ï¼…å¤‰å‹•','æ ªä¾¡15ï¼…å¤‰å‹•','æ ªä¾¡20ï¼…å¤‰å‹•','å¸Œæœ›æ ªä¾¡åˆ°é”','52é€±é«˜å€¤æ›´æ–°','52é€±å®‰å€¤æ›´æ–°','å¤§å‹æŠ•è³‡ç™ºè¡¨','M&A','å¢—è³‡','è‡ªç¤¾æ ªè²·ã„','è¦åˆ¶å¤‰æ›´','æ¥­ç•Œæ§‹é€ å¤‰åŒ–','ç«¶åˆæ±ºç®—','å•†å“å¸‚æ³å¤‰åŒ–','é‡‘åˆ©å¤‰åŒ–','ç‚ºæ›¿å¤‰åŒ–','ãƒ†ãƒ¼ãƒéç†±','ãƒ†ãƒ¼ãƒå¤±é€Ÿ','ä»»æ„æ—¥ä»˜','ãã®ä»–'];
-const FRESHNESS_ORDER=['æ±ºç®—é€šé','æ ªä¾¡æ€¥å¤‰','æ›´æ–°æœŸé™åˆ‡ã‚Œ','æƒ…å ±ä¸è¶³','å¤ã„','è¦æ›´æ–°','æœ€æ–°'];
-function daysBetween(a,b=today()){if(!a)return null; const d=(new Date(b)-new Date(a))/(86400000); return Number.isFinite(d)?Math.floor(d):null}
-function loadSettings(){try{return {...{priceChangeThreshold:15},...(JSON.parse(localStorage.getItem(IC_SETTINGS_KEY))||{})}}catch{return {priceChangeThreshold:15}}}
-function saveSettings(s){localStorage.setItem(IC_SETTINGS_KEY,JSON.stringify(s))}
-function priceChangeRate(stock,current=stock.marketData?.price){const base=n(stock.priceAtAnalysis??stock.analysisHistory?.[0]?.currentPrice); current=n(current); return base&&current!=null?(current-base)/base*100:null}
-function hasReflectedEarnings(stock,base=today()){if(!stock.nextEarningsDate)return true; return (stock.analysisHistory||[]).some(h=>h.analysisDate&&h.analysisDate>stock.nextEarningsDate)|| (stock.analyzedAt&&stock.analyzedAt>stock.nextEarningsDate)}
-function missingRequired(stock){return !stock.companyEvaluation?.rank||!stock.priceEvaluation?.rank||!stock.overallEvaluation?.decision||!stock.marketData?.priceDate||!(Array.isArray(stock.sources)?stock.sources.length:stock.sources)}
-function evaluateFreshness(stock,base=today(),settings=loadSettings()){const reasons=[]; const hit=[]; const age=daysBetween(stock.analyzedAt||stock.lastAnalyzedAt,base); const newsAge=daysBetween(stock.newsCheckedAt,base); const finAge=daysBetween(stock.financialDataDate,base); const pr=priceChangeRate(stock); if(stock.nextEarningsDate&&stock.nextEarningsDate<base&&!hasReflectedEarnings(stock,base)){hit.push('æ±ºç®—é€šé'); reasons.push('å‰å›åˆ†æå¾Œã«æ±ºç®—äºˆå®šæ—¥ã‚’é€šé')}
- if(pr!=null&&Math.abs(pr)>=Number(settings.priceChangeThreshold||15)){hit.push('æ ªä¾¡æ€¥å¤‰'); reasons.push(`å‰å›åˆ†ææ™‚æ ªä¾¡ã‹ã‚‰${pr.toFixed(1)}%å¤‰å‹•`)}
- if(stock.validUntil&&stock.validUntil<base){hit.push('æ›´æ–°æœŸé™åˆ‡ã‚Œ'); reasons.push('validUntilã‚’è¶…é')}
- if(missingRequired(stock)){hit.push('æƒ…å ±ä¸è¶³'); reasons.push('å¿…é ˆè©•ä¾¡é …ç›®ã€æ ªä¾¡å¯¾è±¡æ—¥ã€æƒ…å ±å…ƒã®ã„ãšã‚Œã‹ãŒä¸è¶³')}
- if((age!=null&&age>=61)||(newsAge!=null&&newsAge>=60)||!stock.analyzedAt||!stock.newsCheckedAt||(finAge!=null&&finAge>=120)){hit.push('å¤ã„'); reasons.push('åˆ†ææ—¥ãƒ»ãƒ‹ãƒ¥ãƒ¼ã‚¹ç¢ºèªæ—¥ãƒ»è²¡å‹™ãƒ‡ãƒ¼ã‚¿ç¢ºèªæ—¥ãŒå¤ã„ã€ã¾ãŸã¯ä¸æ˜')}
- const until=d=>d?daysBetween(base,d):null; const nextReview=until(stock.nextReviewAt), valid=until(stock.validUntil), earnings=until(stock.nextEarningsDate); if((age!=null&&age>=31&&age<=60)||(stock.nextReviewAt&&stock.nextReviewAt<=base)||(nextReview!=null&&nextReview>=0&&nextReview<=7)||(valid!=null&&valid>=0&&valid<=7)||(earnings!=null&&earnings>=0&&earnings<=7)){hit.push('è¦æ›´æ–°'); reasons.push('åˆ†æã‹ã‚‰31ã€œ60æ—¥ã€è¦‹ç›´ã—æ—¥è¶…éã€ã¾ãŸã¯è¦‹ç›´ã—ãƒ»æœ‰åŠ¹æœŸé™ãƒ»æ±ºç®—ãŒ7æ—¥ä»¥å†…')}
- const status=FRESHNESS_ORDER.find(x=>hit.includes(x))||'æœ€æ–°'; return {status,reasons:[...new Set(reasons)],ageDays:age,priceChangeRate:pr}}
-function reviewPriority(stock,settings=loadSettings()){const f=evaluateFreshness(stock,today(),settings); const pr=Math.abs(f.priceChangeRate||0); const trig=stock.reviewTriggers||[]; if(f.status==='æ±ºç®—é€šé'||pr>=20||trig.some(t=>['æ¥­ç¸¾äºˆæƒ³ä¿®æ­£','å¢—è³‡','æ¸›é…'].some(w=>t.includes(w))))return 'ç·Šæ€¥'; if(pr>=15||f.status==='æ›´æ–°æœŸé™åˆ‡ã‚Œ'||overdue(stock)||(['S','A'].includes(stock.companyEvaluation?.rank)&&targetStatus(stock)==='å¸Œæœ›æ ªä¾¡åˆ°é”'))return 'é«˜'; if(f.status==='è¦æ›´æ–°'||(targetDiffRate(stock)!=null&&Math.abs(targetDiffRate(stock))<=3))return 'ä¸­'; return 'ä½'}
-function reanalysisCandidates(stocks=loadStocks()){const res=stocks.map(s=>({...s,...evaluateFreshness(s),reviewPriority:reviewPriority(s)})).filter(s=>s.status!=='æœ€æ–°'||!currentWeeklyRecommendations().some(r=>r.code===s.code)); localStorage.setItem(IC_CANDIDATES_KEY,JSON.stringify(res.map(s=>({code:s.code,status:s.status,reviewPriority:s.reviewPriority,generatedAt:new Date().toISOString()})))); return res}
-function requestStockShape(s){return {code:s.code,name:s.name,freshnessStatus:s.status||s.freshnessStatus,freshnessReasons:s.reasons||s.freshnessReasons||[],reviewPriority:s.reviewPriority||reviewPriority(s),reviewTriggers:s.reviewTriggers||[],currentAnalysis:{analyzedAt:s.analyzedAt||s.lastAnalyzedAt,price:s.marketData?.price??null,priceDate:s.marketData?.priceDate||null,companyEvaluation:s.companyEvaluation,priceEvaluation:s.priceEvaluation,overallEvaluation:s.overallEvaluation,targetPrice:s.decision?.targetPrice??null,mainRisk:s.decision?.mainRisk||null},requestedChecks:['æœ€æ–°æ ªä¾¡','æœ€æ–°æ±ºç®—','ä¼šç¤¾äºˆæƒ³','é…å½“æ–¹é‡','ç«¶åˆæ¯”è¼ƒ','æ ªä¾¡ãƒãƒªãƒ¥ã‚¨ãƒ¼ã‚·ãƒ§ãƒ³','å¸Œæœ›æ ªä¾¡','ä¼šç¤¾è©•ä¾¡','æ ªä¾¡è©•ä¾¡','ç·åˆåˆ¤æ–­']}}
-function generateReanalysisRequest(stocks){const selected=stocks.slice(0,10); const obj={app:'Investment Commander',requestType:'reanalyzeStocks',version:1,generatedAt:new Date().toISOString(),instruction:'ä»¥ä¸‹ã®éŠ˜æŸ„ã«ã¤ã„ã¦æœ€æ–°ã®æ ªä¾¡ã€æ±ºç®—ã€é©æ™‚é–‹ç¤ºã€æ¥­ç•Œå‹•å‘ã€ç«¶åˆçŠ¶æ³ã‚’ç¢ºèªã—ã€ä¼šç¤¾è©•ä¾¡ã€æ ªä¾¡è©•ä¾¡ã€ç·åˆåˆ¤æ–­ã€å¸Œæœ›æ ªä¾¡ã€ãƒªã‚¹ã‚¯ã€æ¬¡å›ç¢ºèªäº‹é …ã‚’æ›´æ–°ã—ã¦ãã ã•ã„ã€‚Investment Commanderæ›´æ–°ç”¨JSONã§è¿”ã—ã¦ãã ã•ã„ã€‚',stocks:selected.map(requestStockShape)}; localStorage.setItem(IC_META_KEY,JSON.stringify({...JSON.parse(localStorage.getItem(IC_META_KEY)||'{}'),lastExportAt:new Date().toISOString()})); return obj}
-function generateChatGPTPrompt(stocks){const req=generateReanalysisRequest(stocks); return `Investment Commanderã®å†åˆ†æã‚’ãŠé¡˜ã„ã—ã¾ã™ã€‚ä»¥ä¸‹ã®éŠ˜æŸ„ã¯å‰å›åˆ†æå¾Œã«æ±ºç®—ã‚’é€šéã€ã¾ãŸã¯æ ªä¾¡ãŒå¤§ããå¤‰å‹•ã—ã¦ã„ã¾ã™ã€‚æœ€æ–°ã®æ ªä¾¡ã€æ±ºç®—ã€é©æ™‚é–‹ç¤ºã€æ¥­ç•Œå‹•å‘ã€ç«¶åˆçŠ¶æ³ã‚’èª¿æŸ»ã—ã€ä¼šç¤¾è©•ä¾¡ã€æ ªä¾¡è©•ä¾¡ã€ç·åˆåˆ¤æ–­ã€å¸Œæœ›æ ªä¾¡ã€ãƒªã‚¹ã‚¯ã€æ¬¡å›ç¢ºèªäº‹é …ã‚’æ›´æ–°ã—ã¦ãã ã•ã„ã€‚æœ€å¾Œã«HOSæ›´æ–°ç”¨JSONã‚’å‡ºåŠ›ã—ã¦ãã ã•ã„ã€‚\n\n${req.stocks.map(s=>`- ${s.code} ${s.name}: ${s.freshnessStatus} / ${s.reviewPriority} / ${s.freshnessReasons.join('ã€')||'ç†ç”±æœªç™»éŒ²'} / ç¾åˆ¤æ–­ ${s.currentAnalysis.overallEvaluation?.decision||'æœªå–å¾—'}`).join('\n')}\n\nå†åˆ†æä¾é ¼JSON:\n${JSON.stringify(req,null,2)}`}
-function validateUpdateJson(text){const root=typeof text==='string'?JSON.parse(text):text; if(root.app!=='Investment Commander')throw Error('appãŒInvestment Commanderã§ã¯ã‚ã‚Šã¾ã›ã‚“'); if(!['stockAnalysisUpdate','weeklyRecommendations'].includes(root.responseType))throw Error('æœªå¯¾å¿œã®responseType'); return root}
-function mergeKeepNull(oldv,newv,keepNull=true){if(newv===null&&keepNull)return oldv; if(Array.isArray(newv))return newv; if(newv&&typeof newv==='object'){const out={...(oldv&&typeof oldv==='object'?oldv:{})}; Object.keys(newv).forEach(k=>out[k]=mergeKeepNull(out[k],newv[k],keepNull)); return out} return newv===undefined?oldv:newv}
-function diffAnalysis(oldS,newS){const rows=[['ä¼šç¤¾è©•ä¾¡ã‚¹ã‚³ã‚¢','companyEvaluation.score'],['ä¼šç¤¾è©•ä¾¡ãƒ©ãƒ³ã‚¯','companyEvaluation.rank'],['æ ªä¾¡è©•ä¾¡ã‚¹ã‚³ã‚¢','priceEvaluation.score'],['æ ªä¾¡è©•ä¾¡ãƒ©ãƒ³ã‚¯','priceEvaluation.rank'],['ç·åˆã‚¹ã‚³ã‚¢','overallEvaluation.score'],['ç·åˆåˆ¤æ–­','overallEvaluation.decision'],['æŠ•è³‡è¡Œå‹•','overallEvaluation.action'],['ç¾åœ¨æ ªä¾¡','marketData.price'],['æ ªä¾¡å¯¾è±¡æ—¥','marketData.priceDate'],['å¸Œæœ›æ ªä¾¡','decision.targetPrice'],['ä¸»ãªæŠ•è³‡ç†ç”±','decision.investmentReasons'],['æœ€å¤§ã®ãƒªã‚¹ã‚¯','decision.mainRisk'],['æ¬¡å›ç¢ºèªäº‹é …','decision.watchPoints'],['æ¬¡å›è¦‹ç›´ã—æ—¥','nextReviewAt'],['validUntil','validUntil'],['reviewTriggers','reviewTriggers'],['æƒ…å ±å…ƒ','sources']]; const get=(o,p)=>p.split('.').reduce((a,k)=>a?.[k],o); return rows.map(([label,path])=>({label,path,before:get(oldS,path),after:get(newS,path),changed:JSON.stringify(get(oldS,path))!==JSON.stringify(get(newS,path))}))}
-function normalizeUpdateStock(u){const meta=u.analysisMeta||{}; return normalizeStock({code:u.code,name:u.name,marketData:{...(u.marketData||{}),priceDate:u.marketData?.priceDate||meta.priceDate},companyEvaluation:u.companyEvaluation,priceEvaluation:u.priceEvaluation,overallEvaluation:u.overallEvaluation,decision:{targetPrice:u.targetPrice,investmentReasons:u.overallEvaluation?.investmentReasons,mainRisk:u.overallEvaluation?.mainRisk,watchPoints:u.overallEvaluation?.nextCheckPoints},riskFlags:u.riskFlags,sources:u.sources,analysisHistory:[u.analysisHistoryEntry].filter(Boolean),analyzedAt:meta.analyzedAt,financialDataDate:meta.financialDataDate,newsCheckedAt:meta.newsCheckedAt,validUntil:meta.validUntil,nextReviewAt:meta.nextReviewAt||u.overallEvaluation?.nextReviewAt,nextEarningsDate:meta.nextEarningsDate,reviewTriggers:meta.reviewTriggers,freshnessStatus:u.freshnessStatus})}
-function importUpdateJson(root,mode='latest',keepNull=true){root=typeof root==='string'?validateUpdateJson(root):root; if(root.responseType==='weeklyRecommendations')return saveWeeklyRecommendations(root); const stocks=loadStocks(); const previews=[]; root.stocks.forEach(u=>{const ns=normalizeUpdateStock(u); const i=stocks.findIndex(s=>s.code===ns.code); const old=i>=0?stocks[i]:normalizeStock({code:ns.code,name:ns.name}); const merged=mergeKeepNull(old,ns,keepNull); merged.analysisHistory=[...(old.analysisHistory||[]),analysisSnapshot(old,{analysisDate:old.analyzedAt||old.lastAnalyzedAt,changeReason:'æ›´æ–°å‰ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆ'}),...(ns.analysisHistory||[])]; const f=evaluateFreshness(merged); merged.freshnessStatus=f.status; merged.freshnessReasons=f.reasons; previews.push({code:ns.code,diff:diffAnalysis(old,merged)}); if(mode==='latest'){if(i>=0)stocks[i]=merged; else stocks.push(merged)} else if(mode==='history'){old.analysisHistory=merged.analysisHistory; if(i>=0)stocks[i]=old; else stocks.push(old)} }); saveStocks(stocks); localStorage.setItem(IC_META_KEY,JSON.stringify({...JSON.parse(localStorage.getItem(IC_META_KEY)||'{}'),lastImportAt:new Date().toISOString()})); return previews}
-function isoWeek(d=new Date()){const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); const day=date.getUTCDay()||7; date.setUTCDate(date.getUTCDate()+4-day); const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1)); const week=Math.ceil((((date-yearStart)/86400000)+1)/7); return `${date.getUTCFullYear()}-W${String(week).padStart(2,'0')}`}
-function saveWeeklyRecommendations(root){const old=currentWeeklyRaw(); if(old&&old.week!==root.week)localStorage.setItem(IC_WEEKLY_HISTORY_KEY,JSON.stringify([...(JSON.parse(localStorage.getItem(IC_WEEKLY_HISTORY_KEY)||'[]')),old])); localStorage.setItem(IC_WEEKLY_KEY,JSON.stringify(root)); return root}
-function currentWeeklyRaw(){try{return JSON.parse(localStorage.getItem(IC_WEEKLY_KEY))}catch{return null}}
-function currentWeeklyRecommendations(base=new Date()){const w=currentWeeklyRaw(); if(!w||w.week!==isoWeek(base)||new Date(w.validUntil)<base)return []; return w.recommendations||[]}
-
-const _renderTop=renderTop; renderTop=function(stocks){const weekly=currentWeeklyRecommendations(); const need=reanalysisCandidates(stocks); const weeklyHtml=weekly.length?`<div class="ic-cardgrid">${weekly.slice(0,3).map(r=>{const s=stocks.find(x=>x.code===r.code)||{};return `<article class="ic-stock"><b>#${r.rank} ${r.code} ${s.name||''}</b><p>${txt(r.reason)}</p><p>å¿…è¦è¡Œå‹•: ${txt(r.requiredAction)} / æœ€å¤§ãƒªã‚¹ã‚¯: ${txt(r.mainRisk)}</p></article>`}).join('')}</div>`:`<p>ä»Šé€±ã®3éŠ˜æŸ„ã¯ã¾ã æ›´æ–°ã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚å†åˆ†æå€™è£œã‚’ChatGPTã¸æ¸¡ã—ã¦æœ€æ–°åˆ†æã‚’è¡Œã£ã¦ãã ã•ã„ã€‚</p>`; const latest=rankStocks(stocks,'overallEvaluation.score').slice(0,5); const expired=need.filter(s=>s.status==='æ›´æ–°æœŸé™åˆ‡ã‚Œ'); return `<section class="ic-panel"><h3>ä»Šé€±ã®3éŠ˜æŸ„</h3>${weeklyHtml}</section><section class="ic-panel"><h3>å†åˆ†æãŒå¿…è¦ãªéŠ˜æŸ„ï¼š${need.length}ä»¶</h3><button id="icGoReanalysis">å†åˆ†æä¾é ¼ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆã¸</button>${renderReanalysisCandidates(need)}</section><section class="ic-panel"><h3>æ¬¡ã®ä¸€æ‰‹</h3><p>${need[0]?`${need[0].code} ${need[0].name} ã‚’${need[0].reviewPriority}å„ªå…ˆåº¦ã§å†åˆ†æã—ã¦ãã ã•ã„ã€‚`:'æœ€æ–°åˆ†æã‚’ç¶­æŒã—ã¦ã„ã¾ã™ã€‚'}</p></section><section class="ic-panel"><h3>æœ€æ–°åˆ†ææ¸ˆã¿éŠ˜æŸ„</h3><div class="ic-list">${latest.map(s=>card(s,'')).join('')}</div></section><section class="ic-panel"><h3>åˆ†ææœŸé™åˆ‡ã‚ŒéŠ˜æŸ„</h3><div class="ic-list">${expired.map(s=>card(s,'')).join('')||'<p>è©²å½“ãªã—</p>'}</div></section><section class="ic-panel"><h3>ãƒ†ãƒ¼ãƒåˆ¥ã‚·ãƒ§ãƒ¼ãƒˆã‚«ãƒƒãƒˆ</h3><div class="ic-themes">${THEMES.map(t=>`<a href="investment.html?theme=${encodeURIComponent(t)}">${t}</a>`).join('')}</div></section>${renderRankings(stocks)}`}
-function renderReanalysisCandidates(list){const groups=['æ±ºç®—é€šé','æ ªä¾¡æ€¥å¤‰','æ›´æ–°æœŸé™åˆ‡ã‚Œ','æƒ…å ±ä¸è¶³','å¤ã„','è¦æ›´æ–°','ä»Šé€±ã®å€™è£œæœªæ›´æ–°']; return `<div id="icReanalysis" class="ic-reanalysis">${groups.map(g=>{const rows=list.filter(s=>g==='ä»Šé€±ã®å€™è£œæœªæ›´æ–°'?!currentWeeklyRecommendations().some(r=>r.code===s.code):s.status===g); return `<h4>${g}</h4>${rows.map(s=>`<label class="ic-candidate"><input type="checkbox" class="icPick" value="${s.code}"> <b>${s.code} ${s.name}</b> ${s.overallEvaluation?.decision||''} / ä¼šç¤¾ ${s.companyEvaluation?.rank} / æ ªä¾¡ ${s.priceEvaluation?.rank} / å‰å› ${txt(s.analyzedAt||s.lastAnalyzedAt)} / æ ªä¾¡æ—¥ ${txt(s.marketData?.priceDate)} / æ±ºç®— ${txt(s.nextEarningsDate)} / è¦‹ç›´ã— ${txt(s.nextReviewAt)} / validUntil ${txt(s.validUntil)} / <span>${s.status}</span> / ${s.reasons?.join('ã€')||''} / å„ªå…ˆåº¦ ${s.reviewPriority}</label>`).join('')||'<p>è©²å½“ãªã—</p>'}`}).join('')}</div><button id="icMakeRequest">å†åˆ†æJSONç”Ÿæˆ</button><button id="icCopyPrompt">ChatGPTä¾é ¼æ–‡ã‚’ã‚³ãƒ”ãƒ¼</button>`}
-const _renderDetail=renderDetail; renderDetail=function(s,stocks){if(!s)return ''; const base=_renderDetail(s,stocks); const d=analysisDiff(s); const fresh=evaluateFreshness(s); return base.replace('</section>',`<div><h4>åˆ†æé®®åº¦ãƒ»å‰å›å·®åˆ†</h4><p>é®®åº¦: ${fresh.status} / ç†ç”±: ${fresh.reasons.join('ã€')||'ãªã—'}</p>${d?`<p>å‰å›åˆ†ææ—¥ ${txt(d.previous.analysisDate)} / ä»Šå›åˆ†ææ—¥ ${txt(d.current.analysisDate)} / ä¼šç¤¾ ${d.companyChange} / æ ªä¾¡ ${d.priceChange} / ç·åˆ ${d.decisionChange} / å¸Œæœ›æ ªä¾¡å¤‰åŒ– ${yen(d.targetPriceChange)}</p>`:'<p>å‰å›å·®åˆ†ã¯æœªç™»éŒ²ã§ã™ã€‚</p>'}</div></section>`)}
-const _renderImport=renderImport; renderImport=function(){return _renderImport()+`<section class="ic-panel"><h3>ChatGPTæ›´æ–°JSONå–ã‚Šè¾¼ã¿ãƒ»å·®åˆ†ãƒ—ãƒ¬ãƒ“ãƒ¥ãƒ¼</h3><textarea id="icUpdateInput" class="inputbox" placeholder="stockAnalysisUpdate ã¾ãŸã¯ weeklyRecommendations JSONã‚’è²¼ã‚Šä»˜ã‘"></textarea><div><button id="icUpdatePreview">æ›´æ–°å‰ãƒ—ãƒ¬ãƒ“ãƒ¥ãƒ¼</button><button id="icUpdateLatest">æœ€æ–°åˆ†æã¨ã—ã¦æ›´æ–°</button><button id="icUpdateHistory">åˆ†æå±¥æ­´ã ã‘è¿½åŠ </button></div><pre id="icUpdateResult"></pre></section>`}
-const _bindIC=bindIC; bindIC=function(){_bindIC(); document.getElementById('icGoReanalysis')?.addEventListener('click',()=>document.getElementById('icReanalysis')?.scrollIntoView({behavior:'smooth'})); const picked=()=>{const codes=[...document.querySelectorAll('.icPick:checked')].map(x=>x.value); return reanalysisCandidates(loadStocks()).filter(s=>codes.includes(s.code)).slice(0,10)}; document.getElementById('icMakeRequest')?.addEventListener('click',()=>{document.getElementById('icInput').value=JSON.stringify(generateReanalysisRequest(picked()),null,2)}); document.getElementById('icCopyPrompt')?.addEventListener('click',()=>{const text=generateChatGPTPrompt(picked()); navigator.clipboard?.writeText(text); document.getElementById('icInput').value=text}); document.getElementById('icUpdatePreview')?.addEventListener('click',()=>{try{const root=validateUpdateJson(document.getElementById('icUpdateInput').value); if(root.responseType==='weeklyRecommendations')document.getElementById('icUpdateResult').textContent=`é€±æ¬¡æ¨å¥¨ ${root.week} ${root.recommendations?.length||0}ä»¶`; else document.getElementById('icUpdateResult').textContent=JSON.stringify(root.stocks.map(u=>{const old=loadStocks().find(s=>s.code===u.code)||{}; const ns=normalizeUpdateStock(u); return {code:u.code,diff:diffAnalysis(old,mergeKeepNull(old,ns,true)).filter(x=>x.changed)}}),null,2)}catch(e){document.getElementById('icUpdateResult').textContent=e.message}}); document.getElementById('icUpdateLatest')?.addEventListener('click',()=>{try{document.getElementById('icUpdateResult').textContent=JSON.stringify(importUpdateJson(document.getElementById('icUpdateInput').value,'latest',true),null,2); renderIC()}catch(e){document.getElementById('icUpdateResult').textContent=e.message}}); document.getElementById('icUpdateHistory')?.addEventListener('click',()=>{try{document.getElementById('icUpdateResult').textContent=JSON.stringify(importUpdateJson(document.getElementById('icUpdateInput').value,'history',true),null,2); renderIC()}catch(e){document.getElementById('icUpdateResult').textContent=e.message}})}
-if(typeof module!=='undefined')Object.assign(module.exports,{IC_CANDIDATES_KEY,IC_WEEKLY_KEY,IC_WEEKLY_HISTORY_KEY,IC_SETTINGS_KEY,REVIEW_TRIGGERS,FRESHNESS_ORDER,daysBetween,loadSettings,saveSettings,priceChangeRate,evaluateFreshness,reviewPriority,reanalysisCandidates,generateReanalysisRequest,generateChatGPTPrompt,validateUpdateJson,mergeKeepNull,diffAnalysis,normalizeUpdateStock,importUpdateJson,isoWeek,saveWeeklyRecommendations,currentWeeklyRecommendations});
-
-// Stock Watch V2 bridge: reads generated JSON outputs when hosted alongside HOS.
-async function loadStockWatchV2Outputs(){
-  const files=['outputs/stock_watch_summary.json','outputs/stock_watch_decisions.json','outputs/portfolio_goal_progress.json'];
-  const out={};
-  for(const f of files){try{out[f]=await fetch(f,{cache:'no-store'}).then(r=>r.ok?r.json():null)}catch(e){out[f]=null}}
-  return out;
-}
-function renderStockWatchV2Panel(data){
-  const decisions=data?.['outputs/stock_watch_decisions.json']?.decisions||[];
-  const goal=data?.['outputs/portfolio_goal_progress.json']||{};
-  const important=decisions.filter(d=>['WATCH','BUY_CANDIDATE','BUY','STRONG_BUY_CANDIDATE','REVIEW_REQUIRED','DATA_ERROR'].includes(d.status));
-  const rows=(important.length?important:decisions.slice(0,8)).map(d=>`<details class="ic-stock"><summary><b>${txt(d.ticker)} ${txt(d.company_name)}</b> <span class="ic-score">${txt(d.status)} / ${txt(d.score)}/100</span></summary><p>å½¹å‰²: ${txt(d.role)} / æ¥­ç¨®: ${txt(d.sector)} / ä¿æœ‰: ${d.owned?'ã‚ã‚Š':'ãªã—'}</p><p>ç¾åœ¨ä¾¡æ ¼: ${yen(d.close)} / è²·ã„æ°´æº–: ${yen(d.entry_1)}ãƒ»${yen(d.entry_2)}ãƒ»${yen(d.entry_3)}</p><p>æ¨å¥¨æ ªæ•°: ${txt(d.recommended_shares)} / æŒ‡å€¤ä¸Šé™: ${yen(d.limit_price)} / ãƒ‡ãƒ¼ã‚¿é®®åº¦: ${txt(d.data_quality)}</p><p>60æ­³ç›®æ¨™ã¸ã®å¯„ä¸: ${txt(d.scores?.goal_alignment_score)}/10 / ä¸è¶³: ${(d.missing_fields||[]).join('ã€')||'ãªã—'}</p></details>`).join('')||'<p>Stock Watch V2 outputs are not generated yet.</p>';
-  return `<section class="ic-panel" id="stockWatchV2"><h3>Stock Watch V2ï½œé•·æœŸæŠ•è³‡å‘ã‘è²·ã„å€™è£œ</h3><div class="mobile-first"><p>ç›®æ¨™è³‡ç”£: ${yen(goal.target_financial_assets)} / ç›®æ¨™é…å½“: ${yen(goal.target_annual_dividend)} / ç¾åœ¨è³‡ç”£: ${yen(goal.current_financial_assets)}</p><p>æ­£å¼è¨­å®šã¯ <code>skills/investment-agent/config/*.json</code> ã‚’æ›´æ–°ã—ã€GitHub Pagesä¸Šã®localStorageå¤‰æ›´ã¯PRã§åŒæœŸã—ã¦ãã ã•ã„ã€‚</p></div><div class="ic-list">${rows}</div></section>`;
-}
-if(typeof window!=='undefined'){
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(async()=>{
-    const main=document.querySelector('.investment-main'); if(!main)return;
-    const data=await loadStockWatchV2Outputs(); main.insertAdjacentHTML('beforeend',renderStockWatchV2Panel(data));
-  },0));
-}
-if(typeof module!=='undefined')Object.assign(module.exports,{loadStockWatchV2Outputs,renderStockWatchV2Panel});
-
-async function loadLatestInvestmentAudit(){
-  try{const idx=await fetch('outputs/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():null); const a=idx?.artifacts?.find(x=>String(x.workflow_id||'').startsWith('investment_analysis')&&x.artifact_paths?.fact_pack); if(!a)return null; const [factPack,decision]=await Promise.all([fetch(a.artifact_paths.fact_pack,{cache:'no-store'}).then(r=>r.json()),fetch(a.artifact_paths.final_decision,{cache:'no-store'}).then(r=>r.json())]); return {factPack,decision,artifact:a}}catch{return null}
-}
-function renderInvestmentAudit(a){if(!a)return `<section class="ic-panel"><h3>æ¤œè¨¼æ¸ˆã¿Fact Pack</h3><p>ç›£æŸ»å¯èƒ½ãªæŠ•è³‡Runã¯ã¾ã ã‚ã‚Šã¾ã›ã‚“ã€‚</p></section>`; const f=a.factPack,d=a.decision,q=f.data_quality||{},sources=Object.entries(f.source_map||{}); return `<section class="ic-panel" id="investmentFactAudit"><h3>æ¤œè¨¼æ¸ˆã¿Fact Pack</h3><p><b>${txt(f.ticker)} ${txt(f.company?.company_name)}</b> / æœ€çµ‚åˆ¤æ–­: <b>${txt(d.decision)}</b> / confidence: ${txt(d.confidence)} / å“è³ª: ${txt(q.data_quality)} / æ›´æ–°: ${txt(q.generated_at)}</p><p>é®®åº¦: æ ªä¾¡ ${txt(q.price_as_of)}ãƒ»æ±ºç®— ${txt(q.fundamentals_as_of)}ãƒ»ãƒ‹ãƒ¥ãƒ¼ã‚¹ ${txt(q.news_as_of)} / source coverage ${sources.length}ä»¶</p><details><summary>verified facts / Fact Pack</summary><pre>${txt(JSON.stringify({company:f.company,price:f.price,verified_facts:d.verified_facts},null,2))}</pre></details><details><summary>å‡ºå…¸ä¸€è¦§</summary>${sources.map(([id,s])=>`<p><b>${txt(id)}</b> ${txt(s.publisher)} â€” <a href="${txt(s.url)}" target="_blank" rel="noopener">${txt(s.title)}</a> (${txt(s.published_at)})</p>`).join('')||'<p>ãªã—</p>'}</details><details><summary>ä¸è¶³ãƒ»çŸ›ç›¾ãƒ»Evidence</summary><p>missing_information: ${(d.missing_fields||[]).map(txt).join('ã€')||'ãªã—'}</p><pre>${txt(JSON.stringify({contradictions:d.contradictions,evidence:d.evidence,next_review_items:d.next_review_items},null,2))}</pre></details></section>`}
-if(typeof window!=='undefined')document.addEventListener('DOMContentLoaded',()=>setTimeout(async()=>{const main=document.querySelector('.investment-main'); if(main)main.insertAdjacentHTML('beforeend',renderInvestmentAudit(await loadLatestInvestmentAudit()))},0));
-if(typeof module!=='undefined')Object.assign(module.exports,{loadLatestInvestmentAudit,renderInvestmentAudit});
+function toCSV(stocks){const head=['éŠ˜æŸ„ã‚³ãƒ¼ãƒ‰','éŠ˜æŸ„å','å¸‚å ´'ßNıŞÚ$z{-®éÜj×Ü™HŒKŒœÛİ\˜ÙWÜ]X[]WÜØÛÜ™HŒKŒ™œ™\Ú™\Ü×ÜØÛÜ™HŒKŒœÙ[XİYÜ›İšY\ˆœ›˜[YK˜][\YÜ›İšY\œÈ˜][\Y™˜[˜XÚ×İ\ÙY˜][\ŒKœ™Z™XİYØØ[™Y]\Èœ™Z™XİYÎ‹LWKœÙ[Xİ[Û—Ü™X\ÛÛˆˆ˜ÛÛ\]H›İšY\ˆ™\İ[ŸBˆ[^Èœİ]\Èœ–Èœİ]\È—K™]H—Ø]XÚÜÙ[Xİ[ÛŠ]KÙ[–Èœ›İ™[˜[˜ÙH—JKœ›İ™[˜[˜ÙHœ–Èœ›İ™[˜[˜ÙH—KœÙ[Xİ[ÛˆœÙ[˜][\Èœ‹™Ù]
+˜][\ÈŠHÜˆ×_NÈØXÚKœÙ]
+˜[YK[ŠNÈİ]ÖÈœ™Yœ™\ÚYÜÙXİ[ÛœÈ—K˜\[™
+˜[YJNÈ™]\›ˆ[–È™]H—BˆYˆ–Èœİ]\È—H[ˆÈ›ÚÈ‹œ\X[ŸH[™]H›İ[ˆ
+›Û™KßK×JH[™ØÏ˜™\İÜØÛÜ™N‚ˆ™\İJ]K‹›˜[YJNÈ™\İÜØÛÜ™O\ØÂˆ[ÙN‚ˆYˆ›İ‹™Ù]
+—Ù\œ›Ü—Ü™XÛÜ™YŠN‚ˆ\œ›ÜœË˜\[™
+Èœ›İšY\ˆœ›˜[YKœ›İšY\—ØÛ\ÜÈœ—×ØÛ\Ü××Ë—×Û˜[YW×Ë›Y]Ù›KœÙXİ[Ûˆ›˜[YK˜][\˜][\™˜[˜XÚ×ÛÜ™\ˆ˜][\
+ŠœŸJBˆYˆ™\İ‚ˆ]K‹˜[YOX™\İÈÙ[^È˜ÛÛ\][™\Ü×ÜØÛÜ™H˜™\İÜØÛÜ™K˜[Y][Û—ÜØÛÜ™HŒKœÛİ\˜ÙWÜ]X[]WÜØÛÜ™HŒK™œ™\Ú™\Ü×ÜØÛÜ™HŒKœÙ[XİYÜ›İšY\ˆœ˜[YK˜][\YÜ›İšY\œÈ˜][\Y™˜[˜XÚ×İ\ÙY›[Š][\Y
+OŒKœ™Z™XİYØØ[™Y]\Èœ™Z™XİYœÙ[Xİ[Û—Ü™X\ÛÛˆˆ˜™\İ\X[Y\ˆ^]\İ[™È›İšY\œÈŸBˆ[^Èœİ]\Èœ–Èœİ]\È—K™]H—Ø]XÚÜÙ[Xİ[ÛŠ]KÙ[–Èœ›İ™[˜[˜ÙH—JKœ›İ™[˜[˜ÙHœ–Èœ›İ™[˜[˜ÙH—KœÙ[Xİ[ÛˆœÙ[˜][\Èœ‹™Ù]
+˜][\ÈŠHÜˆ×_NÈØXÚKœÙ]
+˜[YK[ŠNÈİ]ÖÈœ™Yœ™\ÚYÜÙXİ[ÛœÈ—K˜\[™
+˜[YJNÈ™]\›ˆ[–È™]H—Bˆ™]\›ˆ
+ØXÚY™Ù]
+™]HŠHYˆ\Ú[œİ[˜ÙJØXÚYXİ
+H[™™]Hˆ[ˆØXÚY[ÙHØXÚY
+HÜˆ
+×HYˆ˜[YOOH›™]ÜÈˆ[ÙHßJBˆ›Ùš[O\ÙXİ[ÛŠ˜ÛÛ\[WÜ›Ùš[H‹Ê›İšY\œÖÌK™™]ÚØÛÛ\[WÜ›Ùš[HŠK
+›İšY\œÖÌWK™™]ÚØÛÛ\[WÜ›Ùš[HŠWJNÈ\—Ü›Ùš[O\ÙXİ[ÛŠœÛİ\˜ÙWÛX\‹Ê›İšY\œÖÌ—K™™]ÚØÛÛ\[WÜ›Ùš[HŠWJBˆYˆ\—Ü›Ùš[Nˆ›Ùš[O^ÊŠœ›Ùš[K
+ŠÚÎˆ›ÜˆËˆ[ˆ\—Ü›Ùš[Kš][\Ê
+HYˆˆ\È›İ›Û™H[™›İËœİ\İÚ]
+—ÈŠH[™È›İ[ˆÈœÛİ\˜ÙH‹œÛİ\˜ÙWİ\›‹™™]ÚYØ]Ÿ__BˆY[]O]˜[Y]WÚY[]J\™Ù]›Ùš[JHYˆ›Ùš[H[ÙHÈœİ]\Èˆ’QS•UWÓRTÓPUÒ‹˜ÚXÚÜÈßKš[X[—Ü™]šY]×Ü™\]Z\™Y•Y_BˆšXÙO\ÙXİ[ÛŠœšXÙH‹Ê›İšY\œÖÍK™™]ÚÜšXÙHŠK
+›İšY\œÖÍWK™™]ÚÜšXÙHŠWJNÈš[˜[˜ÚX[Ï\ÙXİ[ÛŠ™š[˜[˜ÚX[È‹Ê›İšY\œÖÍ—K™™]ÚÙš[˜[˜ÚX[ÈŠK
+›İšY\œÖÌ×K™™]ÚÙš[˜[˜ÚX[ÈŠWJNÈ˜[X][Û\ÙXİ[ÛŠ˜[X][Ûˆ‹Ê›İšY\œÖÍ×K™™]Úİ˜[X][ÛˆŠWJNÈ]šY[™Ï\ÙXİ[ÛŠ™]šY[™È‹Ê›İšY\œÖÌ—K™™]ÚÙ]šY[™ÈŠWJNÂˆœ›ÛH˜[X][Û—ØØ[İ[]Üˆ[\ÜØ[İ[]H\ÈØØ[×İ˜[ˆØ[ÏWØØ[×İ˜[
+šXÙHYˆ\Ú[œİ[˜ÙJšXÙKXİ
+H[ÙHßKš[˜[˜ÚX[ÈYˆ\Ú[œİ[˜ÙJš[˜[˜ÚX[ËXİ
+H[ÙHßK]šY[™ÈYˆ\Ú[œİ[˜ÙJ]šY[™ËXİ
+H[ÙHßJBˆYˆ\Ú[œİ[˜ÙJ˜[X][Û‹Xİ
+H[™›İ[J˜[X][Û‹™Ù]
+ÊH\È›İ›Û™H›ÜˆÈ[ˆ
+œ\ˆ‹œœˆ‹™]šY[™ŞZY[‹›X\šÙ]ØØ\ŠJN‚ˆØ[×İ˜[Y\Ï^ÚÎˆ›ÜˆËˆ[ˆØ[Ëš][\Ê
+HYˆÈ[ˆÈœ\ˆ‹œœˆ‹™]šY[™ŞZY[‹œ^[İ]Ü˜][È‹›X\šÙ]ØØ\ŸH[™ˆ\È›İ›Û™_Bˆ˜[X][Û^ÊŠ˜[X][Û‹
+Š˜Ø[×İ˜[Y\Ë›Y]Ùˆ˜Ø[İ[]YˆYˆØ[×İ˜[Y\È[ÙH˜Ø[İ[][Û—İ[˜]˜Z[X›H‹™›Ü›][Hˆ›X\šÙ]ØØ\Xİ\œ™[ÜšXÙJŠÚ\™\×Ûİ]İ[™[™Ë]™X\İ\WÜÚ\™\ÊNÈ\[X\šÙ]ØØ\Û™]Ú[˜ÛÛYWØ]šX]X›NÈœ[X\šÙ]ØØ\Ù\]Z]H‹˜\×ÛÙˆœšXÙK™Ù]
+œšXÙWÙ]HŠHYˆØ[×İ˜[Y\È[ÙH›Û™Kš[œ]Ù˜XİÜ™YœÈ–ÈœšXÙK˜İ\œ™[ÜšXÙH‹™š[˜[˜ÚX[ËœÚ\™\×Ûİ]İ[™[™È‹™š[˜[˜ÚX[Ë™X\İ\WÜÚ\™\È‹™š[˜[˜ÚX[Ë›™]Ú[˜ÛÛYWØ]šX]X›H‹™š[˜[˜ÚX[Ë™\]Z]H—KœÛİ\˜ÙWÜ™YœÈ–×_Bˆ™]ÜÏ\ÙXİ[ÛŠ›™]ÜÈ‹Ê›İšY\œÖÎK™™]ÚÛ™]ÜÈŠWJHÜˆ×BˆÜTÛİ\˜ÙT™YÚ\İJ
+NÈÜ‹˜Y
+”ÔËRQ‹’”\İ[™È[™Y[]H‹›Ùš[K™Ù]
+œÛİ\˜ÙWİ\›ŠK›\İ[™×Ü™XÛÜ™‹šY[]H‹’”‹›Ùš[K™Ù]
+›\İ[™×Ù]HŠKÙ™šXÚX[Q˜[ÙK^˜O^ÈœÛİ\˜ÙWØ]]Üš]Wİ\Hˆ™^Ú[™ÙWØ]]Üš]H‹œÛİ\˜ÙWİ\İÛ]™[ˆ˜]]Üš]]]™H‹˜]]Üš]WÙÛXZ[—İ™\šYšYY•YK˜ÛÛ\[WÛÙ™šXÚX[‘˜[ÙK˜ÛÛ[Ù™]ÚY•YK˜ÛÛ[İ™\šYšYY•YK›Y]Y]Wİ™\šYšYY•Y_JBˆYˆ›Ùš[K™Ù]
+›Ù™šXÚX[Ú\—İ\›ŠNˆÜ‹˜Y
+”ÔËRTˆ‹“Ù™šXÚX[Tˆ[˜[˜ÙH‹›Ùš[K™Ù]
+›Ù™šXÚX[Ú\—İ\›ŠKš[™^ÜYÙH‹š\—Û˜]šYØ][Ûˆ‹“Ù™šXÚX[ÛÛ\[HTˆ‹›Û™KÙ™šXÚX[UYJBˆYˆšXÙK™Ù]
+˜İ\œ™[ÜšXÙHŠH[™šXÙK™Ù]
+œšXÙWÙ]HŠNˆÜ‹˜Y
+”ÔËT’PÑH‹“X\šÙ]šXÙH‹šXÙK™Ù]
+œÛİ\˜ÙWİ\›ŠK›X\šÙ]Ù]H‹œšXÙH‹šXÙK™Ù]
+œÛİ\˜ÙHŠKšXÙK™Ù]
+œšXÙWÙ]HŠKÙ™šXÚX[Q˜[ÙJBˆXZ›Ü—Ùš[X[Jš[˜[˜ÚX[Ë™Ù]
+ÊH\È›İ›Û™H›ÜˆÈ[ˆ
+œ™]™[YH‹›Ü\˜][™×Ú[˜ÛÛYH‹›™]Ú[˜ÛÛYH‹™\ÈŠJNÈš[—ÙØÏYš[˜[˜ÚX[Ë™Ù]
+œÛİ\˜ÙWÙØİ[Y[İ\›ŠH[™Ø[›ÛšXØ[İ\›
+š[˜[˜ÚX[Ë™Ù]
+œÛİ\˜ÙWÙØİ[Y[İ\›ŠJHOXØ[›ÛšXØ[İ\›
+›Ùš[K™Ù]
+›Ù™šXÚX[Ú\—İ\›ŠJBˆYˆš[—ÙØÎˆÜ‹˜Y
+”ÔËQ’Sˆ‹‘š[˜[˜ÚX[Øİ[Y[‹š[˜[˜ÚX[Ë™Ù]
+œÛİ\˜ÙWÙØİ[Y[İ\›ŠK™š[˜[˜ÚX[ÙØİ[Y[‹™š[˜[˜ÚX[È‹“Ù™šXÚX[ÛÛ\[HTˆ‹š[˜[˜ÚX[Ë™Ù]
+™X\›š[™Ü×Ü™[X\ÙWÙ]HŠKš[˜[˜ÚX[Ë™Ù]
+œÛİ\˜ÙWÙØİ[Y[İ]HŠKš\ØØ[Ü\š[ÙYš[˜[˜ÚX[Ë™Ù]
+™š\ØØ[Ü\š[ÙŠK˜[Y][Û—Üİ]\ÏH•‘T’Q’QQˆYˆXZ›Ü—Ùš[ˆ[ÙH
+‘RSQˆYˆš[˜[˜ÚX[Ë™Ù]
+™Øİ[Y[İ˜[Y][Û—Üİ]\ÈŠOOH‘RSQˆ[ÙH”T•PSŠK]šY[˜ÙWÙ[YÚX›O[XZ›Ü—Ùš[ˆ[™š[˜[˜ÚX[Ë™Ù]
+™Øİ[Y[İ˜[Y][Û—Üİ]\ÈŠOOH•‘T’Q’QQ‹Ù™šXÚX[UYK^˜O^È˜ÛÛ[Ù™]ÚY™š[˜[˜ÚX[Ë™Ù]
+™Øİ[Y[Ù\ØÛİ™\WÜİ]\ÈŠH[ˆÈ˜ÛÛ[Ù™]ÚY‹™^˜Xİ[Û—ÜİXØÙYYYŸK˜ÛÛ[İ™\šYšYY™š[˜[˜ÚX[Ë™Ù]
+™Øİ[Y[İ˜[Y][Û—Üİ]\ÈŠOOH•‘T’Q’QQ‹™Øİ[Y[ÚY[]Wİ™\šYšYY™š[˜[˜ÚX[Ë™Ù]
+™Øİ[Y[İ˜[Y][Û—Üİ]\ÈŠOOH•‘T’Q’QQ‹˜]]Üš]WØÚZ[—İ™\šYšYY˜›ÛÛ
+š[˜[˜ÚX[Ë™Ù]
+˜]]Üš]WØÚZ[—İ™\šYšYYŠJK›[šÙYÙœ›ÛWÛÙ™šXÚX[ÜYÙH˜›ÛÛ
+š[˜[˜ÚX[Ë™Ù]
+›[šÙYÙœ›ÛWÛÙ™šXÚX[ÜYÙHŠJKœ›İšY\ˆˆ›Ù™šXÚX[Ú\ˆ‹œİ\Ü×Ù˜XİÜ™YœÈ–È™š[˜[˜ÚX[Ëœ™]™[YH‹™š[˜[˜ÚX[Ë›Ü\˜][™×Ú[˜ÛÛYH‹™š[˜[˜ÚX[Ë›™]Ú[˜ÛÛYH‹™š[˜[˜ÚX[Ë™\È—K˜ÛÛ[Ú\Ú™š[˜[˜ÚX[Ë™Ù]
+˜ÛÛ[Ú\ÚŠ_JBˆÛX[—Û™]ÜÏVÛˆ›Üˆˆ[ˆ™]ÜÈYˆ\Ú[œİ[˜ÙJ‹Xİ
+H[™‹™Ù]
+]HŠHOH“Ù™šXÚX[Tˆ\]\ÈYÙHˆ[™‹™Ù]
+œX›\ÚYØ]ŠH[™‹™Ù]
+œÛİ\˜ÙWİ\›ŠH[™‹™Ù]
+œÛİ\˜ÙWİ\HŠOOH›Ù™šXÚX[Û™]Ü×Ø\XÛH—Bˆ›Üˆˆ[ˆÛX[—Û™]ÜÖÎWNˆÜ‹˜Y
+”ÔËS‘UÔÈ‹“Ù™šXÚX[™]ÜÈ‹‹™Ù]
+œÛİ\˜ÙWİ\›ŠK›Ù™šXÚX[Û™]Ü×Ø\XÛH‹›™]ÜÈ‹“Ù™šXÚX[ÛÛ\[HTˆ‹‹™Ù]
+œX›\ÚYØ]ŠK‹™Ù]
+]HŠK˜[Y][Û—Üİ]\ÏH•‘T’Q’QQˆYˆ‹™Ù]
+˜ÛÛ[İ™\šYšYYŠH[ÙH”T•PS‹]šY[˜ÙWÙ[YÚX›OX›ÛÛ
+‹™Ù]
+˜ÛÛ[İ™\šYšYYŠHÜˆ‹™Ù]
+›Y]Y]WÙ]šY[˜ÙWÙ[YÚX›HŠJKÙ™šXÚX[X›ÛÛ
+‹™Ù]
+›Ù™šXÚX[ŠJK^˜O^È˜ÛÛ[Ù™]ÚY˜›ÛÛ
+‹™Ù]
+˜ÛÛ[Ù™]ÚYŠJK˜ÛÛ[İ™\šYšYY˜›ÛÛ
+‹™Ù]
+˜ÛÛ[İ™\šYšYYŠJK›Y]Y]Wİ™\šYšYY˜›ÛÛ
+‹™Ù]
+›Y]Y]Wİ™\šYšYYŠJK˜ÛÛ[Ú\Ú›‹™Ù]
+˜ÛÛ[Ú\ÚŠ_JBˆYˆ[J˜[X][Û‹™Ù]
+ÊH\È›İ›Û™H›ÜˆÈ[ˆ
+œ\ˆ‹œœˆ‹™]šY[™ŞZY[‹›X\šÙ]ØØ\ŠJNˆÜ‹˜Y
+”ÔËUS‹•˜[X][Ûˆ]H‹˜[X][Û‹™Ù]
+œÛİ\˜ÙWİ\›ŠK˜[X][Û—Ù]H‹˜[X][Ûˆ‹˜[X][Û‹™Ù]
+œÛİ\˜ÙHŠKšXÙK™Ù]
+œšXÙWÙ]HŠK]šY[˜ÙWÙ[YÚX›OUYJBˆZ\ÜÚ[™ÏV×Bˆ›Üˆˆ[ˆÈœšXÙK˜İ\œ™[ÜšXÙH‹œšXÙKœ™]š[İ\×ØÛÜÙH‹œšXÙK˜Ú[™ÙH‹œšXÙK˜Ú[™ÙWÜ˜]H‹œšXÙKœšXÙWÙ]H—N‚ˆİ\\šXÙK™Ù]
+‹œÜ]
+‹ˆŠVÌWJNÂˆYˆİ\ˆ\È›Û™NˆZ\ÜÚ[™Ë˜\[™
+ÛZ\ÜÚ[™Ê‹›Z\ÜÚ[™ÈŠJBˆš[—Ø][\ÏVŞÈœ›İšY\ˆ˜K™Ù]
+œ›İšY\ˆŠK\›˜K™Ù]
+\›ŠKšÜİ]\È˜K™Ù]
+šÜİ]\ÈŠK™\œ›Ü—İ\H˜K™Ù]
+™\œ›Ü—İ\HŠ_H›ÜˆH[ˆš[˜[˜ÚX[Ë™Ù]
+œ›İšY\—Ø][\È‹×JHYˆK™Ù]
+™\œ›Ü—İ\HŠWHYˆ\Ú[œİ[˜ÙJš[˜[˜ÚX[ËXİ
+H[ÙH×Bˆ›Üˆˆ[ˆÈ™š[˜[˜ÚX[Ë™š\ØØ[Ü\š[Ù‹™š[˜[˜ÚX[Ë™X\›š[™Ü×Ü™[X\ÙWÙ]H‹™š[˜[˜ÚX[Ëœ™]™[YH‹™š[˜[˜ÚX[Ë›Ü\˜][™×Ú[˜ÛÛYH‹™š[˜[˜ÚX[Ë›™]Ú[˜ÛÛYH‹™š[˜[˜ÚX[Ë™\È—N‚ˆYˆš[˜[˜ÚX[Ë™Ù]
+‹œÜ]
+‹ˆŠVÌWJH\È›Û™NˆZ\ÜÚ[™Ë˜\[™
+ÛZ\ÜÚ[™Ê‹™Øİ[Y[Ù™]ÚÙ˜Z[YˆYˆš[—Ø][\È[ÙH›Z\ÜÚ[™È‹][\ÏYš[—Ø][\Ë™]XX›OQ˜[ÙHYˆš[—Ø][\È[ÙHYJJBˆYˆ›İÛX[—Û™]ÜÎˆZ\ÜÚ[™È
+ÏH×ÛZ\ÜÚ[™Ê›™]ÜË›]\İİ]HŠKÛZ\ÜÚ[™Ê›™]ÜË›]\İÜX›\ÚYØ]ŠKÛZ\ÜÚ[™Ê›™]ÜË›]\İÜÛİ\˜ÙWİ\›ŠWBˆYˆ]šY[™Ë™Ù]
+™]šY[™Ù›Ü™XØ\İŠH\È›Û™H[™]šY[™Ë™Ù]
+˜[›X[Ù]šY[™ŠH\È›Û™H[™]šY[™Ë™Ù]
+™]šY[™Ù›Ü™XØ\İÜİ]\ÈŠH›İ[ˆÈ[™XÚYY‹››İÙ\ØÛÜÙYŸNˆZ\ÜÚ[™Ë˜\[™
+ÛZ\ÜÚ[™ÊœÚ\™ZÛ\—Ü™]\›œË™]šY[™Ù›Ü™XØ\İ‹›Z\ÜÚ[™ÈŠJBˆ[Yˆ]šY[™Ë™Ù]
+™]šY[™Ù›Ü™XØ\İÜİ]\ÈŠOOH[™XÚYYˆZ\ÜÚ[™Ë˜\[™
+ÛZ\ÜÚ[™ÊœÚ\™ZÛ\—Ü™]\›œË™]šY[™Ù›Ü™XØ\İ‹[™XÚYY‹È•VWĞĞS‘QUH—K™]XX›OQ˜[ÙJJBˆYˆ˜[X][Û‹™Ù]
+œ\ˆŠH\È›Û™H[™˜[X][Û‹™Ù]
+œœˆŠH\È›Û™NˆZ\ÜÚ[™Ë˜\[™
+ÛZ\ÜÚ[™Ê˜[X][Û‹œ\ˆ‹›Z\ÜÚ[™È‹È•VWĞĞS‘QUH—JJNÈZ\ÜÚ[™Ë˜\[™
+ÛZ\ÜÚ[™Ê˜[X][Û‹œ\—ÛÜ—Üœˆ‹›Z\ÜÚ[™È‹È•VWĞĞS‘QUH—JJBˆš[˜[ÙXÚ\Ú[Û—ÛZ\ÜÚ[™Ï[Z\ÜÚ[™ÊÖ×ÛZ\ÜÚ[™Êœš\ÚÜÈ‹›Z\ÜÚ[™È‹È•ĞUÒ‹•VWĞĞS‘QUH—JWBˆÛİ[Ï\Ü‹˜Ûİ[Ê
+NÈ]X[]OHšYÚˆYˆ›İZ\ÜÚ[™È[™Ûİ[ÖÈ™]šY[˜ÙWÙ[YÚX›WÜÛİ\˜ÙWØÛİ[—OLÈ[ÙHœ\X[ˆYˆ›Ùš[H[ÙH™˜Z[Y‚ˆO^È™Ù[™\˜]YØ]››İÊ
+KœšXÙWØ\×ÛÙˆœšXÙK™Ù]
+œšXÙWÙ]HŠK™[™[Y[[×Ø\×ÛÙˆ™š[˜[˜ÚX[Ë™Ù]
+™š\ØØ[Ü\š[ÙŠK˜[X][Û—Ø\×ÛÙˆœšXÙK™Ù]
+œšXÙWÙ]HŠHYˆ˜[X][Ûˆ[ÙH›Û™K›™]Ü×Ø\×ÛÙˆ˜ÛX[—Û™]ÜÖÌK™Ù]
+œX›\ÚYØ]ŠHYˆÛX[—Û™]ÜÈ[ÙH›Û™Kœİ[WÙšY[È–×K›Z\ÜÚ[™×ÙšY[È–ÛVÈ™šY[—H›ÜˆH[ˆš[˜[ÙXÚ\Ú[Û—ÛZ\ÜÚ[™×K›Z\ÜÚ[™×Ú[™›Ü›X][Ûˆ™š[˜[ÙXÚ\Ú[Û—ÛZ\ÜÚ[™Ë˜ÛÛ™›Xİ[™×ÙšY[È–ÈœšXÙKœ™]š[İ\×ØÛÜÙH—HYˆšXÙK™Ù]
+œÛİ\˜ÙWØÛÛ™›XİŠH[ÙH×KœÛİ\˜ÙWØÛÛ™›XİÈœšXÙK™Ù]
+™XYÛ›ÜİXÜÈŠHYˆšXÙK™Ù]
+œÛİ\˜ÙWØÛÛ™›XİŠH[ÙHßKœ›İšY\—Ù\œ›ÜœÈ™\œ›ÜœË™]WÜ]X[]Hœ]X[]K™\šYšYYÜÛİ\˜Ù\×ØÛİ[˜Ûİ[ÖÈ™]šY[˜ÙWÙ[YÚX›WÜÛİ\˜ÙWØÛİ[—K
+Š˜Ûİ[ßBˆXÚÏ^ÈœØÚ[XWİ™\œÚ[ÛˆˆŒKŒˆ‹\Ú×ÚY\ÚÖÈ\Ú×ÚY—KXÚÙ\ˆœ›Ùš[K™Ù]
+XÚÙ\ˆŠHÜˆ\™Ù]™Ù]
+XÚÙ\ˆŠK˜ÛÛ\[HÚÎˆ›ÜˆËˆ[ˆ›Ùš[Kš][\Ê
+HYˆ›İËœİ\İÚ]
+—ÈŠ_KšY[]Wİ˜[Y][ÛˆšY[]KœšXÙHÚÎˆ›ÜˆËˆ[ˆšXÙKš][\Ê
+HYˆ›İËœİ\İÚ]
+—ÈŠ_KœšXÙWİ™[™ßK™š[˜[˜ÚX[ÈÚÎˆ›ÜˆËˆ[ˆš[˜[˜ÚX[Ëš][\Ê
+HYˆ›İËœİ\İÚ]
+—ÈŠ_K˜[X][ÛˆÚÎˆ›ÜˆËˆ[ˆ˜[X][Û‹š][\Ê
+HYˆ›İËœİ\İÚ]
+—ÈŠ_KœÚ\™ZÛ\—Ü™]\›œÈÚÎˆ›ÜˆËˆ[ˆ]šY[™Ëš][\Ê
+HYˆ›İËœİ\İÚ]
+—ÈŠ_K›™]ÜÈ˜ÛX[—Û™]ÜËœš\ÚÜÈ–×KœÛİ\˜ÙWÛX\œÜ‹›X\˜ØXÚHœİ]Ë™]WÜ]X[]H™_BˆØ]ÚÙšY[Ï^ÈœšXÙK˜İ\œ™[ÜšXÙH‹œšXÙKœ™]š[İ\×ØÛÜÙH‹œšXÙK˜Ú[™ÙH‹œšXÙK˜Ú[™ÙWÜ˜]H‹œšXÙKœšXÙWÙ]H‹™š[˜[˜ÚX[Ë™š\ØØ[Ü\š[Ù‹™š[˜[˜ÚX[Ë™X\›š[™Ü×Ü™[X\ÙWÙ]H‹™š[˜[˜ÚX[Ëœ™]™[YH‹™š[˜[˜ÚX[Ë›Ü\˜][™×Ú[˜ÛÛYH‹™š[˜[˜ÚX[Ë›™]Ú[˜ÛÛYH‹›™]ÜË›]\İİ]H‹›™]ÜË›]\İÜX›\ÚYØ]‹›™]ÜË›]\İÜÛİ\˜ÙWİ\›ŸBˆØ]ÚÛZ\ÜÚ[™ÏVÛH›ÜˆH[ˆZ\ÜÚ[™ÈYˆVÈ™šY[—H[ˆØ]ÚÙšY[×BˆØ]WÜİ]\ÏH‘UWÑT”“ÔˆˆYˆY[]VÈœİ]\È—HOH•‘T’Q’QQˆ[ÙH‘UWÒS”ÕQ‘’PÒQS•ˆYˆØ]ÚÛZ\ÜÚ[™ÈÜˆÛİ[ÖÈ™]šY[˜ÙWÙ[YÚX›WÜÛİ\˜ÙWØÛİ[—OÈ[ÙH”TÔÈ‚ˆØ]O^Èœİ]\È™Ø]WÜİ]\Ë˜^WØ[İÙY‘˜[ÙK›Z\ÜÚ[™×Ú[™›Ü›X][Ûˆ›Z\ÜÚ[™Ëœ™\]Z\™YÜÛİ\˜ÙWØÛİ[ŒË™˜XİÜXÚ×ÙØ]HÈœİ]\È™Ø]WÜİ]\Ë›Z\ÜÚ[™×Ú[™›Ü›X][ÛˆØ]ÚÛZ\ÜÚ[™Ëœ™\]Z\™YÜÛİ\˜ÙWØÛİ[ŒßK™š[˜[Ú[™\İY[ÙXÚ\Ú[Û—ÙØ]HÈœİ]\Èˆ‘UWÒS”ÕQ‘’PÒQS•ˆYˆš[˜[ÙXÚ\Ú[Û—ÛZ\ÜÚ[™È[ÙH”TÔÈ‹›Z\ÜÚ[™×Ú[™›Ü›X][Ûˆ™š[˜[ÙXÚ\Ú[Û—ÛZ\ÜÚ[™ßK™š[˜[ÙXÚ\Ú[Ûˆˆ‘UWÒS”ÕQ‘’PÒQS•ˆYˆš[˜[ÙXÚ\Ú[Û—ÛZ\ÜÚ[™È[ÙH•ĞUÒŸBˆ™]\›ˆXÚËØ]B™Yˆ˜[Y]WÙ]šY[˜ÙJİ]]XÚÊN‚ˆ]O[İ]]™Ù]
+™]H‹İ]]
+NÈ]šY[˜ÙO[İ]]™Ù]
+™]šY[˜ÙHŠHÜˆ]K™Ù]
+™]šY[˜ÙHŠHÜˆ×NÈ[œİ\ÜYV×Bˆ›ÜˆH[ˆ]šY[˜ÙN‚ˆYˆ›İK™Ù]
+˜ÛZ[HŠHÜˆ›İK™Ù]
+™˜XİÜ™YœÈŠHÜˆ›İK™Ù]
+œÛİ\˜ÙWÜ™YœÈŠHÜˆ[JÈ›İ[ˆXÚÖÈœÛİ\˜ÙWÛX\—H›ÜˆÈ[ˆK™Ù]
+œÛİ\˜ÙWÜ™YœÈ‹×JJNˆ[œİ\ÜY˜\[™
+JBˆ™]\›ˆÈ˜[Y˜›ÛÛ
+]šY[˜ÙJH[™›İ[œİ\ÜY™\œ›Ü—İ\H“›Û™HYˆ]šY[˜ÙH[™›İ[œİ\ÜY[ÙH•S”ÕTÔ•QĞÓRSH‹[œİ\ÜYØÛZ[\È[œİ\ÜYB™Yˆ]XİØÛÛ˜YXİ[ÛœÊİ]]XÚÊN‚ˆ^ZœÛÛ‹™[\Êİ]][œİ\™WØ\ØÚZOQ˜[ÙJK›İÙ\Š
+NÈ›İ[™V×NÈÛÛ\[O\XÚË™Ù]
+˜ÛÛ\[H‹ßJBˆYˆÛÛ\[K™Ù]
+›\İYŠH[™[J[ˆ^›Üˆ[ˆÈš\ùbcH‹ºgg¹ak:e¢ù/ y©kH‹œ™KZ\È‹››İY]\İY—JNˆ›İ[™˜\[™
+È˜ÛZ[Hˆœ™KRTËİ[›\İY‹™˜XİÜ™Yˆˆ˜ÛÛ\[K›\İY‹˜XİX[•YK™\œ›Ü—İ\HˆÓÓ•QPÕÔ–WĞÓRSHŸJBˆYˆ˜^Hˆ[ˆ^[™˜^WØØ[™Y]Hˆ›İ[ˆ^ˆ›İ[™˜\[™
+È˜ÛZ[Hˆ•VH\È›İ[İÙY[ˆ[š]X[Ü\˜][Ûˆ‹™˜XİÜ™YˆˆœÛXŞK›X^ÙXÚ\Ú[Ûˆ‹˜XİX[ˆ•VWĞĞS‘QUH‹™\œ›Ü—İ\HˆÓÓ•QPÕÔ–WĞÓRSHŸJBˆ™]\›ˆ›İ[™™Yˆ\ØÛÜ™ÛY\ÜØYÙJš[˜[XÚËØ]JN‚ˆÛÛ\[O\XÚË™Ù]
+˜ÛÛ\[H‹ßJK™Ù]
+˜ÛÛ\[WÛ˜[YHŠHÜˆXÚË™Ù]
+XÚÙ\ˆŠNÈXÚ\Ú[ÛYš[˜[™Ù]
+™š[˜[ÙXÚ\Ú[ÛˆŠHÜˆØ]K™Ù]
+™š[˜[ÙXÚ\Ú[ÛˆŠHÜˆØ]K™Ù]
+œİ]\ÈŠNÈšXÙO\XÚË™Ù]
+œšXÙH‹ßJK™Ù]
+˜İ\œ™[ÜšXÙHŠNÈ]O\XÚË™Ù]
+œšXÙH‹ßJK™Ù]
+œšXÙWÙ]HŠBˆÛİV×NÈZ\ÜÏV×NÈO\XÚË™Ù]
+™]WÜ]X[]H‹ßJNÈZ\ÜÚ[™Ï\Ù]
+K™Ù]
+›Z\ÜÚ[™×ÙšY[È‹×JJBˆYˆXÚË™Ù]
+˜ÛÛ\[H‹ßJK™Ù]
+›\İYŠNˆÛİ˜\[™
+¹."¹h-9 áyh,HŠBˆYˆšXÙH\È›İ›Û™NˆÛİ˜\[™
+¹¨*¹/¨HŠBˆYˆK™Ù]
+š[™^ÜYÙWØÛİ[‹
+NˆÛİ˜\[™
+’T¹aiycèùè®º*£HŠBˆ›ÜˆX™[šY[[ˆÊ¹§ 9¥¬9¬n¹ë¥ù¥l9`)‹™š[˜[˜ÚX[Ëœ™]™[YHŠK
+¸àä8àê¸àéxàª8àï8à­øàéøàìÈ‹˜[X][Û‹œ\—ÛÜ—ÜœˆŠK
+¸àê¸à®xà«È‹œš\ÚÜÈŠK
+ºacyodù áyh,H‹œÚ\™ZÛ\—Ü™]\›œË™]šY[™Ù›Ü™XØ\İŠWN‚ˆYˆšY[[ˆZ\ÜÚ[™ÎˆZ\ÜË˜\[™
+X™[
+BˆšXÙWÛ[™OYˆ¹¨*¹/¨{ï&ÜšXÙ_ya¡ˆŠÊˆ»ï"Ù]_{ï"HˆYˆ]H[ÙHˆŠHYˆšXÙH\È›İ›Û™H[ÙH¹¨*¹/¨{ï&¹cå¹o¥øàiøàcxàfˆ‚ˆ\ÙÏYˆ¸¦¨;î#È9b!¹§¤9/çyåf{ïgÜXÚË™Ù]
+	İXÚÙ\‰Ê_HØÛÛ\[_W¹b)9k¦»ï&ÙXÚ\Ú[ÛŸWÜšXÙWÛ[™_W¹cå¹o¥ù®"8àoûï&—‹HŠÈ—‹H‹š›Ú[ŠÛİÜˆÈ¸àj¸àeÈ—JJÈ—¹§*¹cå¹o¥ûï&—‹HŠÈ—‹H‹š›Ú[ŠZ\ÜÈÜˆÈ¸àj¸àeÈ—JBˆ™]\›ˆ\ÙÖÎLB™Yˆ[™\İY[ØÛÛ[X[™\—İ\]Jš[˜[XÚËØ]KšYÙÙ\S›Û™KÙ[Z[šWØØ[ÏL
+N‚ˆ\XÚË™Ù]
+œšXÙH‹ßJNÈ\XÚË™Ù]
+™š[˜[˜ÚX[È‹ßJNÈO\XÚË™Ù]
+™]WÜ]X[]H‹ßJNÈ™]ÜÏJXÚË™Ù]
+›™]ÜÈŠHÜˆÓ›Û™WJVÌBˆ™]\›ˆÈ™š[˜[ÙXÚ\Ú[Ûˆ™š[˜[™Ù]
+™š[˜[ÙXÚ\Ú[ÛˆŠHÜˆØ]K™Ù]
+™š[˜[ÙXÚ\Ú[ÛˆŠK˜ÛÛ™šY[˜ÙH™š[˜[™Ù]
+˜ÛÛ™šY[˜ÙHŠK˜İ\œ™[ÜšXÙHœ™Ù]
+˜İ\œ™[ÜšXÙHŠKœ™]š[İ\×ØÛÜÙHœ™Ù]
+œ™]š[İ\×ØÛÜÙHŠK˜Ú[™ÙHœ™Ù]
+˜Ú[™ÙHŠK˜Ú[™ÙWÜ˜]Hœ™Ù]
+˜Ú[™ÙWÜ˜]HŠKœšXÙWÙ]Hœ™Ù]
+œšXÙWÙ]HŠK›]\İÙš\ØØ[Ü\š[Ù™‹™Ù]
+™š\ØØ[Ü\š[ÙŠK™X\›š[™Ü×Ü™[X\ÙWÙ]H™‹™Ù]
+™X\›š[™Ü×Ü™[X\ÙWÙ]HŠK™]WÜ]X[]H™Kš[™\[™[ÜÛİ\˜ÙWØÛİ[™K™Ù]
+š[™\[™[ÜÛİ\˜ÙWØÛİ[ŠK™]šY[˜ÙWÙ[YÚX›WÜÛİ\˜ÙWØÛİ[™K™Ù]
+™]šY[˜ÙWÙ[YÚX›WÜÛİ\˜ÙWØÛİ[ŠK›Z\ÜÚ[™×Ú[™›Ü›X][Ûˆ™K™Ù]
+›Z\ÜÚ[™×Ú[™›Ü›X][ÛˆŠKœÛİ\˜ÙWØÛÛ™›XİÈ™K™Ù]
+œÛİ\˜ÙWØÛÛ™›XİÈŠK˜ÛÜœÜ˜]WØXİ[Û—Ü™]šY]Èœ™Ù]
+˜ÛÜœÜ˜]WØXİ[Û—Ù]XİYŠK›]\İÛÙ™šXÚX[Û™]ÜÈ›™]ÜË˜[X][Û—Üİ]\ÈœXÚË™Ù]
+˜[X][Ûˆ‹ßJK™Ù]
+œİ]\ÈŠK™]šY[™Üİ]\ÈœXÚË™Ù]
+œÚ\™ZÛ\—Ü™]\›œÈ‹ßJK™Ù]
+œİ]\ÈŠK™]šY[˜ÙH™š[˜[™Ù]
+™]šY[˜ÙH‹×JK˜ÛÛ˜YXİ[ÛœÈ™š[˜[™Ù]
+˜ÛÛ˜YXİ[ÛœÈ‹×JKœš\ÚÜÈ™š[˜[™Ù]
+œš\ÚÜÈ‹×JK›™^Ü™]šY]È™š[˜[™Ù]
+›™^Ü™]šY]×Ú][\È‹×JK›\İØ[˜[^™Y››İÊ
+KšYÙÙ\ˆšYÙÙ\‹™˜XİÜXÚ×Ü™Yˆ™ˆ˜ØXÚKÚ[™\İY[Ù˜XİËŞ×ØÛÙJÉİXÚÙ\‰ÎœXÚË™Ù]
+	İXÚÙ\‰Ê_J_H‹™Ù[Z[šWØØ[ØÛİ[™Ù[Z[šWØØ[ßB™YˆÚİ[İšYÙÙ\—İ™\šYšYYØ[˜[\Ú\ÊXÚ\Ú[Û‹šYÙÙ\‹šXÙWÙ]K]\İÙš[˜[˜ÚX[Ü\š[ÙS›Û™K]\İÙ]™[Ù]OS›Û™KÙY[S›Û™JN‚ˆ[İÙY^È•ĞUÒ‹•VWĞĞS‘QUH‹”‘U’QU×Ô‘TURT‘QŸNÈ]™[^È‘UWÑT”“Ô—Ô‘PÓÕ‘T‘Q‹‘PT“’S‘Ô×Ô‘SPTÑH‹‘U’QS‘Ô‘U’TÒSÓˆ‹“T‘ÑWÑ“Ô‹’STÔ•S•Ó‘UÔÈŸBˆYˆXÚ\Ú[Ûˆ›İ[ˆ[İÙY[™šYÙÙ\ˆ›İ[ˆ]™[ˆ™]\›ˆ˜[ÙK›Û™BˆÙ^OYˆİšYÙÙ\Ÿ_ÜšXÙWÙ]__Û]\İÙš[˜[˜ÚX[Ü\š[Ù_Û]\İÙ]™[Ù]_HÈ^ÈXÚÙ\—ÚÙ^HšÙ^_Bˆ™]\›ˆ
+˜[ÙK
+HYˆÙY[ˆ[™Ù^H[ˆÙY[ˆ[ÙH
+YK
+B

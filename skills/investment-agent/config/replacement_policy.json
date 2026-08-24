@@ -1,17 +1,19 @@
 {
-  "version": 1,
+  "version": 2,
   "status": "DESIGN_READY_DISABLED",
   "goal_alignment": {
-    "financial_assets_jpy": 200000000,
-    "annual_dividend_jpy": 6000000,
-    "principle": "入れ替えは売買回転を増やすためではなく、2億円・年間配当600万円への到達確率を上げる場合に限る"
+    "financial_assets_jpy": null,
+    "annual_dividend_jpy": null,
+    "principle": "入れ替えは売買回転を増やすためではなく、Private Profileに設定した世帯目標への到達確率を上げる場合に限る"
   },
   "triggers": {
     "earnings_negative": true,
     "dividend_cut_or_suspension": true,
     "structural_thesis_break": true,
     "two_consecutive_neutral_earnings": true,
+    "financial_deterioration": true,
     "hard_concentration_breach": true,
+    "more_suitable_alternative": true,
     "price_above_entry_ceiling_alone": false,
     "one_bad_quarter_alone": false
   },
@@ -33,8 +35,8 @@
   "decisions": {
     "KEEP": "現保有を維持",
     "WATCH": "売却せず監視。新規買い増し停止",
-    "REPLACE_CANDIDATE": "入れ替え候補として人間確認へ。自動売却・自動発注は禁止",
-    "EXIT_REVIEW": "保有継続の前提が崩れたため売却可否を別途監査。自動売却は禁止"
+    "REDUCE_REVIEW": "保有継続の前提悪化を人間監査。自動売却・自動発注は禁止",
+    "REPLACE_REVIEW": "代替候補が公式IR・役割・15点優位を満たした人間監査候補。自動売却・自動発注は禁止"
   },
   "execution": {
     "auto_sell": false,

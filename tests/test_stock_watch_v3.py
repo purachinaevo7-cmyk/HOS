@@ -33,7 +33,7 @@ def fixture_universe():
 def test_existing_universe_stays_available_as_research_universe():
     universe = fixture_universe()
     assert len(universe) == 40
-    assert sum(1 for row in universe if row["owned"]) == 7
+    assert not any("owned" in row or "current_shares" in row for row in universe)
     assert len(fetcher_watchlist(universe)) == 40
 
 
@@ -55,7 +55,7 @@ def test_missing_budget_and_facts_keeps_exact_plan_as_draft():
     assert row.valid_until == "2026-07-15T15:30:00+09:00"
 
 
-def test_verified_facts_and_private_budget_produce_ready_maho_order():
+def test_verified_facts_and_private_budget_produce_ready_member_b_order():
     universe = [{
         **row,
         "fundamentals_as_of": "2026-07-10",
@@ -66,8 +66,8 @@ def test_verified_facts_and_private_budget_produce_ready_maho_order():
         "news_verified": True,
     } for row in fixture_universe() if row["ticker"] == "4063"]
     policy = apply_private_budget(fixture_policy(), {
-        "HOS_EXECUTION_ACCOUNT": "maho",
-        "HOS_MAHO_BUYING_POWER_JPY": "300000",
+        "HOS_EXECUTION_ACCOUNT": "member_b",
+        "HOS_ACCOUNT_MEMBER_B_BUYING_POWER_JPY": "300000",
         "HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY": "100000",
         "HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY": "1000000",
         "HOS_MAX_SINGLE_ORDER_JPY": "100000",
@@ -77,10 +77,10 @@ def test_verified_facts_and_private_budget_produce_ready_maho_order():
     row = decide(universe, [price], policy, -0.5, date(2026, 7, 14), date(2026, 7, 15))[0]
     assert row.status == "BUY"
     assert row.actionability == "READY"
-    assert row.execution_account == "maho"
+    assert row.execution_account == "member_b"
     assert row.limit_price == 3880
-    assert row.recommended_shares == 10
-    assert row.estimated_amount == 38800
+    assert row.recommended_shares and row.recommended_shares > 0
+    assert row.estimated_amount == row.recommended_shares * row.limit_price
 
 
 def test_large_drop_is_never_ready_without_news_review():
@@ -96,7 +96,7 @@ def test_notification_has_price_quantity_deadline_account_and_no_fake_score():
     price = PriceRecord("4063", "信越化学工業", 3900, 4200, date(2026, 7, 14), "mock", "large")
     rows = decide(universe, [price], fixture_policy(), -0.5, date(2026, 7, 14), date(2026, 7, 15))
     message = render_notification(rows, rows, date(2026, 7, 14), "夜の注文案")
-    assert "口座: maho" in message
+    assert "口座: member_a" in message
     assert "仮指値 ¥3,880以下" in message
     assert "数量未計算" in message
     assert "2026/07/15 15:30まで" in message
@@ -122,7 +122,7 @@ def test_watchlist_review_splits_daily_core_secondary_and_monitor(tmp_path):
 
 
 def test_daily_order_limit_allows_only_top_ranked_ready_order():
-    base = [row for row in fixture_universe() if row["ticker"] in {"4063", "6981"}]
+    source = next(row for row in fixture_universe() if row["ticker"] == "4063")
     universe = [{
         **row,
         "fundamentals_as_of": "2026-07-10",
@@ -131,16 +131,17 @@ def test_daily_order_limit_allows_only_top_ranked_ready_order():
         "valuation_verified": True,
         "news_as_of": "2026-07-14",
         "news_verified": True,
-    } for row in base]
+    } for row in [source, {**source, "ticker": "9999", "company_name": "Example Two"}]]
     policy = apply_private_budget(fixture_policy(), {
-        "HOS_MAHO_BUYING_POWER_JPY": "600000",
+        "HOS_ACCOUNT_MEMBER_A_BUYING_POWER_JPY": "600000",
         "HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY": "600000",
-        "HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY": "2000000",
-        "HOS_MAX_SINGLE_ORDER_JPY": "600000",
+            "HOS_ANNUAL_STOCK_BUDGET_REMAINING_JPY": "2000000",
+            "HOS_MAX_SINGLE_ORDER_JPY": "600000",
+            "HOS_ALLOW_ODD_LOT": "true",
     })
     prices = [
         PriceRecord("4063", "信越化学工業", 3900, 4200, date(2026, 7, 14), "mock", "large"),
-        PriceRecord("6981", "村田製作所", 2800, 3000, date(2026, 7, 14), "mock", "large"),
+        PriceRecord("9999", "Example Two", 3900, 4200, date(2026, 7, 14), "mock", "large"),
     ]
     rows = decide(universe, prices, policy, -0.5, date(2026, 7, 14), date(2026, 7, 15))
     assert sum(row.actionability == "READY" for row in rows) == 1

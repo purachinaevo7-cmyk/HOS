@@ -20,7 +20,7 @@ def test_universe_has_40_role_classified_names():
     u=fixture_universe()
     assert len(u)==40
     assert len({x['role'] for x in u})>=8
-    assert sum(1 for x in u if x['owned'])==7
+    assert not any('owned' in x or 'current_shares' in x for x in u)
     assert all('sector' in x and 'valuation_policy_id' in x for x in u)
 
 def test_v2_watchlist_migrates_to_legacy_fetcher_shape():

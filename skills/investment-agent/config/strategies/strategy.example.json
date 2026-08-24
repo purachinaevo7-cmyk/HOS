@@ -1,0 +1,26 @@
+{
+  "strategy_id": "EXAMPLE_PRIVATE_STRATEGY_REQUIRED",
+  "status": "DRAFT",
+  "purchase_authority": {
+    "mode": "REGISTERED_STRATEGY_ONLY",
+    "max_household_orders_per_day": 1,
+    "auto_order": false,
+    "auto_sell": false
+  },
+  "funding": {
+    "current_household_cash_jpy_env": "HOS_CURRENT_HOUSEHOLD_CASH_JPY",
+    "protected_cash_floor_jpy_env": "HOS_PROTECTED_CASH_FLOOR_JPY",
+    "target_investment_jpy_env": "HOS_TARGET_INVESTMENT_JPY",
+    "usd_jpy_planning_rate_env": "HOS_USDJPY_PLANNING_RATE"
+  },
+  "household_goal": {
+    "max_single_ticker_weight_warning": 0.05
+  },
+  "accounts": {},
+  "monitoring_rules": [
+    "No market orders",
+    "No automatic orders or sales",
+    "PURCHASE_READY is required but never sufficient by itself",
+    "Missing or stale data blocks purchases"
+  ]
+}

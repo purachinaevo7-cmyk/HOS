@@ -67,4 +67,4 @@ python skills/growth-menu/audit_growth_menu.py --write-report
 2. ケースに対する自分の見解
 3. 5ページ目の英作文
 
-ひーちゃんは回答を評価し、生の回答ではなく匿名化した診断だけを `feedback/latest.json` に保存します。翌日のテーマ選択と英文法の重点はこの診断を参照します。
+HOS Orchestratorは回答を評価し、生の回答ではなく匿名化した診断だけを `feedback/latest.json` に保存します。翌日のテーマ選択と英文法の重点はこの診断を参照します。

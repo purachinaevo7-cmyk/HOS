@@ -12,7 +12,7 @@ from discord_report import render_discord_report
 
 def signal(**kwargs):
     defaults = {
-        "account": "maho",
+        "account": "member_b",
         "ticker": "4262",
         "name": "ニフティライフスタイル",
         "currency": "JPY",
@@ -42,7 +42,7 @@ def test_report_separates_accounts_and_translates_internal_codes():
         signal(),
         signal(step_index=2, status="NEAR", limit_price=1300, blocks=[]),
         signal(
-            account="hiro",
+            account="member_a",
             ticker="8593",
             name="三菱HCキャピタル",
             fy2026_decision="BUY_2026_CORE",
@@ -78,12 +78,13 @@ def test_report_separates_accounts_and_translates_internal_codes():
         "夜の注文案",
     )
 
-    assert "【まほ口座】" in report
-    assert "【ひろ口座】" in report
-    assert "口座予算未設定・買付余力未設定・決算確認" in report
+    assert "【member_b】" in report
+    assert "【member_a】" in report
+    assert "HOS側：決算確認" in report
+    assert "ユーザー側：口座予算未設定・買付余力未設定" in report
     assert "ACCOUNT_BUDGET" not in report
     assert "PURCHASE_READY" not in report
-    assert "??????????" not in report
+    assert "現在確認済み 未設定" in report
     assert report.count("4262 ニフティライフスタイル") == 1
     assert "【世帯進捗】" in report
     assert "【市場監視】" in report

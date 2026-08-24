@@ -1,4 +1,4 @@
-"""Compact household progress block for Discord investment notifications."""
+"""Compact household progress block for the private Discord notification path."""
 from __future__ import annotations
 
 import math
@@ -7,7 +7,6 @@ from typing import Any, Iterable, Mapping
 
 
 ACTIVE_FY_DECISIONS = {"BUY_2026_CORE", "BUY_2026_CONDITIONAL"}
-ACCOUNT_LABELS = {"maho": "まほ", "hiro": "ひろ"}
 
 
 def _number(value: Any) -> float | None:
@@ -27,8 +26,7 @@ def _env_number(key: str | None, env: Mapping[str, str]) -> float | None:
 def _progress_bar(current: float | None, target: float | None, width: int = 10) -> str:
     if current is None or target is None or target <= 0:
         return "??????????"
-    ratio = max(0.0, min(current / target, 1.0))
-    filled = min(width, int(ratio * width))
+    filled = min(width, int(max(0.0, min(current / target, 1.0)) * width))
     return "■" * filled + "□" * (width - filled)
 
 
@@ -56,11 +54,10 @@ def _active_account_counts(signals: Iterable[Any]) -> dict[str, int]:
         if not account:
             continue
         seen_accounts.add(account)
-        if getattr(signal, "fy2026_decision", None) not in ACTIVE_FY_DECISIONS:
-            continue
-        ticker = str(getattr(signal, "ticker", "") or "")
-        if ticker:
-            active_tickers.setdefault(account, set()).add(ticker)
+        if getattr(signal, "fy2026_decision", None) in ACTIVE_FY_DECISIONS:
+            ticker = str(getattr(signal, "ticker", "") or "")
+            if ticker:
+                active_tickers.setdefault(account, set()).add(ticker)
     return {account: len(active_tickers.get(account, set())) for account in seen_accounts}
 
 
@@ -71,21 +68,12 @@ def build_progress_snapshot(
     env: Mapping[str, str] | None = None,
 ) -> dict[str, float | None]:
     source = env if env is not None else os.environ
-
-    # Exact household totals are private and must be verified before Discord uses
-    # them. Old public-policy snapshots are retained only as historical reference.
     current_assets = _env_number("HOS_CURRENT_FINANCIAL_ASSETS_JPY", source)
-    if current_assets is None and policy.get("current_values_verified") is True:
-        current_assets = _number(policy.get("current_financial_assets"))
-
-    target_assets = _number(policy.get("target_asset_value_at_age_60"))
     current_dividend = _env_number("HOS_CURRENT_ANNUAL_DIVIDEND_JPY", source)
-    if current_dividend is None and policy.get("current_values_verified") is True:
-        current_dividend = _number(policy.get("current_annual_dividend"))
+    target_assets = _number(policy.get("target_asset_value_at_age_60"))
     target_dividend = _number(policy.get("target_annual_dividend"))
-
     target_investment = _env_number(
-        strategy.get("funding", {}).get("target_investment_to_2027_03_jpy_env"),
+        strategy.get("funding", {}).get("target_investment_jpy_env") or "HOS_TARGET_INVESTMENT_JPY",
         source,
     )
     completed_investment = sum(
@@ -93,11 +81,7 @@ def build_progress_snapshot(
         for signal in signals
         if getattr(signal, "status", None) == "COMPLETED"
     )
-    remaining_investment = (
-        max(0.0, target_investment - completed_investment)
-        if target_investment is not None
-        else None
-    )
+    remaining_investment = max(0.0, target_investment - completed_investment) if target_investment is not None else None
     return {
         "current_assets": current_assets,
         "target_assets": target_assets,
@@ -114,39 +98,27 @@ def render_goal_progress(
     strategy: Mapping[str, Any],
     signals: Iterable[Any],
     env: Mapping[str, str] | None = None,
+    account_labels: Mapping[str, str] | None = None,
 ) -> str:
     signal_list = list(signals)
     snapshot = build_progress_snapshot(policy, strategy, signal_list, env)
     assets_bar = _progress_bar(snapshot["current_assets"], snapshot["target_assets"])
     dividend_bar = _progress_bar(snapshot["current_dividend"], snapshot["target_dividend"])
     investment_bar = _progress_bar(snapshot["completed_investment"], snapshot["target_investment"])
-
     lines = [
         "📈 世帯目標の進捗",
         f"資産 {assets_bar} {_percent(snapshot['current_assets'], snapshot['target_assets'])}｜{_compact_yen(snapshot['current_assets'])} / {_compact_yen(snapshot['target_assets'])}",
     ]
-    account_counts = _active_account_counts(signal_list)
-    ordered_accounts = [account for account in ("maho", "hiro") if account in account_counts]
-    ordered_accounts.extend(sorted(account for account in account_counts if account not in {"maho", "hiro"}))
-    if ordered_accounts:
-        account_summary = "｜".join(
-            f"{ACCOUNT_LABELS.get(account, account)} {account_counts[account]}銘柄"
-            for account in ordered_accounts
-        )
-        lines.insert(1, f"👥 購入監視｜{account_summary}")
+    labels = account_labels or {}
+    counts = _active_account_counts(signal_list)
+    if counts:
+        lines.insert(1, "👥 購入監視｜" + "｜".join(f"{labels.get(account, account)} {counts[account]}銘柄" for account in sorted(counts)))
     if snapshot["current_dividend"] is None:
-        lines.append(f"配当 {dividend_bar} 現在額未設定｜目標 {_compact_yen(snapshot['target_dividend'])}/年")
+        lines.append(f"配当 {dividend_bar} 現在確認済み 未設定｜目標 {_compact_yen(snapshot['target_dividend'])}/年")
     else:
-        lines.append(
-            f"配当 {dividend_bar} {_percent(snapshot['current_dividend'], snapshot['target_dividend'])}｜"
-            f"{_compact_yen(snapshot['current_dividend'])} / {_compact_yen(snapshot['target_dividend'])}/年"
-        )
-    if snapshot["target_investment"] is not None:
-        lines.append(
-            f"年度投資 {investment_bar} {_percent(snapshot['completed_investment'], snapshot['target_investment'])}｜"
-            f"実行 {_compact_yen(snapshot['completed_investment'])} / {_compact_yen(snapshot['target_investment'])}｜"
-            f"残り {_compact_yen(snapshot['remaining_investment'])}"
-        )
-    else:
+        lines.append(f"配当 {dividend_bar} {_percent(snapshot['current_dividend'], snapshot['target_dividend'])}｜{_compact_yen(snapshot['current_dividend'])} / {_compact_yen(snapshot['target_dividend'])}/年")
+    if snapshot["target_investment"] is None:
         lines.append("年度投資 ?????????? 目標額未設定")
+    else:
+        lines.append(f"年度投資 {investment_bar} {_percent(snapshot['completed_investment'], snapshot['target_investment'])}｜実行 {_compact_yen(snapshot['completed_investment'])} / {_compact_yen(snapshot['target_investment'])}｜残り {_compact_yen(snapshot['remaining_investment'])}")
     return "\n".join(lines)

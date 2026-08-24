@@ -17,7 +17,7 @@ def test_progress_block_shows_assets_dividend_and_year_budget():
     }
     strategy = {
         "funding": {
-            "target_investment_to_2027_03_jpy_env": "TEST_TARGET_INVESTMENT",
+            "target_investment_jpy_env": "TEST_TARGET_INVESTMENT",
         }
     }
     signals = [
@@ -66,14 +66,14 @@ def test_progress_block_shows_both_active_purchase_accounts_once_per_ticker():
     }
     strategy = {"funding": {}}
     signals = [
-        SimpleNamespace(account="maho", ticker="8316", fy2026_decision="BUY_2026_CORE", status="WAIT", estimated_amount_jpy=0),
-        SimpleNamespace(account="maho", ticker="8316", fy2026_decision="BUY_2026_CORE", status="WAIT_PREVIOUS_STEP", estimated_amount_jpy=0),
-        SimpleNamespace(account="hiro", ticker="8593", fy2026_decision="BUY_2026_CORE", status="WAIT", estimated_amount_jpy=0),
-        SimpleNamespace(account="hiro", ticker="8316", fy2026_decision="DEFER_UNTIL_FUNDED", status="WAIT", estimated_amount_jpy=0),
+        SimpleNamespace(account="member_b", ticker="8316", fy2026_decision="BUY_2026_CORE", status="WAIT", estimated_amount_jpy=0),
+        SimpleNamespace(account="member_b", ticker="8316", fy2026_decision="BUY_2026_CORE", status="WAIT_PREVIOUS_STEP", estimated_amount_jpy=0),
+        SimpleNamespace(account="member_a", ticker="8593", fy2026_decision="BUY_2026_CORE", status="WAIT", estimated_amount_jpy=0),
+        SimpleNamespace(account="member_a", ticker="8316", fy2026_decision="DEFER_UNTIL_FUNDED", status="WAIT", estimated_amount_jpy=0),
     ]
 
     report = render_goal_progress(policy, strategy, signals, {})
-    assert "👥 購入監視｜まほ 1銘柄｜ひろ 1銘柄" in report
+    assert "👥 購入監視｜member_a 1銘柄｜member_b 1銘柄" in report
 
 
 def test_progress_block_marks_current_dividend_as_unset_without_secret():
@@ -84,6 +84,6 @@ def test_progress_block_marks_current_dividend_as_unset_without_secret():
     }
     strategy = {"funding": {}}
     report = render_goal_progress(policy, strategy, [], {})
-    assert "現在額未設定" in report
+    assert "現在確認済み 未設定" in report
     assert "目標 600万円/年" in report
     assert "年度投資 ?????????? 目標額未設定" in report

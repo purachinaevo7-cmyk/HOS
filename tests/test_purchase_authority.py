@@ -31,7 +31,7 @@ def strategy():
     return {
         "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY"},
         "accounts": {
-            "maho": {"orders": [{"ticker": "8316"}]},
+            "member_b": {"orders": [{"ticker": "8316"}]},
         },
     }
 
