@@ -28,15 +28,16 @@ class GitHubSummaryNotifier:
 
 
 class DiscordNotifier:
-    """Send investment reports to Discord when a webhook URL is configured."""
+    """Send a report to Discord without ever echoing the webhook URL."""
 
-    def __init__(self, webhook_url: str | None = None) -> None:
-        self.webhook_url = webhook_url or os.getenv("DISCORD_WEBHOOK_URL")
+    def __init__(self, webhook_url: str | None = None, *, env_var: str = "DISCORD_WEBHOOK_URL") -> None:
+        self.env_var = env_var
+        self.webhook_url = webhook_url or os.getenv(env_var)
 
     def notify(self, report: str) -> None:
         if not self.webhook_url:
             if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
-                raise RuntimeError("DISCORD_WEBHOOK_URL is not configured")
+                raise RuntimeError(f"{self.env_var} is not configured")
             return
 
         payload = json.dumps({"content": self._format_message(report)}, ensure_ascii=False).encode("utf-8")

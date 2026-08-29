@@ -116,6 +116,16 @@ official-IR evidence, budget, cash-floor, holding reconciliation, or freshness
 data blocks purchases. `PURCHASE_READY` does not place an order, and HOS has no
 automatic buy or sell capability.
 
+## Japan Dividend Screener
+
+`Japan Dividend Screener` is a separate public-data-only GitHub Actions job for
+Japanese stocks with long dividend-growth records or explicit progressive
+dividend policies. It posts its own report to the separate
+`DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL` secret, never reads the private
+household profile, and never generates an order. Setup, data limits, and the
+official-IR refresh procedure are in
+[`docs/DIVIDEND_SCREENER.md`](docs/DIVIDEND_SCREENER.md).
+
 ### Gemini structured-output smoke test
 
 Gemini executor uses official Structured Output (`responseSchema`) for agent-specific data and builds the HOS envelope locally. Set `GEMINI_MODEL=gemini-2.5-flash` or another validated generateContent model, then run `python -m orchestrator.cli gemini-smoke-test` or dispatch the GitHub Action with `gemini_smoke_test=true` for a single-call connectivity/schema check.

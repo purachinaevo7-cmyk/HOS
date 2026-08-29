@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "history_years": 10,
+  "description": "Public Japanese ordinary-dividend screening universe. Forecast dividends are transcribed from linked official IR. Update the official_ir block whenever a company revises its forecast; a record is automatically withheld after valid_through.",
+  "universe": [
+    {
+      "code": "1414",
+      "name": "ショーボンドホールディングス",
+      "fiscal_year_end_month": 6,
+      "classification": "ディフェンシブ",
+      "business": "社会インフラの補修・補強",
+      "policy": "11期連続増配実績、今期も増配予想・配当性向60%方針",
+      "safety_comment": "還元方針と財務は強め。受注残の動向を確認。",
+      "official_ir": {
+        "url": "https://www.sho-bond.co.jp/ir/",
+        "source_as_of": "2026-08-10",
+        "valid_through": "2027-08-31",
+        "ordinary_annual_per_share": 46.5,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "3289",
+      "name": "東急不動産ホールディングス",
+      "fiscal_year_end_month": 3,
+      "classification": "景気敏感",
+      "business": "都市開発・賃貸・再生可能エネルギー",
+      "policy": "2028/3期まで累進配当継続、配当性向35%以上",
+      "safety_comment": "配当性向は無理のない水準。金利と不動産市況に注意。",
+      "official_ir": {
+        "url": "https://www.tokyu-fudosan-hd.co.jp/ir/stockandbond/return/",
+        "source_as_of": "2026-05-12",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 50.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "8424",
+      "name": "芙蓉総合リース",
+      "fiscal_year_end_month": 3,
+      "classification": "中間",
+      "business": "法人リース・不動産・ICT等",
+      "policy": "上場以来20期連続増配（FY25時点）、今期も増配予想",
+      "safety_comment": "予想配当性向は32%台。信用・金利・投資先案件を確認。",
+      "official_ir": {
+        "url": "https://www.fgl.co.jp/ir/stock/dividend.html",
+        "source_as_of": "2026-05-11",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 172.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "4503",
+      "name": "アステラス製薬",
+      "fiscal_year_end_month": 3,
+      "classification": "ディフェンシブ",
+      "business": "医療用医薬品",
+      "policy": "年間2円以上の継続増配方針、今期80円予想",
+      "safety_comment": "増配方針は明確。特許切れと新薬開発の進捗を確認。",
+      "official_ir": {
+        "url": "https://www.astellas.com/jp/investors/stock-and-analyst-information",
+        "source_as_of": "2026-05-08",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 80.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "3003",
+      "name": "ヒューリック",
+      "fiscal_year_end_month": 12,
+      "classification": "景気敏感",
+      "business": "不動産賃貸・開発・ホテル",
+      "policy": "上場以来連続増配、2029年に配当性向45%目標",
+      "safety_comment": "増配方針は強いが、金利上昇と不動産売却進捗に注意。",
+      "official_ir": {
+        "url": "https://www.hulic.co.jp/ir/strategy/medium_term.html",
+        "source_as_of": "2026-04-23",
+        "valid_through": "2027-02-28",
+        "ordinary_annual_per_share": 67.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "8804",
+      "name": "東京建物",
+      "fiscal_year_end_month": 12,
+      "classification": "景気敏感",
+      "business": "都市開発・賃貸・住宅",
+      "policy": "配当性向40%方針、今期122円予想",
+      "safety_comment": "40%方針は明快。金利・オフィス需給・資産売却を確認。",
+      "official_ir": {
+        "url": "https://tatemono.com/ir/stock/returning.html",
+        "source_as_of": "2026-02-12",
+        "valid_through": "2027-02-28",
+        "ordinary_annual_per_share": 122.0,
+        "special_annual_per_share": 0
+      },
+      "known_special_dividends": {
+        "2016": 4.0
+      }
+    },
+    {
+      "code": "1928",
+      "name": "積水ハウス",
+      "fiscal_year_end_month": 1,
+      "classification": "景気敏感",
+      "business": "住宅・賃貸住宅・海外事業",
+      "policy": "14期連続増配実績、15期目・145円下限を計画",
+      "safety_comment": "145円下限が支え。米国住宅市況と金利を確認。",
+      "official_ir": {
+        "url": "https://www.sekisuihouse.co.jp/company/financial/individual/fast_facts/",
+        "source_as_of": "2026-03-05",
+        "valid_through": "2027-03-31",
+        "ordinary_annual_per_share": 145.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "4452",
+      "name": "花王",
+      "fiscal_year_end_month": 12,
+      "classification": "ディフェンシブ",
+      "business": "日用品・化粧品",
+      "policy": "分割後ベースで37期連続増配を計画",
+      "safety_comment": "連続増配の質は高いが、利益回復と原材料コストを確認。",
+      "official_ir": {
+        "url": "https://www.kao.com/content/dam/sites/kao/www-kao-com/jp/ja/corporate/investor-relations/pdf/kao-earnings-fy2025-jp.pdf",
+        "source_as_of": "2026-02-04",
+        "valid_through": "2027-02-28",
+        "ordinary_annual_per_share": 78.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "4732",
+      "name": "USS",
+      "fiscal_year_end_month": 3,
+      "classification": "中間",
+      "business": "中古車オークション",
+      "policy": "27期連続増配を計画、配当性向60%以上",
+      "safety_comment": "還元方針は厚い。流通台数・成約率・手数料環境を確認。",
+      "official_ir": {
+        "url": "https://www.ussnet.co.jp/ir/management/vision/index.html",
+        "source_as_of": "2026-08-04",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 56.4,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "9432",
+      "name": "NTT",
+      "fiscal_year_end_month": 3,
+      "classification": "ディフェンシブ",
+      "business": "通信・IT基盤",
+      "policy": "16期連続増配、今期5.4円計画",
+      "safety_comment": "通信収入は安定的。大型投資・規制・競争でFCFを確認。",
+      "official_ir": {
+        "url": "https://group.ntt/en/ir/shares/dividend.html",
+        "source_as_of": "2026-05-09",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 5.4,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "8593",
+      "name": "三菱HCキャピタル",
+      "fiscal_year_end_month": 3,
+      "classification": "中間",
+      "business": "リース・金融",
+      "policy": "長期連続増配、今期も増配予想",
+      "safety_comment": "連続増配は強み。信用コスト、金利、為替を確認。",
+      "official_ir": {
+        "url": "https://www2.jpx.co.jp/disc/85930/140120260515536577.pdf",
+        "source_as_of": "2026-05-15",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 51.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "1605",
+      "name": "INPEX",
+      "fiscal_year_end_month": 12,
+      "classification": "景気敏感",
+      "business": "石油・ガス・LNG",
+      "policy": "2025〜27年度は90円起点の累進配当、今期112円",
+      "safety_comment": "90円起点は支え。資源価格と為替の影響が大きい。",
+      "official_ir": {
+        "url": "https://www.inpex.com/ir/library/upload/result20260807_d.pdf",
+        "source_as_of": "2026-08-07",
+        "valid_through": "2027-02-28",
+        "ordinary_annual_per_share": 112.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "9433",
+      "name": "KDDI",
+      "fiscal_year_end_month": 3,
+      "classification": "ディフェンシブ",
+      "business": "通信・金融・DX",
+      "policy": "25期連続増配を計画、今期84円",
+      "safety_comment": "事業は安定的だが、現在利回りは歴史的に低位圏。",
+      "official_ir": {
+        "url": "https://newsroom.kddi.com/ir-news/detail/kddi_ir-1148_4471.html",
+        "source_as_of": "2026-05-14",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 84.0,
+        "special_annual_per_share": 0
+      }
+    },
+    {
+      "code": "8566",
+      "name": "リコーリース",
+      "fiscal_year_end_month": 3,
+      "classification": "中間",
+      "business": "リース・金融",
+      "policy": "累進配当を導入する一方、特別配当を含む",
+      "safety_comment": "特別配当を含むため通常配当スクリーニングから除外。",
+      "official_ir": {
+        "url": "https://www.r-lease.co.jp/ir/stock/dividend/",
+        "source_as_of": "2026-05-07",
+        "valid_through": "2027-05-31",
+        "ordinary_annual_per_share": 186.0,
+        "special_annual_per_share": 70.0
+      }
+    }
+  ]
+}

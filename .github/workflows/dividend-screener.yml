@@ -1,0 +1,90 @@
+name: Japan Dividend Screener
+
+on:
+  schedule:
+    # 18:30 JST on weekdays.  JPX holidays are handled in the runner.
+    - cron: '30 9 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate the screen without sending to Discord'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: japan-dividend-screener
+  cancel-in-progress: false
+
+jobs:
+  dividend-screener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL: ${{ secrets.DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Resolve delivery mode
+        id: mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            dry_run='${{ inputs.dry_run }}'
+          else
+            dry_run='false'
+          fi
+          echo "dry_run=$dry_run" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Discord delivery configuration
+        if: steps.mode.outputs.dry_run != 'true'
+        shell: bash
+        run: |
+          test -n "$DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL" || { echo '::error::DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL is not configured'; exit 1; }
+
+      - name: Restore public screener state
+        uses: actions/cache/restore@v4
+        with:
+          path: runs/dividend-screener/state.json
+          key: dividend-screener-state-${{ github.run_id }}
+          restore-keys: dividend-screener-state-
+
+      - name: Run public dividend screener
+        shell: bash
+        run: |
+          mkdir -p runs/dividend-screener logs
+          args=(--state-path runs/dividend-screener/state.json)
+          if [ '${{ steps.mode.outputs.dry_run }}' = 'true' ]; then args+=(--dry-run); fi
+          if ! python skills/investment-agent/dividend_screener_runner.py "${args[@]}" > logs/dividend-screener.log 2>&1; then
+            echo '::error::Dividend screener failed. The workflow intentionally withholds runtime output from public logs.'
+            exit 1
+          fi
+
+      - name: Publish safe heartbeat
+        if: always()
+        shell: bash
+        run: |
+          if [ -f runs/dividend-screener/state.json ]; then
+            python -m json.tool runs/dividend-screener/state.json >/dev/null
+          fi
+          echo 'Dividend screener runtime state is public-market-only, cached for ranking deltas, and is not committed or uploaded.'
+
+      - name: Save public screener state
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: runs/dividend-screener/state.json
+          key: dividend-screener-state-${{ github.run_id }}
