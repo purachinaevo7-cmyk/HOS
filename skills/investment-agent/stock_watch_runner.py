@@ -167,6 +167,11 @@ def _postprocess_execution_reconciliation(signals, strategy):
 
 def _private_profile_runtime_notices(profile: dict, strategy: dict) -> list[str]:
     """Return only non-financial, non-identifying migration notices for Discord."""
+    import_state = str(profile.get("_runtime_private_strategy_import_state") or "")
+    if import_state == "INVALID":
+        return ["⚠️ HOS側：登録戦略Secretの形式不備のため、購入判定を安全停止中"]
+    if import_state == "ACCOUNT_BINDING_REQUIRED":
+        return ["⚠️ HOS側：登録戦略SecretとPrivate Profileの口座照合が必要なため、購入判定を安全停止中"]
     lock_reason = str(strategy.get("runtime_profile_lock_reason") or "")
     if lock_reason:
         return ["⚠️ HOS側：Private Profileの登録戦略が未移行のため、購入判定を安全停止中"]

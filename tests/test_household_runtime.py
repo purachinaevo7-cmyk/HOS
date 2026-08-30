@@ -140,6 +140,83 @@ def test_missing_private_strategy_remains_locked_with_non_identifying_reason():
     assert result["runtime_profile_lock_reason"] == "PRIVATE_PROFILE_REQUIRED"
 
 
+def test_strategy_only_secret_recovers_plan_without_overwriting_generic_profile():
+    legacy_strategy = audited_strategy()
+    legacy_strategy["purchase_authority"] = {
+        "mode": "REGISTERED_STRATEGY_ONLY",
+        "auto_order": False,
+        "auto_sell": False,
+    }
+    legacy_strategy["accounts"] = {
+        "legacy_alpha": legacy_strategy["accounts"]["member_a"],
+        "legacy_beta": {"orders": []},
+    }
+    profile = load_private_profile({
+        "HOS_PRIVATE_PROFILE_JSON": json.dumps({
+            "accounts": {"member_a": {}, "member_b": {}},
+            "holdings": [],
+        }),
+        "HOS_PRIVATE_STRATEGY_JSON": json.dumps({
+            "version": 1,
+            "source_account_ids": ["legacy_alpha", "legacy_beta"],
+            "strategy": legacy_strategy,
+        }),
+    })
+
+    assert set(profile["strategy"]["accounts"]) == {"member_a", "member_b"}
+    assert load_private_strategy(profile)["status"] == "ACTIVE"
+    assert "legacy_alpha" not in json.dumps(profile)
+    assert profile["_runtime_private_strategy_import_state"] == "IMPORTED"
+
+
+def test_strategy_only_secret_fails_closed_on_ambiguous_account_binding():
+    profile = load_private_profile({
+        "HOS_PRIVATE_PROFILE_JSON": json.dumps({"accounts": {"legacy_gamma": {}}, "holdings": []}),
+        "HOS_PRIVATE_STRATEGY_JSON": json.dumps({
+            "version": 1,
+            "source_account_ids": ["legacy_alpha"],
+            "strategy": {
+                "strategy_id": "PRIVATE",
+                "status": "ACTIVE",
+                "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "auto_order": False, "auto_sell": False},
+                "accounts": {"legacy_alpha": {"orders": []}},
+            },
+        }),
+    })
+
+    assert "strategy" not in profile
+    assert profile["_runtime_private_strategy_import_state"] == "ACCOUNT_BINDING_REQUIRED"
+    assert load_private_strategy(profile)["status"] == "DRAFT"
+
+
+def test_strategy_only_secret_never_replaces_an_existing_profile_strategy():
+    existing = audited_strategy()
+    existing["purchase_authority"] = {
+        "mode": "REGISTERED_STRATEGY_ONLY",
+        "auto_order": False,
+        "auto_sell": False,
+    }
+    profile = load_private_profile({
+        "HOS_PRIVATE_PROFILE_JSON": json.dumps({
+            "accounts": {"member_a": {}},
+            "strategy": existing,
+        }),
+        "HOS_PRIVATE_STRATEGY_JSON": json.dumps({
+            "version": 1,
+            "source_account_ids": ["legacy_alpha"],
+            "strategy": {
+                "strategy_id": "IMPORT_MUST_NOT_WIN",
+                "status": "ACTIVE",
+                "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "auto_order": False, "auto_sell": False},
+                "accounts": {"legacy_alpha": {"orders": []}},
+            },
+        }),
+    })
+
+    assert profile["strategy"]["strategy_id"] == "TEST_PRIVATE_STRATEGY"
+    assert "_runtime_private_strategy_import_state" not in profile
+
+
 def _first_signal(env):
     strategy = audited_strategy()
     price = PriceRecord("1111", "Example Income Co", 95, 100, date.today(), "mock", "medium")

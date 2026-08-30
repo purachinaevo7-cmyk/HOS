@@ -21,6 +21,7 @@ from stock_analyzer import PriceRecord
 FUNDING_EXCEPTION = "TRANSFER_EXISTING_POSITION_COMPLETION"
 ACTIVE_FY_DECISIONS = {"BUY_2026_CORE", "BUY_2026_CONDITIONAL"}
 ACCOUNT_ID_RE = re.compile(r"^member_[a-z0-9_]+$")
+PRIVATE_STRATEGY_IMPORT_SECRET = "HOS_PRIVATE_STRATEGY_JSON"
 
 ENV_PATHS = {
     "HOS_MONTHLY_STOCK_BUDGET_REMAINING_JPY": ("budgets", "monthly_stock_budget_remaining_jpy"),
@@ -143,6 +144,103 @@ def _normalize_private_account_ids(profile: Mapping[str, Any]) -> dict[str, Any]
     return result
 
 
+def _expected_generic_account_ids(source_ids: list[str]) -> dict[str, str]:
+    """Return the deterministic public-safe mapping for a private account set."""
+    used: set[str] = set()
+    mapping: dict[str, str] = {}
+    for index, source_id in enumerate(sorted(source_ids)):
+        mapping[source_id] = _generic_account_id(index, used)
+    return mapping
+
+
+def _private_strategy_import(source: Mapping[str, str]) -> dict[str, Any] | None:
+    """Read the optional strategy-only secret without exposing its contents.
+
+    This is a migration bridge for an already-existing profile secret that cannot
+    be read back from GitHub in order to add its nested ``strategy`` property.
+    The imported strategy is never persisted, logged, summarized, or allowed to
+    replace an existing nested strategy.
+    """
+    raw = str(source.get(PRIVATE_STRATEGY_IMPORT_SECRET, "") or "").strip()
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return {"state": "INVALID"}
+    if not isinstance(payload, Mapping) or payload.get("version") != 1:
+        return {"state": "INVALID"}
+
+    strategy = payload.get("strategy")
+    source_ids = payload.get("source_account_ids")
+    if not isinstance(strategy, Mapping) or not isinstance(source_ids, list):
+        return {"state": "INVALID"}
+    if any(not isinstance(value, str) for value in source_ids):
+        return {"state": "INVALID"}
+    normalized_ids = [value.strip() for value in source_ids]
+    accounts = strategy.get("accounts")
+    if (
+        not normalized_ids
+        or len(set(normalized_ids)) != len(normalized_ids)
+        or any(not value for value in normalized_ids)
+        or not isinstance(accounts, Mapping)
+        or {str(value) for value in accounts} != set(normalized_ids)
+    ):
+        return {"state": "INVALID"}
+
+    return {
+        "state": "VALID",
+        "source_ids": normalized_ids,
+        "strategy": json.loads(json.dumps(strategy)),
+    }
+
+
+def _merge_private_strategy_import(profile: Mapping[str, Any], source: Mapping[str, str]) -> dict[str, Any]:
+    """Attach a strategy-only Secret only when the Profile has none.
+
+    Account binding is intentionally conservative. A legacy profile must name
+    exactly the imported source accounts; a Profile that is already generic
+    receives only the deterministic matching generic account IDs. Any ambiguity
+    remains fail-closed instead of guessing whose plan belongs to which account.
+    """
+    result = json.loads(json.dumps(profile))
+    if isinstance(result.get("strategy"), Mapping):
+        return result
+
+    imported = _private_strategy_import(source)
+    if imported is None:
+        return result
+    if imported.get("state") != "VALID":
+        result["_runtime_private_strategy_import_state"] = "INVALID"
+        return result
+
+    profile_accounts = _accounts(result)
+    profile_ids = [str(account_id) for account_id in profile_accounts]
+    source_ids = list(imported["source_ids"])
+    expected = _expected_generic_account_ids(source_ids)
+    raw_strategy = json.loads(json.dumps(imported["strategy"]))
+
+    if profile_ids and all(ACCOUNT_ID_RE.fullmatch(account_id) for account_id in profile_ids):
+        if not set(expected.values()).issubset(set(profile_ids)):
+            result["_runtime_private_strategy_import_state"] = "ACCOUNT_BINDING_REQUIRED"
+            return result
+        raw_strategy["accounts"] = {
+            expected[str(account_id)]: account
+            for account_id, account in raw_strategy["accounts"].items()
+        }
+        result["strategy"] = raw_strategy
+        result["_runtime_private_strategy_import_state"] = "IMPORTED"
+        return result
+
+    if set(profile_ids) != set(source_ids):
+        result["_runtime_private_strategy_import_state"] = "ACCOUNT_BINDING_REQUIRED"
+        return result
+
+    result["strategy"] = raw_strategy
+    result["_runtime_private_strategy_import_state"] = "IMPORTED"
+    return result
+
+
 def _verified_cash_total(profile: Mapping[str, Any]) -> float | None:
     values: list[float] = []
     for balance in profile.get("balances", []) if isinstance(profile, Mapping) else []:
@@ -168,7 +266,7 @@ def load_private_profile(env: Mapping[str, str] | None = None) -> dict[str, Any]
         raise RuntimeError("Private Profile JSON is invalid") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("Private Profile must be a JSON object")
-    return _normalize_private_account_ids(payload)
+    return _normalize_private_account_ids(_merge_private_strategy_import(payload, source))
 
 
 def private_account_labels(profile: Mapping[str, Any]) -> dict[str, str]:

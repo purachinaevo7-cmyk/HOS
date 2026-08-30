@@ -22,6 +22,27 @@ generic `member_*` IDs. A profile without a nested `strategy` object cannot
 produce `PURCHASE_READY`; HOS will report that the registered strategy must be
 migrated and keep the purchase gate closed.
 
+## Strategy-only recovery Secret
+
+Do not overwrite an existing `HOS_PRIVATE_PROFILE_JSON` merely because GitHub
+does not allow its value to be read back for migration. As a controlled bridge,
+an operator may store the previously registered private plan in the optional
+`HOS_PRIVATE_STRATEGY_JSON` Secret instead.
+
+Its JSON envelope has `version: 1`, `source_account_ids`, and `strategy`. The
+`source_account_ids` must exactly match the account keys in `strategy.accounts`.
+If the existing Profile uses legacy account IDs, they must also exactly match
+that set. If the Profile already uses `member_*` IDs, HOS binds the imported
+strategy only to the deterministic matching generic IDs. Ambiguous account
+bindings, invalid JSON, missing authority, or an existing nested strategy all
+remain fail-closed; an import never replaces an existing nested strategy.
+
+This bridge changes neither order quantities nor completed steps. It only
+restores an already-registered plan from a Secret. The same fixed-limit,
+official-IR, cash, buying-power, concentration, stale-data, prior-step, and
+one-order-per-day gates continue to apply. Keep this envelope in GitHub
+Actions Secrets only; never commit it, print it, or upload it as an artifact.
+
 The profile contains goals, balances, holdings, buying power, strategy steps,
 completed execution state, and official-IR assessment snapshots. It must never
 be committed, pasted into an Issue, printed in CI, or uploaded as an artifact.

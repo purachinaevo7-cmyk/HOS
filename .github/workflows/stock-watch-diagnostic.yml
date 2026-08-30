@@ -9,6 +9,7 @@ on:
       - 'skills/investment-agent/config/portfolio_policy.json'
       - 'skills/investment-agent/config/**/*.example.json'
       - 'schemas/private_profile.schema.json'
+      - 'schemas/private_strategy_import.schema.json'
   schedule:
     - cron: '7 12 * * 1-5'
     - cron: '27 12 * * 1-5'
@@ -43,6 +44,7 @@ jobs:
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       HOS_PRIVATE_PROFILE_JSON: ${{ secrets.HOS_PRIVATE_PROFILE_JSON }}
+      HOS_PRIVATE_STRATEGY_JSON: ${{ secrets.HOS_PRIVATE_STRATEGY_JSON }}
       HOS_STRATEGY_MAX_DAILY_ORDERS: '1'
       HOS_USDJPY_PLANNING_RATE: '160'
 

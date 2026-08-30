@@ -69,9 +69,10 @@ def test_duplicate_fingerprint_changes_only_for_declared_nonfinancial_revision()
     assert "revision-a" not in first
 
 
-def test_workflow_uses_single_private_profile_secret_without_persisting_runtime_data():
+def test_workflow_uses_private_secrets_without_persisting_runtime_data():
     text = (ROOT / ".github" / "workflows" / "stock-watch-diagnostic.yml").read_text(encoding="utf-8")
     assert "HOS_PRIVATE_PROFILE_JSON: ${{ secrets.HOS_PRIVATE_PROFILE_JSON }}" in text
+    assert "HOS_PRIVATE_STRATEGY_JSON: ${{ secrets.HOS_PRIVATE_STRATEGY_JSON }}" in text
     assert "HOS_ACCOUNT_MEMBER_" not in text
     assert "git add" not in text
     assert "tee logs/stock-watch.log" not in text
