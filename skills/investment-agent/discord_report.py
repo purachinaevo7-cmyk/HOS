@@ -191,6 +191,7 @@ def render_discord_report(
     mode_label: str,
     account_labels: Mapping[str, str] | None = None,
     changes: Iterable[Any] | None = None,
+    system_notices: Iterable[str] | None = None,
 ) -> str:
     signal_list, alert_list = list(signals), list(alerts)
     labels = account_labels or {}
@@ -207,6 +208,8 @@ def render_discord_report(
             lines.extend(str(getattr(change, "text", change)).splitlines())
     else:
         lines.append("判断変更なし")
+    for notice in list(system_notices or [])[:2]:
+        lines.append(str(notice))
     lines.extend(["", f"購入可 {ready}件｜購入停止 {blocked}件｜指値接近 {near}件", f"監視対象：{account_summary}", "※「✅ 購入可」以外は発注禁止", ""])
     lines.extend(_strategy_summary(signal_list, labels))
     lines.extend([""] + _progress_lines(policy, strategy, signal_list) + [""] + _market_lines(alert_list, mode_label) + ["", "発注ルール：成行禁止・固定指値・1日最大1注文・自動発注なし"])

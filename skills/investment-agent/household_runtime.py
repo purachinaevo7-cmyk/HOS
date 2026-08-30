@@ -68,6 +68,81 @@ def _accounts(profile: Mapping[str, Any]) -> Mapping[str, Any]:
     return accounts if isinstance(accounts, Mapping) else {}
 
 
+def _generic_account_id(index: int, used: set[str]) -> str:
+    """Allocate a public-safe internal account id without exposing its source id."""
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    candidate_index = index
+    while True:
+        if candidate_index < len(alphabet):
+            suffix = alphabet[candidate_index]
+        else:
+            suffix = f"private_{candidate_index + 1}"
+        candidate = f"member_{suffix}"
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+        candidate_index += 1
+
+
+def _normalize_private_account_ids(profile: Mapping[str, Any]) -> dict[str, Any]:
+    """Map legacy private account aliases to generic ids in process memory only.
+
+    Earlier Private Profiles could use household-specific account keys. The
+    public runtime must never propagate those keys into environment variables,
+    reports, or public artifacts. This bridge changes only account identifiers;
+    it never supplies a missing strategy, authority, balance, earnings review,
+    or any other purchase gate.
+    """
+    if not isinstance(profile, Mapping):
+        return {}
+    result = json.loads(json.dumps(profile))
+    strategy = result.get("strategy")
+    profile_accounts = result.get("accounts")
+    strategy_accounts = strategy.get("accounts") if isinstance(strategy, Mapping) else None
+    sections = [section for section in (profile_accounts, strategy_accounts) if isinstance(section, Mapping)]
+    if not sections:
+        return result
+
+    source_ids = sorted({str(account_id) for section in sections for account_id in section})
+    if not source_ids or any(not account_id.strip() for account_id in source_ids):
+        result["_runtime_profile_migration_state"] = "ACCOUNT_ID_MIGRATION_REQUIRED"
+        return result
+
+    used = {account_id for account_id in source_ids if ACCOUNT_ID_RE.fullmatch(account_id)}
+    mapping: dict[str, str] = {account_id: account_id for account_id in used}
+    next_index = 0
+    for account_id in source_ids:
+        if account_id in mapping:
+            continue
+        mapping[account_id] = _generic_account_id(next_index, used)
+        next_index += 1
+    if all(source == target for source, target in mapping.items()):
+        return result
+
+    def remap_accounts(section: Any) -> Any:
+        if not isinstance(section, Mapping):
+            return section
+        return {mapping.get(str(account_id), str(account_id)): value for account_id, value in section.items()}
+
+    result["accounts"] = remap_accounts(profile_accounts)
+    if isinstance(strategy, dict):
+        strategy["accounts"] = remap_accounts(strategy_accounts)
+    for collection_name in ("holdings", "balances"):
+        collection = result.get(collection_name)
+        if not isinstance(collection, list):
+            continue
+        for row in collection:
+            if not isinstance(row, dict):
+                continue
+            for field in ("owner", "account", "account_id"):
+                source = str(row.get(field) or "")
+                if source in mapping:
+                    row[field] = mapping[source]
+
+    result["_runtime_profile_migration_state"] = "LEGACY_ACCOUNT_IDS_NORMALIZED"
+    return result
+
+
 def _verified_cash_total(profile: Mapping[str, Any]) -> float | None:
     values: list[float] = []
     for balance in profile.get("balances", []) if isinstance(profile, Mapping) else []:
@@ -93,7 +168,7 @@ def load_private_profile(env: Mapping[str, str] | None = None) -> dict[str, Any]
         raise RuntimeError("Private Profile JSON is invalid") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("Private Profile must be a JSON object")
-    return payload
+    return _normalize_private_account_ids(payload)
 
 
 def private_account_labels(profile: Mapping[str, Any]) -> dict[str, str]:
@@ -164,7 +239,8 @@ def apply_private_policy(policy: Mapping[str, Any], profile: Mapping[str, Any]) 
 
 def load_private_strategy(profile: Mapping[str, Any]) -> dict[str, Any]:
     """Return the real strategy only from the private profile, never a repo file."""
-    strategy = profile.get("strategy") if isinstance(profile, Mapping) else None
+    normalized_profile = _normalize_private_account_ids(profile)
+    strategy = normalized_profile.get("strategy") if isinstance(normalized_profile, Mapping) else None
     if not isinstance(strategy, Mapping):
         return _locked_strategy("PRIVATE_PROFILE_REQUIRED")
     result = json.loads(json.dumps(strategy))
@@ -188,6 +264,7 @@ def _locked_strategy(strategy_id: str) -> dict[str, Any]:
         "status": "DRAFT",
         "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "max_household_orders_per_day": 1},
         "accounts": {},
+        "runtime_profile_lock_reason": strategy_id,
     }
 
 

@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "skills" / "investment-agent"
 sys.path.insert(0, str(BASE))
 
-from stock_watch_runner import _annotate_live_household_targets
+from stock_watch_runner import _annotate_live_household_targets, _private_profile_runtime_notices
 
 
 def test_additional_share_targets_include_existing_household_holdings():
@@ -71,3 +71,12 @@ def test_account_total_target_replaces_only_that_accounts_existing_shares():
     order = result["accounts"]["member_a"]["orders"][0]
     assert order["household_existing_shares_live"] == 70
     assert order["household_target_after_completion"] == 320
+
+
+def test_private_profile_migration_notices_do_not_contain_account_or_financial_values():
+    assert _private_profile_runtime_notices({}, {"runtime_profile_lock_reason": "PRIVATE_PROFILE_REQUIRED"}) == [
+        "⚠️ HOS側：Private Profileの登録戦略が未移行のため、購入判定を安全停止中"
+    ]
+    assert _private_profile_runtime_notices({"_runtime_profile_migration_state": "LEGACY_ACCOUNT_IDS_NORMALIZED"}, {}) == [
+        "ℹ️ HOS側：旧口座IDを内部で安全に移行済み。次回Secret更新時にProfile v2へ更新してください"
+    ]

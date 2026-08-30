@@ -165,12 +165,25 @@ def _postprocess_execution_reconciliation(signals, strategy):
     return result
 
 
+def _private_profile_runtime_notices(profile: dict, strategy: dict) -> list[str]:
+    """Return only non-financial, non-identifying migration notices for Discord."""
+    lock_reason = str(strategy.get("runtime_profile_lock_reason") or "")
+    if lock_reason:
+        return ["⚠️ HOS側：Private Profileの登録戦略が未移行のため、購入判定を安全停止中"]
+    if profile.get("_runtime_profile_migration_state") == "LEGACY_ACCOUNT_IDS_NORMALIZED":
+        return ["ℹ️ HOS側：旧口座IDを内部で安全に移行済み。次回Secret更新時にProfile v2へ更新してください"]
+    if profile.get("_runtime_profile_migration_state") == "ACCOUNT_ID_MIGRATION_REQUIRED":
+        return ["⚠️ HOS側：Private Profileの口座ID移行が必要なため、購入判定を安全停止中"]
+    return []
+
+
 def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir_audit=()) -> None:
     base_strategy_watchlist = v3.strategy_watchlist
     base_evaluate_strategy = v3.evaluate_strategy
     base_render_v3 = v3._render_v3
     base_progress_lines = discord_report._progress_lines
     private_strategy = load_private_strategy(profile)
+    runtime_notices = _private_profile_runtime_notices(profile, private_strategy)
     private_strategy, reconciliation_audit = reconcile_private_holdings(profile, private_strategy)
     private_strategy["execution_reconciliation_audit"] = [finding.to_dict() for finding in reconciliation_audit]
     replacement_verdicts = {
@@ -250,7 +263,12 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
         # artifact concern.
         profile["_runtime_notification_state"] = current_state
         changes = diff_private_notification_state(profile.get("notification_state"), current_state)
-        return discord_report.render_discord_report(**kwargs, account_labels=account_labels, changes=changes)
+        return discord_report.render_discord_report(
+            **kwargs,
+            account_labels=account_labels,
+            changes=changes,
+            system_notices=runtime_notices,
+        )
 
     discord_report.BLOCK_LABELS.update(HOUSEHOLD_BLOCK_LABELS)
     discord_report._progress_lines = progress_lines_with_confirmed_partial

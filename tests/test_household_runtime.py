@@ -1,4 +1,5 @@
 from datetime import date
+import json
 from pathlib import Path
 import sys
 
@@ -6,7 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "skills" / "investment-agent"
 sys.path.insert(0, str(BASE))
 
-from household_runtime import apply_household_funding_gates, hydrate_environment, load_private_strategy
+from household_runtime import (
+    apply_household_funding_gates,
+    hydrate_environment,
+    load_private_profile,
+    load_private_strategy,
+    private_account_labels,
+)
 from stock_analyzer import PriceRecord
 from strategy_plan import evaluate_strategy
 
@@ -100,6 +107,37 @@ def test_private_strategy_without_registered_authority_is_locked_fail_closed():
     result = load_private_strategy(profile)
     assert result["status"] == "DRAFT"
     assert result["purchase_authority"]["mode"] == "REGISTERED_STRATEGY_ONLY"
+
+
+def test_legacy_private_account_ids_are_normalized_only_in_memory():
+    profile = load_private_profile({
+        "HOS_PRIVATE_PROFILE_JSON": json.dumps({
+            "accounts": {
+                "legacy_alpha": {"display_name": "Private A", "buying_power_jpy": 3_000},
+                "legacy_beta": {"display_name": "Private B", "buying_power_jpy": 5_000},
+            },
+            "holdings": [{"owner": "legacy_alpha", "ticker": "1111", "shares": 10, "verified": True}],
+            "strategy": {
+                "strategy_id": "LEGACY_PRIVATE",
+                "status": "ACTIVE",
+                "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "auto_order": False, "auto_sell": False},
+                "accounts": {"legacy_alpha": {"orders": []}, "legacy_beta": {"orders": []}},
+            },
+        })
+    })
+
+    assert set(profile["accounts"]) == {"member_a", "member_b"}
+    assert set(profile["strategy"]["accounts"]) == {"member_a", "member_b"}
+    assert profile["holdings"][0]["owner"] == "member_a"
+    assert profile["_runtime_profile_migration_state"] == "LEGACY_ACCOUNT_IDS_NORMALIZED"
+    assert load_private_strategy(profile)["status"] == "ACTIVE"
+    assert private_account_labels(profile) == {"member_a": "Private A", "member_b": "Private B"}
+
+
+def test_missing_private_strategy_remains_locked_with_non_identifying_reason():
+    result = load_private_strategy({"accounts": {"member_a": {}}})
+    assert result["status"] == "DRAFT"
+    assert result["runtime_profile_lock_reason"] == "PRIVATE_PROFILE_REQUIRED"
 
 
 def _first_signal(env):

@@ -8,6 +8,20 @@
    `HOS_PRIVATE_PROFILE_JSON`.
 4. Store the webhook separately as `DISCORD_WEBHOOK_URL`.
 
+## Existing profile migration
+
+The runtime can safely normalize legacy private account aliases to generic
+`member_*` IDs in memory. It does not print the source aliases or copy them to
+an Actions artifact. This compatibility path preserves every purchase gate and
+does **not** create a strategy, buying power, holdings, cash balance, or
+earnings review that is absent from the Secret.
+
+For a permanent migration, update the Secret privately so that the root
+`accounts`, `strategy.accounts`, and holding ownership fields use the same
+generic `member_*` IDs. A profile without a nested `strategy` object cannot
+produce `PURCHASE_READY`; HOS will report that the registered strategy must be
+migrated and keep the purchase gate closed.
+
 The profile contains goals, balances, holdings, buying power, strategy steps,
 completed execution state, and official-IR assessment snapshots. It must never
 be committed, pasted into an Issue, printed in CI, or uploaded as an artifact.
