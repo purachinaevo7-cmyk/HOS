@@ -640,3 +640,4 @@ def publish_runtime_asset_snapshot(profile: Mapping[str, Any], japanese_prices: 
         "current_financial_assets_jpy": round(total, 2) if not missing else None,
         "missing": missing,
     }
+

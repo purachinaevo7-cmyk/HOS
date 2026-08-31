@@ -157,3 +157,4 @@ def test_manual_logic_panel_explains_no_pass_without_hiding_data_errors():
     assert "HOS決算監査待ち・株価が古い" in report
     assert "🚨 データ取得異常 2222" in report
     assert "株価未取得" in report
+

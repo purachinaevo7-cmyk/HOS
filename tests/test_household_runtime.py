@@ -310,3 +310,4 @@ def test_cash_at_floor_does_not_double_count_order_against_bank_cash():
     env = base_env()
     env["HOS_CURRENT_HOUSEHOLD_CASH_JPY"] = "10000"
     assert "PROTECTED_CASH_FLOOR_BREACH" not in _first_signal(env).blocks
+

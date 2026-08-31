@@ -111,3 +111,4 @@ def test_partial_asset_snapshot_never_clears_concentration_authority_gate():
         "confirmed_partial_jpy": 1_000_000,
         "current_financial_assets_jpy": 1_000_000,
     }) == 1_000_000
+

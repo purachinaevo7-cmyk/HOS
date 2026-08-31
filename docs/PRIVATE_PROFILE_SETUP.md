@@ -84,3 +84,4 @@ The repository previously contained private runtime/configuration data. Removing
 it from HEAD does not erase Git history. Rotate any credential that was tracked
 and perform a reviewed history rewrite with repository-owner approval if the
 repository's exposure requires it.
+
