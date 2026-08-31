@@ -48,6 +48,15 @@ BLOCK_LABELS = {
     "GIFT_TAX_REVIEW_REQUIRED": "è³‡é‡‘ç§»ç®¡ã®ç¨å‹™ç¢ºèª",
     "CONCENTRATION_AUDIT_REQUIRED": "ä¸–å¸¯é›†ä¸­åº¦ç›£æŸ»å¾…ã¡",
     "CONCENTRATION_HARD_LIMIT": "ä¸–å¸¯é›†ä¸­åº¦ä¸Šé™è¶…é",
+    "CONCENTRATION_WARNING": "ä¸–å¸¯é›†ä¸­åº¦æ³¨æ„",
+    "EARNINGS_AUDIT_REQUIRED": "HOSæ±ºç®—ç›£æŸ»å¾…ã¡",
+    "EARNINGS_NEUTRAL": "æ±ºç®—æ§˜å­è¦‹",
+    "EARNINGS_NEGATIVE": "æ±ºç®—æ‚ªåŒ–ãƒ»è³¼å…¥åœæ­¢",
+    "FIXED_LIMIT_REQUIRED": "å›ºå®šæŒ‡å€¤æœªè¨­å®š",
+    "MANUAL_STEP_SHARES_REQUIRED": "Stepæ ªæ•°æœªç¢ºå®š",
+    "MULTIPLE_REGISTERED_PLANS": "åŒä¸€éŠ˜æŸ„ã®ç™»éŒ²è¨ˆç”»ãŒè¤‡æ•°",
+    "PURCHASE_AUTHORITY_INVALID": "ç™»éŒ²æˆ¦ç•¥Authorityä¸å‚™",
+    "FY_DECISION_NOT_ACTIVE": "å½“å¹´åº¦è³¼å…¥è¨ˆç”»å¤–",
 }
 USER_ACTION_BLOCKS = {
     "ACCOUNT_BUDGET_SECRET_REQUIRED",
@@ -140,85 +149,38 @@ def _strategy_summary(signals: list[Any], account_labels: Mapping[str, str], per
     return lines
 
 
-def _progress_lines(policy: Mapping[str, Any], strategy: Mapping[str, Any], signals: list[Any]) -> list[str]:
-    snapshot = build_progress_snapshot(policy, strategy, signals)
-    asset_percent = _percent(snapshot["current_assets"], snapshot["target_assets"])
-    lines = ["ã€ä¸–å¸¯é€²æ—ã€‘", f"è³‡ç”£ {_compact_yen(snapshot['current_assets'])} / {_compact_yen(snapshot['target_assets'])}" + (f"ï¼ˆ{asset_percent}ï¼‰" if asset_percent else "")]
-    if snapshot["current_dividend"] is None:
-        lines.append(f"é…å½“ ç¾åœ¨ç¢ºèªæ¸ˆã¿ æœªè¨­å®šï½œç›®æ¨™ {_compact_yen(snapshot['target_dividend'])}/å¹´")
-    else:
-        dividend_percent = _percent(snapshot["current_dividend"], snapshot["target_dividend"])
-        lines.append(f"é…å½“ {_compact_yen(snapshot['current_dividend'])} / {_compact_yen(snapshot['target_dividend'])}/å¹´" + (f"ï¼ˆ{dividend_percent}ï¼‰" if dividend_percent else ""))
-    if snapshot["target_investment"] is None:
-        lines.append("å¹´åº¦æŠ•è³‡ ç›®æ¨™é¡æœªè¨­å®š")
-    else:
-        investment_percent = _percent(snapshot["completed_investment"], snapshot["target_investment"])
-        lines.append(f"å¹´åº¦æŠ•è³‡ {_compact_yen(snapshot['completed_investment'])} / {_compact_yen(snapshot['target_investment'])}" + (f"ï¼ˆ{investment_percent}ï¼‰" if investment_percent else "") + f"ï½œæ®‹ã‚Š {_compact_yen(snapshot['remaining_investment'])}")
-    return lines
+LOGIC_STATUS_RANK = {
+    "LOGIC_PASS": 0,
+    "BLOCKED": 1,
+    "DAILY_LIMIT": 2,
+    "NEAR": 3,
+    "ABOVE_CEILING": 4,
+    "DATA_ERROR": 5,
+    "WAIT": 6,
+}
 
 
-def _market_lines(alerts: Iterable[Any], mode_label: str, limit: int = 2) -> list[str]:
-    important = [row for row in alerts if int(getattr(row, "priority", 99)) <= 2 or getattr(row, "status", None) in {"REVIEW_REQUIRED", "DATA_ERROR"}]
-    important.sort(key=lambda row: (0 if getattr(row, "status", None) == "REVIEW_REQUIRED" else 1, int(getattr(row, "priority", 99))))
-    lines = ["ã€å¸‚å ´ç›£è¦–ã€‘"]
-    if not important:
-        lines.append("æ–°è¦ã‚¢ãƒ©ãƒ¼ãƒˆãªã—")
-        return lines
-    data_errors = [row for row in important if getattr(row, "status", None) == "DATA_ERROR"]
-    if data_errors:
-        lines.append(f"ğŸš¨ æ—¥æœ¬æ ªãƒ‡ãƒ¼ã‚¿å–å¾—å¤±æ•— {len(data_errors)}ä»¶")
-        lines.append("   æœã®å†å–å¾—ã¾ã§æ—¥æœ¬æ ªã®è³¼å…¥åˆ¤å®šã¯åœæ­¢" if "å¤œ" in mode_label else "   æœã®å†å–å¾—ã§ã‚‚æœªè§£æ¶ˆã€‚æ—¥æœ¬æ ªã®è³¼å…¥åˆ¤å®šã¯åœæ­¢")
-    for row in important[:limit]:
-        status, ticker, name = getattr(row, "status", None), getattr(row, "ticker", ""), getattr(row, "company_name", "")
-        if status == "REVIEW_REQUIRED":
-            lines.append(f"âš ï¸ {ticker} {name}ï½œæ€¥è½ç†ç”±ã®ç¢ºèªå¾…ã¡")
-        elif status == "DATA_ERROR":
-            lines.append(f"âš ï¸ {ticker} {name}ï½œãƒ‡ãƒ¼ã‚¿å–å¾—ç•°å¸¸")
-        else:
-            close, change = _money(getattr(row, "close", None)), getattr(row, "change_percent", None)
-            lines.append(f"ğŸŸ¡ {ticker} {name}ï½œ{close}" + (f"ï¼ˆ{change:+.2f}%ï¼‰" if change is not None else ""))
-    if len(important) > limit:
-        lines.append(f"ãƒ»ã»ã‹ {len(important) - limit}ä»¶")
-    return lines
+def _logic_rows(candidates: Iterable[Any]) -> list[Any]:
+    """Select private manual-logic rows without exposing account identifiers."""
+    rows = [
+        row for row in candidates
+        if getattr(row, "status", None) in LOGIC_STATUS_RANK or getattr(row, "blocks", None)
+    ]
+    rows.sort(key=lambda row: (
+        LOGIC_STATUS_RANK.get(str(getattr(row, "status", "")), 99),
+        int(getattr(row, "execution_priority", 99) or 99),
+        float(getattr(row, "distance_to_limit_percent", 999) or 999),
+        str(getattr(row, "ticker", "")),
+        int(getattr(row, "step_index", 99) or 99),
+    ))
+    unique: dict[str, Any] = {}
+    for row in rows:
+        unique.setdefault(str(getattr(row, "ticker", "")), row)
+    return list(unique.values())
 
 
-def render_discord_report(
-    policy: Mapping[str, Any],
-    strategy: Mapping[str, Any],
-    signals: Iterable[Any],
-    alerts: Iterable[Any],
-    trade_date: date,
-    mode_label: str,
-    account_labels: Mapping[str, str] | None = None,
-    changes: Iterable[Any] | None = None,
-    system_notices: Iterable[str] | None = None,
-) -> str:
-    signal_list, alert_list = list(signals), list(alerts)
-    labels = account_labels or {}
-    counts = _active_account_counts(signal_list)
-    ready = len({(getattr(row, "account", None), getattr(row, "ticker", None)) for row in signal_list if getattr(row, "actionability", None) == "READY"})
-    blocked = len({(getattr(row, "account", None), getattr(row, "ticker", None)) for row in signal_list if getattr(row, "status", None) in {"BLOCKED_AT_LIMIT", "BLOCKED_DAILY_ORDER_LIMIT"}})
-    near = len({(getattr(row, "account", None), getattr(row, "ticker", None)) for row in signal_list if getattr(row, "status", None) == "NEAR"})
-    account_summary = "ï½œ".join(f"{labels.get(account, account)} {counts[account]}éŠ˜æŸ„" for account in sorted(counts)) or "è¨­å®šãªã—"
-    lines = [f"ğŸ“Š HOSæ ªå¼ç›£è¦–ï½œ{trade_date.strftime('%m/%d')}çµ‚å€¤ï½œ{mode_label}"]
-    changes = list(changes or [])
-    lines.append("ã€æœ¬æ—¥ã®å¤‰æ›´ã€‘")
-    if changes:
-        for change in changes[:6]:
-            lines.extend(str(getattr(change, "text", change)).splitlines())
-    else:
-        lines.append("åˆ¤æ–­å¤‰æ›´ãªã—")
-    for notice in list(system_notices or [])[:2]:
-        lines.append(str(notice))
-    lines.extend(["", f"è³¼å…¥å¯ {ready}ä»¶ï½œè³¼å…¥åœæ­¢ {blocked}ä»¶ï½œæŒ‡å€¤æ¥è¿‘ {near}ä»¶", f"ç›£è¦–å¯¾è±¡ï¼š{account_summary}", "â€»ã€Œâœ… è³¼å…¥å¯ã€ä»¥å¤–ã¯ç™ºæ³¨ç¦æ­¢", ""])
-    lines.extend(_strategy_summary(signal_list, labels))
-    lines.extend([""] + _progress_lines(policy, strategy, signal_list) + [""] + _market_lines(alert_list, mode_label) + ["", "ç™ºæ³¨ãƒ«ãƒ¼ãƒ«ï¼šæˆè¡Œç¦æ­¢ãƒ»å›ºå®šæŒ‡å€¤ãƒ»1æ—¥æœ€å¤§1æ³¨æ–‡ãƒ»è‡ªå‹•ç™ºæ³¨ãªã—"])
-    report = "\n".join(lines)
-    return report if len(report) <= 1_980 else f"{report[:1_940].rstrip()}\nâ€¦Discordå†…ã®è©³ç´°ã¯æ¬¡å›æ›´æ–°ã§å†é€šçŸ¥"
-
-
-def render_public_summary(*, trade_date: date, mode_label: str, delivery_confirmed: bool, private_profile_loaded: bool) -> str:
-    """Value-free CI/GitHub Summary content. Never include orders or household data."""
-    status = "Discord delivery confirmed" if delivery_confirmed else "Discord delivery failed"
-    profile = "loaded" if private_profile_loaded else "missing; purchase authority remained fail-closed"
-    return "\n".join(["## HOS Stock Watch", f"- Trade date: {trade_date.isoformat()}", f"- Mode: {mode_label}", f"- Private Profile: {profile}", f"- Notification: {status}", "- Household balances, targets, holdings, and order details are intentionally excluded from this summary."])
+def _logic_summary(candidates: Iterable[Any], per_limit: int = 3) -> list[str]:
+    """Render a manual-review panel that can never be read as order approval."""
+    relevant = _logic_rows(candidates)
+    passes = [row for row in relevant if getattr(row, "status", None) == "LOGIC_PASS"]
+    lines = ["ã€éŠ˜æŸ„ãƒ­ã‚¸ãƒƒã‚¯ï¼ˆæ‰‹å‹•åˆ¤æ–­ç”¨ï¼‰ã€‘", f"ğŸŸ¢ é€šé {len(passes)}ä»¶ï¼ˆHOSã®ç™ºæ³¨å¯ã§ã¯ãªã»ç­m¢G§²ÚîÆ­yÖöv–5ööæÇ’‚“ ¢6÷W&6Uö–BÒ&ÆVv7•öÇ† ¢&öf–ÆRÒÆöE÷&—fFU÷&öf–ÆR‡°¢$„õ5õ$•dDUõ$ôd”ÄUô¥4ôâ#¢§6öâæGV×2‡²&66÷VçG2#¢²&ÆVv7•övÖÖ#¢·×ÒÂ&†öÆF–æw2#¢µ×Ò’À¢$„õ5õ$•dDUõ5E$DTu•ô¥4ôâ#¢§6öâæGV×2‡°¢'fW'6–öâ#¢À¢'6÷W&6Uö66÷VçEö–G2#¢·6÷W&6Uö–EÒÀ¢'7G&FVw’#¢°¢'7G&FVw•ö–B#¢%$•dDUõ4õU$4UõÄâ"À¢'7FGW2#¢$5D•dR"À¢'W&6†6UöWF†÷&—G’#¢²&ÖöFR#¢%$Tt•5DU$TEõ5E$DTu•ôôäÅ’"Â&WFõö÷&FW"#¢fÇ6RÂ&WFõ÷6VÆÂ#¢fÇ6WÒÀ¢&66÷VçG2#¢·6÷W&6Uö–C¢²&÷&FW'2#¢µ××ÒÀ¢ÒÀ¢Ò’À¢Ò ¢ÖçVÂÒÆöE÷&—fFUöÖçVÅöÆöv–5÷7G&FVw’‡&öf–ÆRÂ°¢$„õ5õ$•dDUõ5E$DTu•ô¥4ôâ#¢§6öâæGV×2‡°¢'fW'6–öâ#¢À¢'6÷W&6Uö66÷VçEö–G2#¢·6÷W&6Uö–EÒÀ¢'7G&FVw’#¢°¢'7G&FVw•ö–B#¢%$•dDUõ4õU$4UõÄâ"À¢'7FGW2#¢$5D•dR"À¢'W&6†6UöWF†÷&—G’#¢²&ÖöFR#¢%$Tt•5DU$TEõ5E$DTu•ôôäÅ’"Â&WFõö÷&FW"#¢fÇ6RÂ&WFõ÷6VÆÂ#¢fÇ6WÒÀ¢&66÷VçG2#¢·6÷W&6Uö–C¢²&÷&FW'2#¢µ××ÒÀ¢ÒÀ¢Ò’À¢Ò ¢76W'B6WB†ÖçVÅ²&66÷VçG2%Ò’ÓÒ²&ÖVÖ&W%öÆöv–5ö'Ğ¢76W'BÖçVÅ²'7G&FVw•ö–B%ÒÓÒ%$•dDUôÔåTÅôÄôt”2 ¢76W'B6÷W&6Uö–Bæ÷B–â§6öâæGV×2†ÖçVÂ¢76W'BÆöE÷&—fFU÷7G&FVw’‡&öf–ÆR•²'7FGW2%ÒÓÒ$E$eB   ¦FVbFW7E÷Væ&÷VæEöÖçVÅöÆöv–5÷&V¦V7G5öWFöÖF–5ö÷&FW%öWF†÷&—G’‚“ ¢&öf–ÆRÒ²%÷'VçF–ÖU÷&—fFU÷7G&FVw•ö–×÷'E÷7FFR#¢$44õTåEô$”äD”äuõ$UT•$TB'Ğ¢ÖçVÂÒÆöE÷&—fFUöÖçVÅöÆöv–5÷7G&FVw’‡&öf–ÆRÂ°¢$„õ5õ$•dDUõ5E$DTu•ô¥4ôâ#¢§6öâæGV×2‡°¢'fW'6–öâ#¢À¢'6÷W&6Uö66÷VçEö–G2#¢²&ÆVv7•öÇ†%ÒÀ¢'7G&FVw’#¢°¢'7FGW2#¢$5D•dR"À¢'W&6†6UöWF†÷&—G’#¢²&ÖöFR#¢%$Tt•5DU$TEõ5E$DTu•ôôäÅ’"Â&WFõö÷&FW"#¢G'VRÂ&WFõ÷6VÆÂ#¢fÇ6WÒÀ¢&66÷VçG2#¢²&ÆVv7•öÇ†#¢²&÷&FW'2#¢µ××ÒÀ¢ÒÀ¢Ò’À¢Ò¢76W'BÖçVÂÓÒ·Ğ  ¦FVbFW7E÷7G&FVw•ööæÇ•÷6V7&WEöæWfW%÷&WÆ6W5öåöW†—7F–æu÷&öf–ÆU÷7G&FVw’‚“ ¢W†—7F–ærÒVF—FVE÷7G&FVw’‚¢W†—7F–æu²'W&6†6UöWF†÷&—G’%ÒÒ°¢&ÖöFR#¢%$Tt•5DU$TEõ5E$DTu•ôôäÅ’"À¢&WFõö÷&FW"#¢fÇ6RÀ¢&WFõ÷6VÆÂ#¢fÇ6RÀ¢Ğ¢&öf–ÆRÒÆöE÷&—fFU÷&öf–ÆR‡°¢$„õ5õ$•dDUõ$ôd”ÄUô¥4ôâ#¢§6öâæGV×2‡°¢&66÷VçG2#¢²&ÖVÖ&W%ö#¢·×ÒÀ¢'7G&FVw’#¢W†—7F–ærÀ¢Ò’À¢$„õ5õ$•dDUõ5E$DTu•ô¥4ôâ#¢§6öâæGV×2‡°¢'fW'6–öâ#¢À¢'6÷W&6Uö66÷VçEö–G2#¢²&ÆVv7•öÇ†%ÒÀ¢'7G&FVw’#¢°¢'7G&FVw•ö–B#¢$”Õõ%EôÕU5EôäõEõt”â"À¢'7FGW2#¢$5D•dR"À¢'W&6†6UöWF†÷&—G’#¢²&ÖöFR#¢%$Tt•5DU$TEõ5E$DTu•ôôäÅ’"Â&WFõö÷&FW"#¢fÇ6RÂ&WFõ÷6VÆÂ#¢fÇ6WÒÀ¢&66÷VçG2#¢²&ÆVv7•öÇ†#¢²&÷&FW'2#¢µ××ÒÀ¢ÒÀ¢Ò’À¢Ò ¢76W'B&öf–ÆU²'7G&FVw’%Õ²'7G&FVw•ö–B%ÒÓÒ%DU5Eõ$•dDUõ5E$DTu’ ¢76W'B%÷'VçF–ÖU÷&—fFU÷7G&FVw•ö–×÷'E÷7FFR"æ÷B–â&öf–ÆP  ¦FVböf—'7E÷6–væÂ†Vçb“ ¢7G&FVw’ÒVF—FVE÷7G&FVw’‚¢&–6RÒ&–6U&V6÷&B‚#"Â$W†×ÆR–æ6öÖR6ò"Â“RÂÂFFRçFöF’‚’Â&Öö6²"Â&ÖVF—VÒ"¢6–væÂÒWfÇVFU÷7G&FVw’‡7G&FVw’Â·&–6UÒÂVçcÖVçb•³Ğ¢&WGW&âÇ•ö†÷W6V†öÆEögVæF–æuövFW2…·6–væÅÒÂ7G&FVw’ÂVçcÖVçb•³Ğ  ¦FVbFW7EöW†—7F–æu÷÷6—F–öåö6ö×ÆWF–öåö6åö&U÷&VG•ööæÇ•ögFW%öÆÅögVæF–æuövFW2‚“ ¢6–væÂÒöf—'7E÷6–væÂ†&6UöVçb‚’¢76W'B6–væÂæ7F–öæ&–Æ—G’ÓÒ%$TE’ ¢76W'B6–væÂçW&6†6UöfÆrÓÒ%U$4„4Uõ$TE’   ¦FVbFW7Eö6ö×ÆWF–öåö—5ö&Æö6¶VE÷VçF–Å÷G&ç6fW%öÆæG2‚“ ¢VçbÒ&6UöVçb‚¢Vçe²$„õ5ô44õTåEôÔTÔ$U%ôô%U””äuõõtU%ô¥’%ÒÒ# ¢6–væÂÒöf—'7E÷6–væÂ†Vçb¢76W'B6–væÂæ7F–öæ&–Æ—G’ÓÒ$E$eB ¢76W'B$44õTåEõE$å4dU%õ$UT•$TB"–â6–væÂæ&Æö6·0  ¦FVbFW7Eö6ö×ÆWF–öå÷7F÷5ö&÷fUöv–gE÷F…öwV&E÷VçF–Å÷&Wf–WvVB‚“ ¢VçbÒ&6UöVçb‚¢Vçe²$„õ5ô44õTåEôÔTÔ$U%ôõD„$ÄUôt”eE5õ•DEô¥’%ÒÒ## ¢76W'B$t”eEõD…õ$Ud”Uuõ$UT•$TB"–âöf—'7E÷6–væÂ†Vçb’æ&Æö6·0¢Vçe²$„õ5ô44õTåEôÔTÔ$U%ôôt”eEõD…õ$Ud”UtTB%ÒÒ'G'VR ¢76W'B$t”eEõD…õ$Ud”Uuõ$UT•$TB"æ÷B–âöf—'7E÷6–væÂ†Vçb’æ&Æö6·0  ¦FVbFW7Eö66…öfÆö÷%ö&Æö6·5÷v†Vå÷fW&–f–VEö&æµö66…ö—5ö&VÆ÷uöfÆö÷"‚“ ¢VçbÒ&6UöVçb‚¢Vçe²$„õ5ô5U%$TåEô„õU4T„ôÄEô44…ô¥’%ÒÒ#“““’ ¢6–væÂÒöf—'7E÷6–væÂ†Vçb¢76W'B6–væÂæ7F–öæ&–Æ—G’ÓÒ$E$eB ¢76W'B%$õDT5DTEô44…ôdÄôõ%ô%$T4‚"–â6–væÂæ&Æö6·0  ¦FVbFW7Eö66…öEöfÆö÷%öFöW5öæ÷EöF÷V&ÆUö6÷VçEö÷&FW%öv–ç7Eö&æµö66‚‚“ ¢VçbÒ&6UöVçb‚¢Vçe²$„õ5ô5U%$TåEô„õU4T„ôÄEô44…ô¥’%ÒÒ# ¢76W'B%$õDT5DTEô44…ôdÄôõ%ô%$T4‚"æ÷B–âöf—'7E÷6–væÂ†Vçb’æ&Æö6·0

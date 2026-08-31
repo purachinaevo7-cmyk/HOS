@@ -22,6 +22,7 @@ import stock_fetcher
 from dividend_tracker import annual_dividend_summary
 from earnings_assessment import apply_earnings_assessments
 from execution_reconciliation import reconcile_private_holdings
+from manual_logic import evaluate_manual_logic_candidates
 from official_ir import ingest_official_ir_sources
 from notification_diff import build_private_notification_state, diff_private_notification_state
 from portfolio_simulation import simulate_completion
@@ -31,6 +32,7 @@ from household_runtime import (
     apply_private_policy,
     hydrate_environment,
     load_private_earnings_book,
+    load_private_manual_logic_strategy,
     load_private_profile,
     load_private_strategy,
     private_account_labels,
@@ -165,12 +167,25 @@ def _postprocess_execution_reconciliation(signals, strategy):
     return result
 
 
-def _private_profile_runtime_notices(profile: dict, strategy: dict) -> list[str]:
+def _full_financial_assets_for_authority(snapshot: dict) -> float | None:
+    """Return a concentration denominator only when the private tally is complete."""
+    if not isinstance(snapshot, dict) or not snapshot.get("complete"):
+        return None
+    try:
+        value = float(snapshot.get("current_financial_assets_jpy"))
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _private_profile_runtime_notices(profile: dict, strategy: dict, *, manual_logic_available: bool = False) -> list[str]:
     """Return only non-financial, non-identifying migration notices for Discord."""
     import_state = str(profile.get("_runtime_private_strategy_import_state") or "")
     if import_state == "INVALID":
         return ["⚠️ HOS側：登録戦略Secretの形式不備のため、購入判定を安全停止中"]
     if import_state == "ACCOUNT_BINDING_REQUIRED":
+        if manual_logic_available:
+            return ["ℹ️ HOS側：口座別の発注安全判定は保留。銘柄ロジックを手動判断用に表示中"]
         return ["⚠️ HOS側：登録戦略SecretとPrivate Profileの口座照合が必要なため、購入判定を安全停止中"]
     lock_reason = str(strategy.get("runtime_profile_lock_reason") or "")
     if lock_reason:
@@ -188,7 +203,12 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
     base_render_v3 = v3._render_v3
     base_progress_lines = discord_report._progress_lines
     private_strategy = load_private_strategy(profile)
-    runtime_notices = _private_profile_runtime_notices(profile, private_strategy)
+    manual_logic_strategy = load_private_manual_logic_strategy(profile)
+    runtime_notices = _private_profile_runtime_notices(
+        profile,
+        private_strategy,
+        manual_logic_available=bool(manual_logic_strategy),
+    )
     private_strategy, reconciliation_audit = reconcile_private_holdings(profile, private_strategy)
     private_strategy["execution_reconciliation_audit"] = [finding.to_dict() for finding in reconciliation_audit]
     replacement_verdicts = {
@@ -203,12 +223,19 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
         return apply_earnings_assessments(strategy, earnings_book)
 
     def strategy_watchlist_with_private(strategy):
-        return v3.merge_watchlists(base_strategy_watchlist(strategy), private_jp_watchlist(profile))
+        return v3.merge_watchlists(
+            base_strategy_watchlist(strategy),
+            base_strategy_watchlist(manual_logic_strategy),
+            private_jp_watchlist(profile),
+        )
 
     def evaluate_strategy_with_household_gates(strategy, japanese_prices, policy=None, env=None):
         snapshot = publish_runtime_asset_snapshot(profile, japanese_prices)
         effective_policy = dict(policy or {})
-        live_assets = snapshot.get("current_financial_assets_jpy") or snapshot.get("confirmed_partial_jpy")
+        # A partial valuation must never clear the registered-strategy
+        # concentration gate.  This is intentionally stricter than a progress
+        # display, which may show confirmed partial assets separately.
+        live_assets = _full_financial_assets_for_authority(snapshot)
         if live_assets is not None:
             effective_policy["current_financial_assets"] = float(live_assets)
         signals = base_evaluate_strategy(strategy, japanese_prices, policy=effective_policy, env=env)
@@ -216,8 +243,21 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
         processed = _postprocess_execution_reconciliation(processed, strategy)
         return apply_household_funding_gates(processed, strategy, env=env)
 
+    latest_logic_candidates = []
+
     def render_with_private_context(universe, policy, strategy, result, mode, data_dir):
-        publish_runtime_asset_snapshot(profile, result.prices)
+        nonlocal latest_logic_candidates
+        snapshot = publish_runtime_asset_snapshot(profile, result.prices)
+        if manual_logic_strategy:
+            assessed_logic_strategy = apply_earnings_assessments(manual_logic_strategy, earnings_book)
+            latest_logic_candidates = evaluate_manual_logic_candidates(
+                assessed_logic_strategy,
+                result.prices,
+                financial_assets_jpy=_full_financial_assets_for_authority(snapshot),
+                holdings=profile.get("holdings", []) if isinstance(profile, dict) else [],
+            )
+        else:
+            latest_logic_candidates = []
         return base_render_v3(universe, apply_private_policy(policy, profile), strategy, result, mode, data_dir)
 
     def progress_lines_with_confirmed_partial(policy, strategy, signals):
@@ -273,6 +313,7 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
             account_labels=account_labels,
             changes=changes,
             system_notices=runtime_notices,
+            logic_candidates=latest_logic_candidates,
         )
 
     discord_report.BLOCK_LABELS.update(HOUSEHOLD_BLOCK_LABELS)

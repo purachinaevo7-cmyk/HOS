@@ -43,6 +43,15 @@ official-IR, cash, buying-power, concentration, stale-data, prior-step, and
 one-order-per-day gates continue to apply. Keep this envelope in GitHub
 Actions Secrets only; never commit it, print it, or upload it as an artifact.
 
+When an otherwise valid strategy-only Secret cannot be safely bound to the
+Profile's account IDs, `PURCHASE_READY` remains closed. HOS can still show a
+separate private Discord panel named **銘柄ロジック（手動判断用）**: it checks
+the registered next step, fixed limit, official-IR POSITIVE assessment, fresh
+price, conditions, and a complete concentration denominator. It does not
+evaluate account buying power, household cash, budget, or execution
+reconciliation, and is explicitly not an order instruction or purchase
+approval. No account identifiers are shown in that panel.
+
 The profile contains goals, balances, holdings, buying power, strategy steps,
 completed execution state, and official-IR assessment snapshots. It must never
 be committed, pasted into an Issue, printed in CI, or uploaded as an artifact.

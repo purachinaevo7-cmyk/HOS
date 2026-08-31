@@ -10,6 +10,7 @@ sys.path.insert(0, str(BASE))
 from household_runtime import (
     apply_household_funding_gates,
     hydrate_environment,
+    load_private_manual_logic_strategy,
     load_private_profile,
     load_private_strategy,
     private_account_labels,
@@ -187,6 +188,57 @@ def test_strategy_only_secret_fails_closed_on_ambiguous_account_binding():
     assert "strategy" not in profile
     assert profile["_runtime_private_strategy_import_state"] == "ACCOUNT_BINDING_REQUIRED"
     assert load_private_strategy(profile)["status"] == "DRAFT"
+
+
+def test_unbound_strategy_secret_can_supply_anonymous_manual_logic_only():
+    source_id = "legacy_alpha"
+    profile = load_private_profile({
+        "HOS_PRIVATE_PROFILE_JSON": json.dumps({"accounts": {"legacy_gamma": {}}, "holdings": []}),
+        "HOS_PRIVATE_STRATEGY_JSON": json.dumps({
+            "version": 1,
+            "source_account_ids": [source_id],
+            "strategy": {
+                "strategy_id": "PRIVATE_SOURCE_PLAN",
+                "status": "ACTIVE",
+                "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "auto_order": False, "auto_sell": False},
+                "accounts": {source_id: {"orders": []}},
+            },
+        }),
+    })
+
+    manual = load_private_manual_logic_strategy(profile, {
+        "HOS_PRIVATE_STRATEGY_JSON": json.dumps({
+            "version": 1,
+            "source_account_ids": [source_id],
+            "strategy": {
+                "strategy_id": "PRIVATE_SOURCE_PLAN",
+                "status": "ACTIVE",
+                "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "auto_order": False, "auto_sell": False},
+                "accounts": {source_id: {"orders": []}},
+            },
+        }),
+    })
+
+    assert set(manual["accounts"]) == {"member_logic_a"}
+    assert manual["strategy_id"] == "PRIVATE_MANUAL_LOGIC"
+    assert source_id not in json.dumps(manual)
+    assert load_private_strategy(profile)["status"] == "DRAFT"
+
+
+def test_unbound_manual_logic_rejects_automatic_order_authority():
+    profile = {"_runtime_private_strategy_import_state": "ACCOUNT_BINDING_REQUIRED"}
+    manual = load_private_manual_logic_strategy(profile, {
+        "HOS_PRIVATE_STRATEGY_JSON": json.dumps({
+            "version": 1,
+            "source_account_ids": ["legacy_alpha"],
+            "strategy": {
+                "status": "ACTIVE",
+                "purchase_authority": {"mode": "REGISTERED_STRATEGY_ONLY", "auto_order": True, "auto_sell": False},
+                "accounts": {"legacy_alpha": {"orders": []}},
+            },
+        }),
+    })
+    assert manual == {}
 
 
 def test_strategy_only_secret_never_replaces_an_existing_profile_strategy():

@@ -356,6 +356,63 @@ def load_private_strategy(profile: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _manual_logic_account_id(index: int) -> str:
+    """Allocate an anonymous account id for the manual-logic-only pathway."""
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    suffix = alphabet[index] if index < len(alphabet) else f"private_{index + 1}"
+    return f"member_logic_{suffix}"
+
+
+def load_private_manual_logic_strategy(
+    profile: Mapping[str, Any],
+    env: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Load a registered strategy for manual logic review only.
+
+    This deliberately exists only for a valid strategy-only Secret whose
+    account identifiers cannot be safely bound to the Private Profile.  It is
+    not an import, does not amend the profile, and is never passed to the
+    purchase-authority or execution paths.  Its sole consumer is the private
+    Discord ``manual logic`` panel.
+
+    The source account identifiers are replaced before the result leaves this
+    function.  Invalid authority, automatic-order settings, or malformed
+    secret content returns an empty plan (fail closed).
+    """
+    if str(profile.get("_runtime_private_strategy_import_state") or "") != "ACCOUNT_BINDING_REQUIRED":
+        return {}
+    source = env if env is not None else os.environ
+    imported = _private_strategy_import(source)
+    if not imported or imported.get("state") != "VALID":
+        return {}
+
+    candidate = json.loads(json.dumps(imported["strategy"]))
+    source_ids = list(imported["source_ids"])
+    account_mapping = {
+        source_id: _manual_logic_account_id(index)
+        for index, source_id in enumerate(sorted(source_ids))
+    }
+    accounts = candidate.get("accounts")
+    if not isinstance(accounts, Mapping):
+        return {}
+    candidate["accounts"] = {
+        account_mapping[str(account_id)]: account
+        for account_id, account in accounts.items()
+        if str(account_id) in account_mapping
+    }
+    if set(candidate["accounts"]) != set(account_mapping.values()):
+        return {}
+
+    # Never carry a potentially household-specific strategy identifier into a
+    # renderer or output object.  The candidate is still structurally checked
+    # by the same registered-authority validator as the actual strategy.
+    candidate["strategy_id"] = "PRIVATE_MANUAL_LOGIC"
+    validated = load_private_strategy({"strategy": candidate})
+    if validated.get("runtime_profile_lock_reason"):
+        return {}
+    return validated
+
+
 def _locked_strategy(strategy_id: str) -> dict[str, Any]:
     return {
         "strategy_id": strategy_id,
