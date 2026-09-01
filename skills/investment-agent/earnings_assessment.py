@@ -14,6 +14,8 @@ import math
 from pathlib import Path
 from typing import Any, Mapping
 
+from jpx_trade_date import previous_jpx_cash_session
+
 POSITIVE = "POSITIVE"
 NEUTRAL = "NEUTRAL"
 NEGATIVE = "NEGATIVE"
@@ -107,15 +109,17 @@ def assess_snapshot(ticker: str, snapshot: Mapping[str, Any] | None, *, as_of: d
         missing.append("REVIEW_EXPIRED_FOR_NEXT_EARNINGS")
 
     # A previously healthy quarter must not remain a green light immediately
-    # before the next results. HOS defaults to a one-calendar-day freeze; a
-    # ticker can specify a larger window when announcement timing is uncertain.
+    # before the next results. The freeze is counted in Tokyo cash-market
+    # sessions, not calendar days: a Monday release therefore locks on Friday.
     next_report = _d(snapshot.get("next_report_date"))
     freeze_days = int(snapshot.get("pre_earnings_freeze_days") or 1)
     if next_report is not None:
-        days_until = (next_report - today).days
-        if 0 <= days_until <= freeze_days:
+        lock_start = next_report
+        for _ in range(max(1, freeze_days)):
+            lock_start = previous_jpx_cash_session(lock_start)
+        if lock_start <= today <= next_report:
             missing.append("NEXT_EARNINGS_IMMINENT")
-        elif days_until < 0:
+        elif today > next_report:
             missing.append("NEXT_EARNINGS_ALREADY_DUE")
 
     if missing:

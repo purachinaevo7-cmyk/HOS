@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
 import daily_stock_check as legacy
@@ -80,6 +81,7 @@ def _public_decision_fingerprint(profile_revision: str = "") -> str:
     digest = hashlib.sha256()
     for path in (
         Path(__file__),
+        BASE_DIR / "manual_logic.py",
         BASE_DIR / "earnings_assessment.py",
         BASE_DIR / "household_runtime.py",
         BASE_DIR / "strategy_plan.py",
@@ -178,6 +180,15 @@ def _full_financial_assets_for_authority(snapshot: dict) -> float | None:
     return value if value > 0 else None
 
 
+def _strategy_has_registered_orders(strategy: Mapping[str, Any]) -> bool:
+    """Avoid advertising a review panel for an empty fail-closed placeholder."""
+    accounts = strategy.get("accounts", {}) if isinstance(strategy, Mapping) else {}
+    return any(
+        isinstance(account, Mapping) and isinstance(account.get("orders"), list) and account.get("orders")
+        for account in accounts.values()
+    ) if isinstance(accounts, Mapping) else False
+
+
 def _private_profile_runtime_notices(profile: dict, strategy: dict, *, manual_logic_available: bool = False) -> list[str]:
     """Return only non-financial, non-identifying migration notices for Discord."""
     import_state = str(profile.get("_runtime_private_strategy_import_state") or "")
@@ -185,7 +196,7 @@ def _private_profile_runtime_notices(profile: dict, strategy: dict, *, manual_lo
         return ["⚠️ HOS側：登録戦略Secretの形式不備のため、購入判定を安全停止中"]
     if import_state == "ACCOUNT_BINDING_REQUIRED":
         if manual_logic_available:
-            return ["ℹ️ HOS側：口座別の発注安全判定は保留。銘柄ロジックを手動判断用に表示中"]
+            return ["ℹ️ HOS側：口座別の発注安全判定は保留。総合買い判断を手動確認用に表示中"]
         return ["⚠️ HOS側：登録戦略SecretとPrivate Profileの口座照合が必要なため、購入判定を安全停止中"]
     lock_reason = str(strategy.get("runtime_profile_lock_reason") or "")
     if lock_reason:
@@ -204,10 +215,16 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
     base_progress_lines = discord_report._progress_lines
     private_strategy = load_private_strategy(profile)
     manual_logic_strategy = load_private_manual_logic_strategy(profile)
+    # The overall investment review is always useful for a human.  When a
+    # strategy-only Secret cannot be account-bound, use its anonymised clone;
+    # otherwise use the normal registered strategy.  It remains display-only.
+    investment_review_strategy = manual_logic_strategy if _strategy_has_registered_orders(manual_logic_strategy) else (
+        private_strategy if _strategy_has_registered_orders(private_strategy) else {}
+    )
     runtime_notices = _private_profile_runtime_notices(
         profile,
         private_strategy,
-        manual_logic_available=bool(manual_logic_strategy),
+        manual_logic_available=bool(investment_review_strategy),
     )
     private_strategy, reconciliation_audit = reconcile_private_holdings(profile, private_strategy)
     private_strategy["execution_reconciliation_audit"] = [finding.to_dict() for finding in reconciliation_audit]
@@ -215,7 +232,12 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
         ticker: verdict.decision
         for ticker, verdict in evaluate_private_replacement_book(profile, load_replacement_policy(REPLACEMENT_POLICY_PATH)).items()
     }
-    earnings_book, _ = ingest_official_ir_sources(profile, load_private_earnings_book(profile))
+    earnings_book, runtime_earnings_ir_audit = ingest_official_ir_sources(profile, load_private_earnings_book(profile))
+    ir_status_by_ticker = {
+        str(getattr(item, "ticker", "")): str(getattr(item, "status", ""))
+        for item in runtime_earnings_ir_audit
+        if str(getattr(item, "ticker", ""))
+    }
     account_labels = private_account_labels(profile)
 
     def load_private_strategy_only(_path):
@@ -225,7 +247,7 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
     def strategy_watchlist_with_private(strategy):
         return v3.merge_watchlists(
             base_strategy_watchlist(strategy),
-            base_strategy_watchlist(manual_logic_strategy),
+            base_strategy_watchlist(investment_review_strategy),
             private_jp_watchlist(profile),
         )
 
@@ -248,13 +270,17 @@ def _install_household_runtime(profile: dict, dividends, simulation, earnings_ir
     def render_with_private_context(universe, policy, strategy, result, mode, data_dir):
         nonlocal latest_logic_candidates
         snapshot = publish_runtime_asset_snapshot(profile, result.prices)
-        if manual_logic_strategy:
-            assessed_logic_strategy = apply_earnings_assessments(manual_logic_strategy, earnings_book)
+        if investment_review_strategy:
+            assessed_logic_strategy = apply_earnings_assessments(investment_review_strategy, earnings_book)
             latest_logic_candidates = evaluate_manual_logic_candidates(
                 assessed_logic_strategy,
                 result.prices,
                 financial_assets_jpy=_full_financial_assets_for_authority(snapshot),
                 holdings=profile.get("holdings", []) if isinstance(profile, dict) else [],
+                investment_reviews=profile.get("investment_reviews", {}) if isinstance(profile, dict) else {},
+                dividend_forecasts=profile.get("dividend_forecasts", {}) if isinstance(profile, dict) else {},
+                earnings_book=earnings_book,
+                ir_audit_status=ir_status_by_ticker,
             )
         else:
             latest_logic_candidates = []
@@ -409,4 +435,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

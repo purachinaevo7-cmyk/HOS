@@ -69,6 +69,33 @@ def test_duplicate_fingerprint_changes_only_for_declared_nonfinancial_revision()
     assert "revision-a" not in first
 
 
+def test_manual_logic_code_is_included_in_public_decision_fingerprint(monkeypatch, tmp_path):
+    """A same-day logic correction must not be skipped by the duplicate guard."""
+    runner = tmp_path / "stock_watch_runner.py"
+    runner.write_text("runner", encoding="utf-8")
+    for filename in (
+        "manual_logic.py",
+        "earnings_assessment.py",
+        "household_runtime.py",
+        "strategy_plan.py",
+        "discord_report.py",
+        "portfolio_policy.json",
+        "strategy_template.json",
+    ):
+        (tmp_path / filename).write_text(filename, encoding="utf-8")
+    monkeypatch.setattr(stock_watch_runner, "__file__", str(runner))
+    monkeypatch.setattr(stock_watch_runner, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(stock_watch_runner, "ROOT_DIR", tmp_path)
+    monkeypatch.setattr(stock_watch_runner, "PUBLIC_POLICY_PATH", tmp_path / "portfolio_policy.json")
+    monkeypatch.setattr(stock_watch_runner, "PUBLIC_STRATEGY_TEMPLATE_PATH", tmp_path / "strategy_template.json")
+
+    before = stock_watch_runner._public_decision_fingerprint("same-revision")
+    (tmp_path / "manual_logic.py").write_text("manual-logic-changed", encoding="utf-8")
+    after = stock_watch_runner._public_decision_fingerprint("same-revision")
+
+    assert before != after
+
+
 def test_workflow_uses_private_secrets_without_persisting_runtime_data():
     text = (ROOT / ".github" / "workflows" / "stock-watch-diagnostic.yml").read_text(encoding="utf-8")
     assert "HOS_PRIVATE_PROFILE_JSON: ${{ secrets.HOS_PRIVATE_PROFILE_JSON }}" in text

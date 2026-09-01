@@ -52,9 +52,39 @@ BLOCK_LABELS = {
     "EARNINGS_AUDIT_REQUIRED": "HOS決算監査待ち",
     "EARNINGS_NEUTRAL": "決算様子見",
     "EARNINGS_NEGATIVE": "決算悪化・購入停止",
+    "EARNINGS_EVENT_REVIEW_REQUIRED": "決算直前・新決算確認",
+    "EARNINGS_REVIEW_EXPIRED": "決算レビュー期限切れ",
+    "EARNINGS_NOT_CURRENTLY_AUDITED": "直近決算の自動評価未登録",
+    "OFFICIAL_IR_FETCH_WARNING": "公式IR取得を再確認",
+    "OFFICIAL_IR_SOURCE_REQUIRED": "公式IRソース未登録",
+    "INVESTMENT_REVIEW_NOT_REGISTERED": "将来性・割安度レビュー未登録",
+    "INVESTMENT_REVIEW_UNVERIFIED": "投資レビューの根拠未確認",
+    "INVESTMENT_REVIEW_DATE_MISSING": "投資レビュー日未設定",
+    "INVESTMENT_REVIEW_EVIDENCE_MISSING": "投資レビュー根拠未登録",
+    "INVESTMENT_REVIEW_VALIDITY_MISSING": "投資レビュー期限未設定",
+    "INVESTMENT_REVIEW_EXPIRED": "投資レビュー期限切れ",
+    "INVESTMENT_REVIEW_SCORE_MISSING": "総合レビュー点未入力",
+    "INVESTMENT_REVIEW_SCORE_INCOMPLETE": "総合レビューの一部未入力",
+    "INVESTMENT_REVIEW_INVALID": "総合レビュー値を再確認",
+    "INVESTMENT_REVIEW_SCORE_TOO_LOW": "総合レビューが基準未満",
+    "INVESTMENT_THESIS_BROKEN": "投資仮説の破綻",
+    "INVESTMENT_THESIS_STATUS_MISSING": "投資仮説の状態未入力",
+    "INVESTMENT_THESIS_REVIEW_REQUIRED": "投資仮説の再確認",
+    "VALUATION_STATUS_MISSING": "バリュエーション状態未入力",
+    "VALUATION_REVIEW_REQUIRED": "割高・バリュエーション再確認",
+    "BUSINESS_QUALITY_STATUS_MISSING": "事業品質の状態未入力",
+    "BUSINESS_QUALITY_REVIEW_REQUIRED": "事業品質の再確認",
+    "DIVIDEND_THESIS_BROKEN": "配当仮説の破綻",
+    "DIVIDEND_OUTLOOK_MISSING": "配当見通し未入力",
+    "DIVIDEND_DURABILITY_REVIEW_REQUIRED": "配当持続性の再確認",
+    "DIVIDEND_FORECAST_REVIEW_REQUIRED": "公式配当予想を確認",
+    "DIVIDEND_FORECAST_UNCONFIRMED": "公式配当予想未確認",
+    "ORDINARY_DIVIDEND_REVIEW_REQUIRED": "普通配当を再確認",
     "FIXED_LIMIT_REQUIRED": "固定指値未設定",
     "MANUAL_STEP_SHARES_REQUIRED": "Step株数未確定",
     "MULTIPLE_REGISTERED_PLANS": "同一銘柄の登録計画が複数",
+    "MULTIPLE_REGISTERED_STEPS": "複数登録Stepを合算評価",
+    "PLAN_CONFLICT": "登録戦略の整合性を確認",
     "PURCHASE_AUTHORITY_INVALID": "登録戦略Authority不備",
     "FY_DECISION_NOT_ACTIVE": "当年度購入計画外",
 }
@@ -150,13 +180,18 @@ def _strategy_summary(signals: list[Any], account_labels: Mapping[str, str], per
 
 
 LOGIC_STATUS_RANK = {
-    "LOGIC_PASS": 0,
-    "BLOCKED": 1,
-    "DAILY_LIMIT": 2,
+    "BUY_CONSIDER": 0,
+    "CONDITIONAL_CONSIDER": 1,
+    "REVIEW_REQUIRED": 2,
     "NEAR": 3,
-    "ABOVE_CEILING": 4,
-    "DATA_ERROR": 5,
-    "WAIT": 6,
+    "WAIT_PRICE": 4,
+    "ABOVE_CEILING": 5,
+    "PAUSE": 6,
+    "DATA_REQUIRED": 7,
+    # Backward-compatible rendering for an in-flight private runtime only.
+    "LOGIC_PASS": 0,
+    "BLOCKED": 6,
+    "DATA_ERROR": 7,
 }
 
 
@@ -179,45 +214,116 @@ def _logic_rows(candidates: Iterable[Any]) -> list[Any]:
     return list(unique.values())
 
 
-def _logic_summary(candidates: Iterable[Any], per_limit: int = 3) -> list[str]:
-    """Render a manual-review panel that can never be read as order approval."""
+def _logic_dimension_line(row: Any) -> str:
+    entry = {
+        "BUY_ZONE": "価格: 指値圏内",
+        "NEAR": "価格: 指値接近",
+        "WAIT_PRICE": "価格: 指値圏外",
+        "ABOVE_CEILING": "価格: 買付上限超過",
+        "DATA_REQUIRED": "価格: 要再取得",
+    }.get(str(getattr(row, "entry_status", "")), "価格: 要確認")
+    earnings = {
+        "POSITIVE": "決算: POSITIVE",
+        "NEUTRAL": "決算: 様子見",
+        "NEGATIVE": "決算: 悪化",
+        "EVENT_REVIEW": "決算: 発表前後",
+        "REVIEW_EXPIRED": "決算: レビュー期限切れ",
+        "AUDIT_REQUIRED": "決算: 明示的な確認待ち",
+        "UNREVIEWED": "決算: 自動評価未登録",
+    }.get(str(getattr(row, "earnings_state", "")), "決算: 要確認")
+    thesis = {
+        "VALIDATED": "将来性・割安度: 確認済み",
+        "REGISTERED_PLAN": "将来性・割安度: 登録戦略ベース",
+        "PARTIAL": "将来性・割安度: 再確認あり",
+    }.get(str(getattr(row, "thesis_state", "")), "将来性・割安度: 要確認")
+    return f"   {entry}｜{earnings}｜{thesis}"
+
+
+def _logic_portfolio_line(row: Any) -> str | None:
+    parts: list[str] = []
+    dividend_yield = getattr(row, "dividend_yield", None)
+    if dividend_yield is not None:
+        parts.append(f"普通配当利回り: {float(dividend_yield) * 100:.1f}%")
+    elif str(getattr(row, "dividend_state", "")) == "UNCONFIRMED":
+        parts.append("普通配当: 未確認")
+    weight = getattr(row, "projected_weight", None)
+    if weight is not None:
+        parts.append(f"購入後集中度: {float(weight) * 100:.1f}%")
+    score = getattr(row, "investment_score", None)
+    if score is not None:
+        parts.append(f"総合レビュー: {float(score):.0f}/100")
+    count = int(getattr(row, "planned_step_count", 1) or 1)
+    if count > 1:
+        combined = getattr(row, "combined_pending_shares", None)
+        parts.append(f"次Step: {count}件・合算 {combined}株" if combined is not None else f"次Step: {count}件・整合性確認")
+    return f"   {'｜'.join(parts)}" if parts else None
+
+
+def _logic_summary(candidates: Iterable[Any], per_limit: int = 4) -> list[str]:
+    """Render the human investment judgement without implying order approval."""
     relevant = _logic_rows(candidates)
-    passes = [row for row in relevant if getattr(row, "status", None) == "LOGIC_PASS"]
-    lines = ["【銘柄ロジック（手動判断用）】", f"🟢 通過 {len(passes)}件（HOSの発注可ではない）"]
-    if passes:
-        for row in passes[:per_limit]:
-            lines.append(
-                f"🟢 ロジック通過 {getattr(row, 'ticker', '')} {getattr(row, 'name', '')}｜"
-                f"{_money(getattr(row, 'current_price', None), getattr(row, 'currency', 'JPY'))} → "
-                f"指値{_money(getattr(row, 'limit_price', None), getattr(row, 'currency', 'JPY'))}｜{_shares(row)}"
-            )
-            warnings = _translated_blocks(getattr(row, "warnings", []) or [])
-            if warnings:
-                lines.append(f"   注意：{'・'.join(warnings[:2])}")
-    elif relevant:
+    counts = {status: sum(getattr(row, "status", None) == status for row in relevant) for status in LOGIC_STATUS_RANK}
+    lines = [
+        "【総合買い判断（手動確認用）】",
+        f"🟢 検討可 {counts['BUY_CONSIDER']}件｜🟡 条件付き {counts['CONDITIONAL_CONSIDER']}件｜要確認 {counts['REVIEW_REQUIRED']}件｜価格待ち {counts['NEAR'] + counts['WAIT_PRICE'] + counts['ABOVE_CEILING']}件｜停止 {counts['PAUSE']}件",
+    ]
+    if not relevant:
+        lines.append("該当する未完了の登録Stepなし")
+    else:
         labels = {
-            "BLOCKED": "🛑 ロジック停止",
-            "DAILY_LIMIT": "⏭️ 本日の候補上限",
-            "NEAR": "🟡 指値接近",
-            "ABOVE_CEILING": "⏸️ 上限超過",
-            "DATA_ERROR": "🚨 データ取得異常",
-            "WAIT": "・待機",
+            "BUY_CONSIDER": "🟢 買い検討可",
+            "CONDITIONAL_CONSIDER": "🟡 条件付き検討可",
+            "REVIEW_REQUIRED": "⚪ 要確認",
+            "NEAR": "🟡 価格接近",
+            "WAIT_PRICE": "⏳ 価格待ち",
+            "ABOVE_CEILING": "⏸️ 買付上限超過",
+            "PAUSE": "🛑 購入停止",
+            "DATA_REQUIRED": "🚨 データ確認",
+            "LOGIC_PASS": "🟢 買い検討可",
+            "BLOCKED": "🛑 購入停止",
+            "DATA_ERROR": "🚨 データ確認",
         }
         for row in relevant[:per_limit]:
             lines.append(
                 f"{labels.get(str(getattr(row, 'status', '')), '・確認')} "
                 f"{getattr(row, 'ticker', '')} {getattr(row, 'name', '')}｜"
                 f"{_money(getattr(row, 'current_price', None), getattr(row, 'currency', 'JPY'))} → "
-                f"指値{_money(getattr(row, 'limit_price', None), getattr(row, 'currency', 'JPY'))}"
+                f"指値{_money(getattr(row, 'limit_price', None), getattr(row, 'currency', 'JPY'))}｜{_shares(row)}"
             )
+            lines.append(_logic_dimension_line(row))
+            portfolio = _logic_portfolio_line(row)
+            if portfolio:
+                lines.append(portfolio)
             blocks = _translated_blocks(getattr(row, "blocks", []) or [])
+            warnings = _translated_blocks(getattr(row, "warnings", []) or [])
             if blocks:
-                lines.append(f"   停止理由：{'・'.join(blocks[:3])}")
-    else:
-        lines.append("該当する未完了の登録Stepなし")
+                heading = "購入停止理由" if str(getattr(row, "status", "")) == "PAUSE" else "確認事項"
+                lines.append(f"   {heading}：{'・'.join(blocks[:2])}")
+            if warnings:
+                lines.append(f"   手動確認：{'・'.join(warnings[:2])}")
+        if len(relevant) > per_limit:
+            overflow = relevant[per_limit:]
+            grouped: dict[str, list[str]] = defaultdict(list)
+            for row in overflow:
+                grouped[str(getattr(row, "status", ""))].append(str(getattr(row, "ticker", "")))
+            short_labels = {
+                "BUY_CONSIDER": "検討可",
+                "CONDITIONAL_CONSIDER": "条件付き",
+                "REVIEW_REQUIRED": "要確認",
+                "NEAR": "接近",
+                "WAIT_PRICE": "価格待ち",
+                "ABOVE_CEILING": "上限超過",
+                "PAUSE": "停止",
+                "DATA_REQUIRED": "データ確認",
+            }
+            compact = "｜".join(
+                f"{short_labels.get(status, '確認')} {len(tickers)}件（{','.join(tickers)}）"
+                for status, tickers in grouped.items()
+            )
+            lines.append(f"・ほか {len(overflow)}銘柄：{compact}")
     lines.extend([
-        "※ ロジック通過は発注許可ではありません。",
-        "※口座別買付余力・予算・現金防衛・約定照合は評価対象外。実際に買う前に各自で確認。",
+        "※ 検討可はHOSの発注可ではありません。",
+        "※実注文前に、固定指値・当日開示・買付余力・予算・現金防衛・前Step・1日1注文を各自で確認。",
     ])
     return lines
 
@@ -283,11 +389,11 @@ def render_discord_report(
     ready = len({(getattr(row, "account", None), getattr(row, "ticker", None)) for row in signal_list if getattr(row, "actionability", None) == "READY"})
     blocked = len({(getattr(row, "account", None), getattr(row, "ticker", None)) for row in signal_list if getattr(row, "status", None) in {"BLOCKED_AT_LIMIT", "BLOCKED_DAILY_ORDER_LIMIT"}})
     near = len({(getattr(row, "account", None), getattr(row, "ticker", None)) for row in signal_list if getattr(row, "status", None) == "NEAR"})
-    logic_ready = len({str(getattr(row, "ticker", "")) for row in logic_list if getattr(row, "status", None) == "LOGIC_PASS"})
+    logic_consider = len({str(getattr(row, "ticker", "")) for row in logic_list if getattr(row, "status", None) in {"BUY_CONSIDER", "CONDITIONAL_CONSIDER", "LOGIC_PASS"}})
     logic_tickers = {str(getattr(row, "ticker", "")) for row in logic_list if str(getattr(row, "ticker", ""))}
     account_summary = "｜".join(f"{labels.get(account, account)} {counts[account]}銘柄" for account in sorted(counts))
     if not account_summary:
-        account_summary = f"銘柄ロジック {len(logic_tickers)}銘柄（口座別発注安全判定は保留）" if logic_tickers else "設定なし"
+        account_summary = f"総合買い判断 {len(logic_tickers)}銘柄（口座別発注安全判定は保留）" if logic_tickers else "設定なし"
     lines = [f"📊 HOS株式監視｜{trade_date.strftime('%m/%d')}終値｜{mode_label}"]
     changes = list(changes or [])
     lines.append("【本日の変更】")
@@ -298,7 +404,7 @@ def render_discord_report(
         lines.append("判断変更なし")
     for notice in list(system_notices or [])[:2]:
         lines.append(str(notice))
-    lines.extend(["", f"発注可 {ready}件｜銘柄ロジック通過 {logic_ready}件｜購入停止 {blocked}件｜指値接近 {near}件", f"監視対象：{account_summary}", "※ HOSの「発注可」以外は発注禁止", ""])
+    lines.extend(["", f"発注可 {ready}件｜手動買い検討 {logic_consider}件｜購入停止 {blocked}件｜指値接近 {near}件", f"監視対象：{account_summary}", "※ HOSの「発注可」以外は発注禁止", ""])
     if logic_list:
         lines.extend(_logic_summary(logic_list) + [""])
     lines.extend(_strategy_summary(signal_list, labels))
@@ -312,4 +418,3 @@ def render_public_summary(*, trade_date: date, mode_label: str, delivery_confirm
     status = "Discord delivery confirmed" if delivery_confirmed else "Discord delivery failed"
     profile = "loaded" if private_profile_loaded else "missing; purchase authority remained fail-closed"
     return "\n".join(["## HOS Stock Watch", f"- Trade date: {trade_date.isoformat()}", f"- Mode: {mode_label}", f"- Private Profile: {profile}", f"- Notification: {status}", "- Household balances, targets, holdings, and order details are intentionally excluded from this summary."])
-

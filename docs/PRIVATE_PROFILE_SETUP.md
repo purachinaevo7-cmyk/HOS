@@ -44,13 +44,37 @@ one-order-per-day gates continue to apply. Keep this envelope in GitHub
 Actions Secrets only; never commit it, print it, or upload it as an artifact.
 
 When an otherwise valid strategy-only Secret cannot be safely bound to the
-Profile's account IDs, `PURCHASE_READY` remains closed. HOS can still show a
-separate private Discord panel named **銘柄ロジック（手動判断用）**: it checks
-the registered next step, fixed limit, official-IR POSITIVE assessment, fresh
-price, conditions, and a complete concentration denominator. It does not
-evaluate account buying power, household cash, budget, or execution
-reconciliation, and is explicitly not an order instruction or purchase
-approval. No account identifiers are shown in that panel.
+Profile's account IDs, `PURCHASE_READY` remains closed. HOS still shows a
+private Discord panel named **総合買い判断（手動確認用）**. It is a comparison
+tool, not an order instruction: it separates entry price, registered portfolio
+role, current earnings state, investment-case review, ordinary-dividend facts,
+and household concentration. The actual one-order-per-day limit is not used to
+hide other investment ideas from this comparison panel.
+
+An order that explicitly sets `earnings_wait: true` remains closed in the
+account-bound `PURCHASE_READY` path until its official-IR assessment passes.
+In this display-only panel, an unavailable routine assessment is instead shown
+as **条件付き検討可** with a visible decision check; it must not make a normal
+purchase window look like it opens only at half-yearly results. A known
+`NEGATIVE`, an actual pre/post-results event, a dividend cut, a broken
+investment thesis, stale prices, and hard concentration breaches still stop
+the manual consideration card.
+
+For a fully evidenced green `買い検討可` card, add private
+`investment_reviews.<ticker>` data. It must contain a verified source flag,
+review date, source URL or document ID, review validity date,
+thesis/valuation/quality/dividend statuses, and the five reviewed scores
+`cash_dividend_contribution`,
+`earnings_quality_and_growth`, `valuation_and_entry_margin`,
+`portfolio_diversification`, and `shareholder_return_durability`. HOS weights
+those scores by portfolio role. Missing review data is shown as **条件付き検討可**
+or an explicit manual check; it is never invented from price movement alone.
+
+This panel never evaluates account buying power, household cash, budget, or
+execution reconciliation, and it is explicitly not a purchase approval. No
+account identifiers are shown in the panel. Before a real manual order, confirm
+fixed limit, same-day disclosure, buying power, budget, cash protection,
+previous-step status, and the one-order-per-day rule.
 
 The profile contains goals, balances, holdings, buying power, strategy steps,
 completed execution state, and official-IR assessment snapshots. It must never
@@ -84,4 +108,3 @@ The repository previously contained private runtime/configuration data. Removing
 it from HEAD does not erase Git history. Rotate any credential that was tracked
 and perform a reviewed history rewrite with repository-owner approval if the
 repository's exposure requires it.
-

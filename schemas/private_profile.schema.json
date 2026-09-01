@@ -38,6 +38,27 @@
     "budgets": {"type": "object"},
     "progress": {"type": "object"},
     "dividend_forecasts": {"type": "object"},
+    "investment_reviews": {
+      "type": "object",
+      "description": "Private, reviewed investment-case facts keyed by ticker. Optional; missing facts remain visible as conditional rather than fabricated.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "source_verified": {"type": "boolean"},
+          "reviewed_on": {"type": "string", "format": "date"},
+          "source_url": {"type": "string", "format": "uri"},
+          "source_document_id": {"type": "string", "minLength": 1},
+          "source_id": {"type": "string", "minLength": 1},
+          "valid_until": {"type": "string", "format": "date"},
+          "investment_thesis_status": {"type": "string"},
+          "valuation_status": {"type": "string"},
+          "quality_status": {"type": "string"},
+          "dividend_outlook": {"type": "string"},
+          "minimum_score": {"type": "number", "minimum": 0, "maximum": 100},
+          "scores": {"type": "object"}
+        }
+      }
+    },
     "fx_rates": {"type": "object"},
     "earnings_ir_sources": {"type": ["object", "array"]},
     "strategy": {

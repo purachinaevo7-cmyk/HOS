@@ -82,6 +82,26 @@
       "source_type": "OFFICIAL_IR"
     }
   },
+  "investment_reviews": {
+    "0000": {
+      "source_verified": false,
+      "reviewed_on": "2026-01-01",
+      "source_url": "https://example.invalid/investment-review",
+      "valid_until": "2026-12-31",
+      "investment_thesis_status": "VALID",
+      "valuation_status": "FAIR",
+      "quality_status": "STABLE",
+      "dividend_outlook": "STABLE",
+      "minimum_score": 55,
+      "scores": {
+        "cash_dividend_contribution": 70,
+        "earnings_quality_and_growth": 70,
+        "valuation_and_entry_margin": 70,
+        "portfolio_diversification": 70,
+        "shareholder_return_durability": 70
+      }
+    }
+  },
   "strategy": {
     "strategy_id": "EXAMPLE_PRIVATE_STRATEGY",
     "status": "DRAFT",

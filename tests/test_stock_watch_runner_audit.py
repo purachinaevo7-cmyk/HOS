@@ -96,7 +96,7 @@ def test_unbound_strategy_notice_keeps_order_safety_but_announces_manual_logic_p
         {},
         manual_logic_available=True,
     )
-    assert notice == ["ℹ️ HOS側：口座別の発注安全判定は保留。銘柄ロジックを手動判断用に表示中"]
+    assert notice == ["ℹ️ HOS側：口座別の発注安全判定は保留。総合買い判断を手動確認用に表示中"]
     assert "member_" not in "".join(notice)
 
 
@@ -111,4 +111,3 @@ def test_partial_asset_snapshot_never_clears_concentration_authority_gate():
         "confirmed_partial_jpy": 1_000_000,
         "current_financial_assets_jpy": 1_000_000,
     }) == 1_000_000
-

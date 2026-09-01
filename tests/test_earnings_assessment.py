@@ -64,6 +64,16 @@ def test_pre_earnings_freeze_relocks_healthy_old_review():
     assert "NEXT_EARNINGS_IMMINENT" in due.reasons
 
 
+def test_pre_earnings_freeze_uses_previous_jpx_session_not_calendar_day():
+    # A Monday announcement must close the Friday manual/authority window.
+    snapshot = good_snapshot(next_report_date="2026-08-31", pre_earnings_freeze_days=1)
+    thursday = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 27))
+    friday = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 28))
+    assert thursday.state == POSITIVE
+    assert friday.state == NEEDS_DATA
+    assert "NEXT_EARNINGS_IMMINENT" in friday.reasons
+
+
 def test_old_review_stays_locked_after_next_report_is_due():
     snapshot = good_snapshot(next_report_date="2026-08-26")
     result = assess_snapshot("TEST", snapshot, as_of=date(2026, 8, 27))
