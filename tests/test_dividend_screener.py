@@ -144,6 +144,49 @@ def test_runner_dry_run_persists_only_public_snapshot(tmp_path, monkeypatch):
     assert "price" not in snapshot["entries"]["1111"]
 
 
+def test_runner_retries_transient_market_failure_before_delivery(tmp_path, monkeypatch):
+    incomplete = DividendScreenResult(
+        AS_OF,
+        False,
+        (),
+        (),
+        (ScreeningIssue("1111", "PRICE_DATA_REQUIRED"),),
+    )
+    complete = screen_dividend_universe(
+        {"history_years": 10, "universe": [candidate()]},
+        trade_date=AS_OF,
+        provider=StaticProvider(),
+    )
+    results = iter((incomplete, complete))
+    calls = []
+    monkeypatch.setattr(runner, "load_screening_config", lambda _path: {"history_years": 10, "universe": [candidate()]})
+    monkeypatch.setattr(runner, "screen_dividend_universe", lambda *_args, **_kwargs: calls.append(1) or next(results))
+    monkeypatch.setattr(runner, "latest_finished_jpx_cash_session", lambda _now: AS_OF)
+    monkeypatch.setattr(runner, "is_jpx_cash_session", lambda _day: True)
+    monkeypatch.setattr(runner.time, "sleep", lambda _seconds: None)
+
+    assert runner.run(state_path=tmp_path / "state.json", dry_run=True) == 0
+    assert len(calls) == 2
+
+
+def test_runner_does_not_retry_permanent_official_ir_failure(tmp_path, monkeypatch):
+    incomplete = DividendScreenResult(
+        AS_OF,
+        False,
+        (),
+        (),
+        (ScreeningIssue("1111", "OFFICIAL_IR_STALE"),),
+    )
+    calls = []
+    monkeypatch.setattr(runner, "load_screening_config", lambda _path: {"history_years": 10, "universe": [candidate()]})
+    monkeypatch.setattr(runner, "screen_dividend_universe", lambda *_args, **_kwargs: calls.append(1) or incomplete)
+    monkeypatch.setattr(runner, "latest_finished_jpx_cash_session", lambda _now: AS_OF)
+    monkeypatch.setattr(runner, "is_jpx_cash_session", lambda _day: True)
+
+    assert runner.run(state_path=tmp_path / "state.json", dry_run=True) == 2
+    assert len(calls) == 1
+
+
 def test_discord_notifier_can_use_a_separate_webhook_secret(monkeypatch):
     monkeypatch.setenv("DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL", "https://discord.example/webhook")
 
@@ -151,3 +194,4 @@ def test_discord_notifier_can_use_a_separate_webhook_secret(monkeypatch):
 
     assert notifier.webhook_url == "https://discord.example/webhook"
     assert notifier.env_var == "DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL"
+

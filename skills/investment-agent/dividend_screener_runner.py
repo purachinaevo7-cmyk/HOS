@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import time
 from zoneinfo import ZoneInfo
 
 from dividend_screener import (
@@ -26,9 +27,33 @@ ROOT_DIR = BASE_DIR.parents[1]
 DEFAULT_CONFIG_PATH = BASE_DIR / "config" / "dividend_screener_universe.json"
 DEFAULT_STATE_PATH = ROOT_DIR / "runs" / "dividend-screener" / "state.json"
 WEBHOOK_ENV = "DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL"
+MARKET_DATA_ATTEMPTS = 3
+MARKET_DATA_RETRY_SECONDS = 5
+_PERMANENT_ISSUES = {"CONFIGURATION_REQUIRED", "OFFICIAL_IR_STALE"}
 
 
-def _write_safe_summary(*, trade_date, result, delivered: bool, dry_run: bool) -> None:
+def _screen_with_retries(config, *, trade_date, market_closed: bool):
+    """Retry only public-market acquisition before any Discord delivery.
+
+    Configuration and official-IR freshness failures remain fail-closed and are
+    never retried.  Keeping retries ahead of rendering/delivery prevents a
+    partially delivered Discord report from being sent twice.
+    """
+    result = None
+    attempts_used = 0
+    for attempt in range(1, MARKET_DATA_ATTEMPTS + 1):
+        attempts_used = attempt
+        result = screen_dividend_universe(config, trade_date=trade_date, market_closed=market_closed)
+        if result.is_complete:
+            break
+        if not result.issues or any(issue.reason in _PERMANENT_ISSUES for issue in result.issues):
+            break
+        if attempt < MARKET_DATA_ATTEMPTS:
+            time.sleep(MARKET_DATA_RETRY_SECONDS * attempt)
+    return result, attempts_used
+
+
+def _write_safe_summary(*, trade_date, result, delivered: bool, dry_run: bool, attempts_used: int) -> None:
     summary_path = os.getenv("GITHUB_STEP_SUMMARY", "").strip()
     if not summary_path:
         return
@@ -42,6 +67,7 @@ def _write_safe_summary(*, trade_date, result, delivered: bool, dry_run: bool) -
             f"- Candidate count: {len(result.entries)}",
             f"- Special-dividend exclusions: {len(result.excluded)}",
             f"- Data issues: {len(result.issues)}",
+            f"- Market-data attempts: {attempts_used}",
             f"- Discord delivery: {delivery}",
             "- This job uses public market and official-IR registry data only; it cannot place orders.",
         ]) + "\n",
@@ -58,7 +84,7 @@ def run(*, config_path: Path = DEFAULT_CONFIG_PATH, state_path: Path = DEFAULT_S
     trade_date = latest_finished_jpx_cash_session(now_jst)
     market_closed = not is_jpx_cash_session(now_jst.date())
     config = load_screening_config(config_path)
-    result = screen_dividend_universe(config, trade_date=trade_date, market_closed=market_closed)
+    result, attempts_used = _screen_with_retries(config, trade_date=trade_date, market_closed=market_closed)
     previous = load_snapshot(state_path)
     snapshot = build_snapshot(result)
     changes = diff_snapshots(previous, snapshot)
@@ -76,7 +102,13 @@ def run(*, config_path: Path = DEFAULT_CONFIG_PATH, state_path: Path = DEFAULT_S
             delivered = False
     if result.is_complete and delivered:
         write_snapshot(state_path, snapshot)
-    _write_safe_summary(trade_date=trade_date, result=result, delivered=delivered, dry_run=dry_run)
+    _write_safe_summary(
+        trade_date=trade_date,
+        result=result,
+        delivered=delivered,
+        dry_run=dry_run,
+        attempts_used=attempts_used,
+    )
     heartbeat = {
         "job": "japan-dividend-screener",
         "trade_date": trade_date.isoformat(),
@@ -85,6 +117,7 @@ def run(*, config_path: Path = DEFAULT_CONFIG_PATH, state_path: Path = DEFAULT_S
         "candidate_count": len(result.entries),
         "special_dividend_exclusions": len(result.excluded),
         "data_issue_count": len(result.issues),
+        "market_data_attempts": attempts_used,
         "discord_delivery_confirmed": delivered and not dry_run,
         "dry_run": dry_run,
     }
@@ -105,3 +138,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
