@@ -15,4 +15,8 @@ def test_dividend_screener_has_its_own_scheduled_public_data_job():
     assert "dividend_screener_runner.py" in text
     assert "actions/cache/restore@v4" in text
     assert "actions/cache/save@v4" in text
+    assert "push:" in text
+    assert "github.event_name }}\" = 'schedule'" in text
+    assert "dry_run='true'" in text
     assert "git add" not in text
+

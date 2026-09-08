@@ -1,6 +1,15 @@
 name: Japan Dividend Screener
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dividend-screener.yml'
+      - 'skills/investment-agent/dividend_screener.py'
+      - 'skills/investment-agent/dividend_screener_runner.py'
+      - 'skills/investment-agent/config/dividend_screener_universe.json'
+      - 'tests/test_dividend_screener.py'
+      - 'tests/test_dividend_screener_workflow.py'
   schedule:
     # 18:30 JST on weekdays.  JPX holidays are handled in the runner.
     - cron: '30 9 * * 1-5'
@@ -44,8 +53,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             dry_run='${{ inputs.dry_run }}'
-          else
+          elif [ "${{ github.event_name }}" = 'schedule' ]; then
             dry_run='false'
+          else
+            # Code/config pushes validate production acquisition without
+            # publishing an extra Discord report.
+            dry_run='true'
           fi
           echo "dry_run=$dry_run" >> "$GITHUB_OUTPUT"
 
@@ -88,3 +101,4 @@ jobs:
         with:
           path: runs/dividend-screener/state.json
           key: dividend-screener-state-${{ github.run_id }}
+
