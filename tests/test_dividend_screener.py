@@ -1,8 +1,12 @@
 from datetime import date
+from io import BytesIO
+import json
 from pathlib import Path
 import sys
+from urllib.error import HTTPError
 
 import pandas as pd
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -194,4 +198,84 @@ def test_discord_notifier_can_use_a_separate_webhook_secret(monkeypatch):
 
     assert notifier.webhook_url == "https://discord.example/webhook"
     assert notifier.env_var == "DIVIDEND_SCREENER_DISCORD_WEBHOOK_URL"
+
+
+def test_discord_rate_limit_retries_only_the_rejected_message(monkeypatch):
+    delivered, calls, waits = [], [], []
+
+    class RateLimitedNotifier:
+        def notify(self, message):
+            calls.append(message)
+            if message == "second" and calls.count(message) == 1:
+                raise HTTPError("https://discord.example/private", 429, "limited", {}, BytesIO(b'{"retry_after": 2.5}'))
+            delivered.append(message)
+
+    monkeypatch.setattr(runner.time, "sleep", waits.append)
+    notifier = RateLimitedNotifier()
+    for message in ("first", "second", "third"):
+        runner._notify_with_rate_limit_retries(notifier, message)
+
+    assert delivered == ["first", "second", "third"]
+    assert calls == ["first", "second", "second", "third"]
+    assert waits == [2.5]
+
+
+def test_discord_rate_limit_retries_are_bounded(monkeypatch):
+    calls, waits = [], []
+
+    class AlwaysLimited:
+        def notify(self, message):
+            calls.append(message)
+            raise HTTPError("https://discord.example/private", 429, "limited", {"Retry-After": "nan"}, BytesIO())
+
+    monkeypatch.setattr(runner.time, "sleep", waits.append)
+    with pytest.raises(HTTPError):
+        runner._notify_with_rate_limit_retries(AlwaysLimited(), "report")
+    assert len(calls) == 3
+    assert waits == [5.0, 5.0]
+
+
+@pytest.mark.parametrize("error", [TimeoutError("private URL"), HTTPError("private URL", 503, "private body", {}, BytesIO())])
+def test_discord_does_not_retry_possibly_delivered_requests(monkeypatch, error):
+    calls = []
+
+    class FailedNotifier:
+        def notify(self, message):
+            calls.append(message)
+            raise error
+
+    monkeypatch.setattr(runner.time, "sleep", lambda _: pytest.fail("unexpected retry"))
+    with pytest.raises(type(error)):
+        runner._notify_with_rate_limit_retries(FailedNotifier(), "report")
+    assert calls == ["report"]
+
+
+def test_failed_delivery_keeps_state_and_publishes_only_safe_diagnostics(tmp_path, monkeypatch):
+    result = DividendScreenResult(AS_OF, False, (), (), (
+        ScreeningIssue("1111", "PRICE_DATE_MISMATCH"),
+        ScreeningIssue("2222", "https://provider.example/private-token", "private body"),
+    ))
+    state_path, status_path, summary_path = (tmp_path / name for name in ("state.json", "status.json", "summary.md"))
+    state_path.write_text('{"entries": {"1111": {"rank": 1}}}', encoding="utf-8")
+    original_state = state_path.read_bytes()
+
+    class FailedNotifier:
+        def notify(self, message):
+            raise HTTPError("https://discord.example/private-token", 403, "private body", {}, BytesIO())
+
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary_path))
+    monkeypatch.setattr(runner, "load_screening_config", lambda _: {})
+    monkeypatch.setattr(runner, "_screen_with_retries", lambda *args, **kwargs: (result, 3))
+    monkeypatch.setattr(runner, "latest_finished_jpx_cash_session", lambda _: AS_OF)
+    monkeypatch.setattr(runner, "is_jpx_cash_session", lambda _: True)
+    monkeypatch.setattr(runner, "DiscordNotifier", lambda **kwargs: FailedNotifier())
+
+    assert runner.run(state_path=state_path, status_path=status_path) == 1
+    assert state_path.read_bytes() == original_state
+    status = json.loads(status_path.read_text())
+    assert status["discord_failure_reason"] == "HTTP_403"
+    assert status["data_issue_reasons"] == {"PRICE_DATE_MISMATCH": 1, "MARKET_DATA_REQUIRED": 1}
+    diagnostics = status_path.read_text() + summary_path.read_text()
+    assert "private" not in diagnostics
+    assert "https://" not in diagnostics
 
