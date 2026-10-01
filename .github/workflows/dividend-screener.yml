@@ -79,11 +79,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p runs/dividend-screener logs
-          args=(--state-path runs/dividend-screener/state.json)
+          args=(--state-path runs/dividend-screener/state.json --status-path runs/dividend-screener/status.json)
           if [ '${{ steps.mode.outputs.dry_run }}' = 'true' ]; then args+=(--dry-run); fi
-          if ! python skills/investment-agent/dividend_screener_runner.py "${args[@]}" > logs/dividend-screener.log 2>&1; then
-            echo '::error::Dividend screener failed. The workflow intentionally withholds runtime output from public logs.'
-            exit 1
+          exit_code=0
+          python skills/investment-agent/dividend_screener_runner.py "${args[@]}" > logs/dividend-screener.log 2>&1 || exit_code=$?
+          if [ -f runs/dividend-screener/status.json ]; then
+            cat runs/dividend-screener/status.json
+          fi
+          if [ "$exit_code" -ne 0 ]; then
+            echo '::error::Dividend screener failed. See the safe status and job summary for data/delivery failure reasons. Raw runtime output is withheld.'
+            exit "$exit_code"
           fi
 
       - name: Publish safe heartbeat

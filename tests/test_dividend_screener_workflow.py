@@ -19,4 +19,8 @@ def test_dividend_screener_has_its_own_scheduled_public_data_job():
     assert "github.event_name }}\" = 'schedule'" in text
     assert "dry_run='true'" in text
     assert "git add" not in text
+    assert "--status-path runs/dividend-screener/status.json" in text
+    assert "cat runs/dividend-screener/status.json" in text
+    assert 'exit "$exit_code"' in text
+    assert "cat logs/dividend-screener.log" not in text
 
